@@ -1,0 +1,46 @@
+target/
+!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+### IDE ###
+.idea/
+*.iws
+*.iml
+*.ipr
+.vscode/
+.settings/
+.project
+.classpath
+bin/
+out/
+
+### Secrets and local overrides ###
+.env
+.env.local
+*.pem
+*.p12
+*.jks
+application-local-secrets.yml
+src/main/resources/application-secrets.yml
+
+### Build and logs ###
+*.log
+logs/
+*.jfr
+hs_err_pid*
+replay_pid*
+
+### OS ###
+.DS_Store
+Thumbs.db
+desktop.ini
+
+### Generated ###
+src/main/generated/
+target/generated-sources/
+target/spring-modulith-docs/
+
+### local run logs ###
+boot*.log
+boot*.err

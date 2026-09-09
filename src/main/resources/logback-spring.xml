@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Human-readable logs locally, structured JSON everywhere else.
+
+  The JSON encoder is not decoration: "p95 per endpoint per tenant" is only
+  answerable if traceId, tenantId and userId are fields Loki can filter on rather
+  than words inside a message string. TenantContextFilter puts them in the MDC;
+  this carries them through.
+-->
+<configuration>
+  <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+
+  <springProperty scope="context" name="appName" source="spring.application.name"/>
+
+  <springProfile name="local,test">
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+      <encoder>
+        <pattern>%d{HH:mm:ss.SSS} %highlight(%-5level) %cyan(%logger{28}) %X{tenantId:-—} : %msg%n%wEx</pattern>
+      </encoder>
+    </appender>
+    <root level="INFO">
+      <appender-ref ref="CONSOLE"/>
+    </root>
+  </springProfile>
+
+  <springProfile name="dev,staging,prod">
+    <appender name="JSON" class="ch.qos.logback.core.ConsoleAppender">
+      <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+        <includeMdcKeyName>traceId</includeMdcKeyName>
+        <includeMdcKeyName>spanId</includeMdcKeyName>
+        <includeMdcKeyName>tenantId</includeMdcKeyName>
+        <includeMdcKeyName>userId</includeMdcKeyName>
+        <customFields>{"application":"${appName}"}</customFields>
+        <fieldNames>
+          <timestamp>ts</timestamp>
+          <message>msg</message>
+          <levelValue>[ignore]</levelValue>
+        </fieldNames>
+        <!-- A full stack trace per line drowns the index; the top frames are
+             what identifies the fault. Sentry keeps the whole thing. -->
+        <throwableConverter class="net.logstash.logback.stacktrace.ShortenedThrowableConverter">
+          <maxDepthPerThrowable>30</maxDepthPerThrowable>
+          <maxLength>4096</maxLength>
+          <shortenedClassNameLength>40</shortenedClassNameLength>
+          <rootCauseFirst>true</rootCauseFirst>
+        </throwableConverter>
+      </encoder>
+    </appender>
+    <root level="INFO">
+      <appender-ref ref="JSON"/>
+    </root>
+  </springProfile>
+</configuration>

@@ -1,0 +1,226 @@
+
+# ============================================================================
+#  Aatlas API - base configuration
+#
+#  Profiles:
+#    local  (default) laptop: local PostgreSQL, in-process cache, no broker
+#    dev              shared dev cluster
+#    prod             Redis, Kafka, read replicas, PgBouncer, OTLP
+#
+#  Every value here can be overridden by an environment variable using Spring's
+#  relaxed binding: aatlas.jwt.access-token-ttl -> AATLAS_JWT_ACCESSTOKENTTL
+# ============================================================================
+
+spring:
+  application:
+    name: aatlas-api
+  profiles:
+    default: local
+
+  # Java 21 virtual threads: blocking JDBC stays simple, concurrency stays cheap.
+  threads:
+    virtual:
+      enabled: true
+
+  main:
+    banner-mode: console
+
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/aatlas}
+    username: ${DB_USER:aatlas}
+    password: ${DB_PASSWORD:aatlas}
+    hikari:
+      pool-name: aatlas-pool
+      # Small on purpose. Six pods x 30 would exhaust the primary; PgBouncer in
+      # transaction mode sits in front in production and multiplexes these.
+      maximum-pool-size: ${DB_POOL_MAX:20}
+      minimum-idle: ${DB_POOL_MIN:5}
+      connection-timeout: 10000
+      idle-timeout: 300000
+      max-lifetime: 1200000
+      leak-detection-threshold: 30000
+
+  jpa:
+    open-in-view: false          # never hold a connection open for view rendering
+    hibernate:
+      ddl-auto: validate         # Flyway owns the schema; Hibernate only checks it
+    properties:
+      hibernate:
+        jdbc:
+          batch_size: 50
+          time_zone: UTC
+        order_inserts: true
+        order_updates: true
+        query:
+          in_clause_parameter_padding: true
+          fail_on_pagination_over_collection_fetch: true
+        # Fail loudly in tests rather than shipping an N+1 to production.
+        default_batch_fetch_size: 50
+
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    validate-on-migrate: true
+    locations: classpath:db/migration
+    placeholders:
+      appUser: ${DB_USER:aatlas}
+
+  jooq:
+    sql-dialect: postgres
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      timeout: 2s
+      client-name: aatlas-api
+
+  batch:
+    jdbc:
+      initialize-schema: never   # the batch tables live in a Flyway migration
+    job:
+      enabled: false             # jobs are launched by events and schedules, not on boot
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BROKERS:localhost:9092}
+    producer:
+      acks: all
+      properties:
+        enable.idempotence: true
+    consumer:
+      group-id: aatlas-engine
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+
+  mail:
+    host: ${SMTP_HOST:localhost}
+    port: ${SMTP_PORT:1025}
+
+  servlet:
+    multipart:
+      # CSV imports stream to object storage; this is the guard, not the design.
+      max-file-size: 200MB
+      max-request-size: 200MB
+
+  jackson:
+    default-property-inclusion: non_null
+
+  modulith:
+    events:
+      jdbc:
+        schema-initialization:
+          enabled: false         # event_publication lives in a Flyway migration
+      republish-outstanding-events-on-restart: true
+
+server:
+  port: ${PORT:8080}
+  shutdown: graceful
+  compression:
+    enabled: true
+    mime-types: application/json,application/problem+json,text/plain
+    min-response-size: 1024
+  http2:
+    enabled: true
+  error:
+    whitelabel:
+      enabled: false
+  servlet:
+    context-path: /
+  tomcat:
+    max-http-form-post-size: 2MB
+    threads:
+      max: 200
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus,modulith,caches,scheduledtasks
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true
+  metrics:
+    tags:
+      application: aatlas-api
+    distribution:
+      # p95 per endpoint per tenant is the number that catches slowness before users do.
+      percentiles-histogram:
+        http.server.requests: true
+      percentiles:
+        http.server.requests: 0.5,0.95,0.99
+      slo:
+        http.server.requests: 50ms,120ms,150ms,250ms,400ms
+  tracing:
+    sampling:
+      probability: ${TRACE_SAMPLE_RATE:0.1}
+  info:
+    env:
+      enabled: true
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+    version: openapi_3_1
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+    tags-sorter: alpha
+    display-request-duration: true
+  default-produces-media-type: application/json
+
+# ============================================================================
+#  Application settings
+# ============================================================================
+aatlas:
+  # api | engine-worker | ingest-worker. One artifact, three jobs.
+  role: ${AATLAS_ROLE:api}
+
+  jwt:
+    issuer: ${JWT_ISSUER:https://api.aatlas.io}
+    # Short access tokens, long refresh tokens rotated on every use.
+    access-token-ttl: PT15M
+    refresh-token-ttl: P30D
+    private-key-pem: ${JWT_PRIVATE_KEY:}
+    public-key-pem: ${JWT_PUBLIC_KEY:}
+
+  cors:
+    allowed-origins:
+      - http://localhost:3000
+      - http://127.0.0.1:3000
+
+  clock:
+    # The prototype freezes now at 1 Sep 2026. Production runs on the real clock;
+    # only demo tenants stay frozen.
+    fixed: ${CLOCK_FIXED:false}
+    fixed-at: 2026-09-01T12:00:00Z
+    zone: UTC
+
+  cache:
+    mode: ${CACHE_MODE:caffeine}   # caffeine | redis
+
+  snapshots:
+    # A controller never runs an item-by-store walk inline. On a miss it returns 202
+    # with a job id and a worker fills the snapshot.
+    compute-on-miss: false
+    stale-after: PT6H
+
+  storage:
+    bucket: ${S3_BUCKET:aatlas-local}
+    region: ${AWS_REGION:us-east-1}
+    endpoint: ${S3_ENDPOINT:}
+    path-style-access: true
+
+  rls:
+    # Turned on once the migrations that create the policies have run.
+    enabled: ${RLS_ENABLED:false}
+    session-variable: app.tenant_id
+
+logging:
+  level:
+    root: INFO
+    com.aatlas: ${LOG_LEVEL:DEBUG}
+    org.springframework.modulith: INFO
+    org.hibernate.SQL: ${SQL_LOG_LEVEL:INFO}
+    org.hibernate.orm.jdbc.bind: WARN

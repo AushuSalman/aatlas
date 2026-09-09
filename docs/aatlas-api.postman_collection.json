@@ -1,0 +1,284 @@
+{
+  "info": {
+    "name": "Aatlas API — Auth",
+    "description": "Signup for the Aatlas platform. Local defaults target http://localhost:8080.\n\nThe happy-path request stores accessToken, refreshToken and tenant/user ids into collection variables, so later requests can use {{accessToken}} without copying anything by hand.\n\nEach email is randomised at send time, because the address is globally unique — a fixed one would 409 on the second run.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080" },
+    { "key": "password", "value": "Zephyr!42Bridge" },
+    { "key": "accessToken", "value": "" },
+    { "key": "refreshToken", "value": "" },
+    { "key": "userId", "value": "" },
+    { "key": "takenEmail", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Signup — US / Commercial director (happy path)",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// Email is globally unique, so a fixed value would 409 on a second run.",
+              "pm.collectionVariables.set('runEmail', 'alex-' + Date.now() + '@kestrelsupply.com');"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('201 Created', () => pm.response.to.have.status(201));",
+              "pm.test('Location header points at the new user', () =>",
+              "  pm.expect(pm.response.headers.get('Location')).to.match(/^\\/api\\/v1\\/users\\//));",
+              "",
+              "const body = pm.response.json();",
+              "",
+              "pm.test('tokens are present', () => {",
+              "  pm.expect(body.accessToken).to.be.a('string').and.not.empty;",
+              "  pm.expect(body.refreshToken).to.be.a('string').and.not.empty;",
+              "  pm.expect(body.tokenType).to.eql('Bearer');",
+              "  pm.expect(body.expiresIn).to.eql(900);",
+              "});",
+              "",
+              "pm.test('session matches the frontend Session shape', () => {",
+              "  pm.expect(body.session.company).to.eql('Kestrel Supply Co.');",
+              "  pm.expect(body.session.country).to.eql('US');",
+              "  pm.expect(body.session.currency).to.eql('USD');",
+              "  pm.expect(body.session.isNewAccount).to.be.true;",
+              "  pm.expect(body.session.user.title).to.eql('Commercial director');",
+              "  pm.expect(body.session.user.initials).to.eql('AM');",
+              "});",
+              "",
+              "pm.test('a new tenant has no data source, which routes to onboarding', () =>",
+              "  pm.expect(body.session.dataSource == null).to.be.true);",
+              "",
+              "pm.test('the password is never echoed back', () =>",
+              "  pm.expect(pm.response.text()).to.not.include(pm.collectionVariables.get('password')));",
+              "",
+              "pm.test('the id is a time-ordered UUID v7', () =>",
+              "  pm.expect(body.session.user.id.charAt(14)).to.eql('7'));",
+              "",
+              "// Hand the credentials to the rest of the collection.",
+              "pm.collectionVariables.set('accessToken', body.accessToken);",
+              "pm.collectionVariables.set('refreshToken', body.refreshToken);",
+              "pm.collectionVariables.set('userId', body.session.user.id);",
+              "pm.collectionVariables.set('takenEmail', body.session.user.email);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": { "raw": "{{baseUrl}}/api/v1/auth/signup", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "signup"] },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"fullName\": \"Alex Moreno\",\n  \"email\": \"{{runEmail}}\",\n  \"password\": \"{{password}}\",\n  \"company\": \"Kestrel Supply Co.\",\n  \"country\": \"US\",\n  \"role\": \"both\"\n}"
+        },
+        "description": "Creates the tenant, its first user and a signed-in session in one transaction."
+      }
+    },
+    {
+      "name": "Signup — UK / blank company (currency + default)",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": ["pm.collectionVariables.set('runEmail', 'harriet-' + Date.now() + '@haldenmetals.co.uk');"]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('201 Created', () => pm.response.to.have.status(201));",
+              "const body = pm.response.json();",
+              "pm.test('UK implies GBP without the client sending a currency', () =>",
+              "  pm.expect(body.session.currency).to.eql('GBP'));",
+              "pm.test('a blank company falls back rather than failing the form', () =>",
+              "  pm.expect(body.session.company).to.eql('Northwind Industrial'));",
+              "pm.test('the title comes from the seat, never from input', () =>",
+              "  pm.expect(body.session.user.title).to.eql('Purchase manager'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": { "raw": "{{baseUrl}}/api/v1/auth/signup", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "signup"] },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"fullName\": \"Harriet Vane\",\n  \"email\": \"{{runEmail}}\",\n  \"password\": \"{{password}}\",\n  \"company\": \"\",\n  \"country\": \"UK\",\n  \"role\": \"purchase-manager\"\n}"
+        },
+        "description": "Company is optional on the form. Country alone decides the trading currency."
+      }
+    },
+    {
+      "name": "409 — duplicate email (case and padding folded)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('409 Conflict', () => pm.response.to.have.status(409));",
+              "pm.test('carries a stable machine-readable code', () =>",
+              "  pm.expect(pm.response.json().code).to.eql('email_taken'));",
+              "// Proves email_normalised, not email, carries the unique index."
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": { "raw": "{{baseUrl}}/api/v1/auth/signup", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "signup"] },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"fullName\": \"Someone Else\",\n  \"email\": \"  {{takenEmail}}  \",\n  \"password\": \"{{password}}\",\n  \"company\": \"Other Co.\",\n  \"country\": \"US\",\n  \"role\": \"seller\"\n}"
+        },
+        "description": "Run the happy path first — this reuses the address it registered, padded with spaces."
+      }
+    },
+    {
+      "name": "400 — weak password",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": ["pm.collectionVariables.set('runEmail', 'weak-' + Date.now() + '@kestrelsupply.com');"]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('400 Bad Request', () => pm.response.to.have.status(400));",
+              "pm.test('weak_password, with a message the form can show verbatim', () => {",
+              "  const body = pm.response.json();",
+              "  pm.expect(body.code).to.eql('weak_password');",
+              "  pm.expect(body.detail).to.be.a('string').and.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": { "raw": "{{baseUrl}}/api/v1/auth/signup", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "signup"] },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"fullName\": \"Bee Cee\",\n  \"email\": \"{{runEmail}}\",\n  \"password\": \"passwordpassword\",\n  \"company\": \"Kestrel Supply Co.\",\n  \"country\": \"US\",\n  \"role\": \"both\"\n}"
+        },
+        "description": "Sixteen characters, so it passes the length rule and is caught by the screen for obvious choices."
+      }
+    },
+    {
+      "name": "400 — unknown seat",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": ["pm.collectionVariables.set('runEmail', 'seat-' + Date.now() + '@kestrelsupply.com');"]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('400, not 500 — binding failures are the caller\\'s fault', () =>",
+              "  pm.response.to.have.status(400));",
+              "pm.test('names the offending field and value', () => {",
+              "  const body = pm.response.json();",
+              "  pm.expect(body.code).to.eql('malformed_request');",
+              "  pm.expect(body.rejectedValue).to.eql('superuser');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": { "raw": "{{baseUrl}}/api/v1/auth/signup", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "signup"] },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"fullName\": \"Dee Eff\",\n  \"email\": \"{{runEmail}}\",\n  \"password\": \"{{password}}\",\n  \"company\": \"Kestrel Supply Co.\",\n  \"country\": \"US\",\n  \"role\": \"superuser\"\n}"
+        },
+        "description": "An unknown seat is refused rather than defaulted — a default would be an authorisation decision made by a typo."
+      }
+    },
+    {
+      "name": "400 — field validation (empty name, bad email)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('400 Bad Request', () => pm.response.to.have.status(400));",
+              "pm.test('reports per-field messages', () => {",
+              "  const body = pm.response.json();",
+              "  pm.expect(body.code).to.eql('validation_failed');",
+              "  pm.expect(body.fields).to.be.an('object');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": { "raw": "{{baseUrl}}/api/v1/auth/signup", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "signup"] },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"fullName\": \"\",\n  \"email\": \"not-an-email\",\n  \"password\": \"short\",\n  \"company\": \"Kestrel Supply Co.\",\n  \"country\": \"US\",\n  \"role\": \"both\"\n}"
+        },
+        "description": "Three violations at once. The response body carries a `fields` map keyed by field name."
+      }
+    },
+    {
+      "name": "Health",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('200 OK', () => pm.response.to.have.status(200));",
+              "pm.test('the database is reachable', () =>",
+              "  pm.expect(pm.response.json().components.db.status).to.eql('UP'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": { "raw": "{{baseUrl}}/actuator/health", "host": ["{{baseUrl}}"], "path": ["actuator", "health"] },
+        "description": "Start here if a request fails — it tells you whether the app and its database are up."
+      }
+    },
+    {
+      "name": "OpenAPI document",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": { "raw": "{{baseUrl}}/v3/api-docs", "host": ["{{baseUrl}}"], "path": ["v3", "api-docs"] },
+        "description": "OpenAPI 3.1. Postman can import this URL directly to regenerate requests as endpoints are added."
+      }
+    }
+  ]
+}

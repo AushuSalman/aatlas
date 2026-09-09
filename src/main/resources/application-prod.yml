@@ -1,0 +1,97 @@
+
+# ============================================================================
+#  prod - Kubernetes, Redis cluster, Kafka, PgBouncer, streaming replicas
+#
+#  Nothing secret lives here. Every credential arrives as an environment variable
+#  from Vault or the cloud KMS; the app fails to start rather than falling back to
+#  a default, which is the behaviour you want when a secret goes missing.
+# ============================================================================
+
+spring:
+  datasource:
+    # PgBouncer, transaction pooling. Server-side prepared statements must be off:
+    # in transaction mode a connection is not the same backend from one statement to
+    # the next, so a named prepared statement would not be there when it is used.
+    url: ${DB_URL}?prepareThreshold=0&preparedStatementCacheQueries=0
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+    hikari:
+      maximum-pool-size: ${DB_POOL_MAX:30}
+      minimum-idle: 10
+
+  jpa:
+    properties:
+      hibernate:
+        format_sql: false
+        generate_statistics: false
+
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD}
+      ssl:
+        enabled: true
+      lettuce:
+        pool:
+          enabled: true
+          max-active: 32
+          max-idle: 16
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BROKERS}
+    security:
+      protocol: SASL_SSL
+    properties:
+      sasl:
+        mechanism: SCRAM-SHA-512
+
+  mail:
+    host: ${SMTP_HOST}
+    port: ${SMTP_PORT:587}
+    username: ${SMTP_USER}
+    password: ${SMTP_PASSWORD}
+    properties:
+      mail.smtp.starttls.enable: true
+
+server:
+  # Behind an ingress that terminates TLS; trust its forwarded headers so the
+  # audit log records the caller's IP rather than the load balancer's.
+  forward-headers-strategy: framework
+  tomcat:
+    threads:
+      max: 400
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      show-details: never
+  otlp:
+    tracing:
+      endpoint: ${OTLP_ENDPOINT}
+  tracing:
+    sampling:
+      probability: ${TRACE_SAMPLE_RATE:0.05}
+
+aatlas:
+  cors:
+    allowed-origins: ${CORS_ORIGINS}
+  cache:
+    mode: redis
+  clock:
+    fixed: false
+  rls:
+    enabled: true
+  storage:
+    bucket: ${S3_BUCKET}
+    region: ${AWS_REGION}
+    path-style-access: false
+
+logging:
+  level:
+    root: INFO
+    com.aatlas: INFO

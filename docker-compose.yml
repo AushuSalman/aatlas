@@ -1,0 +1,111 @@
+# ============================================================================
+#  Local infrastructure.
+#
+#  The `local` profile needs only PostgreSQL; Redis, Kafka, MinIO and MailHog
+#  are here so a developer can exercise the production paths (shared cache,
+#  externalised events, uploads, RFQ email) without a cluster.
+#
+#    docker compose up -d postgres          # the minimum
+#    docker compose up -d                   # everything
+#    docker compose --profile full up -d    # plus Kafka
+#
+#  Then run with CACHE_MODE=redis to use Redis instead of the in-process cache.
+# ============================================================================
+
+name: aatlas
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: aatlas-postgres
+    environment:
+      POSTGRES_DB: aatlas
+      POSTGRES_USER: aatlas
+      POSTGRES_PASSWORD: aatlas
+      # C collation: deterministic sort order, and a meaningful speed-up on the
+      # text indexes the jump-to search leans on.
+      POSTGRES_INITDB_ARGS: "--locale=C --encoding=UTF8"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    command:
+      - postgres
+      # Sized for a laptop. Production values live in the Helm chart.
+      - -c
+      - shared_buffers=256MB
+      - -c
+      - max_connections=200
+      - -c
+      - log_min_duration_statement=500
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aatlas -d aatlas"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: aatlas-redis
+    ports:
+      - "6379:6379"
+    # AOF on: sessions and rate-limit counters should survive a restart.
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "512mb", "--maxmemory-policy", "allkeys-lru"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  minio:
+    image: minio/minio:latest
+    container_name: aatlas-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: aatlas
+      MINIO_ROOT_PASSWORD: aatlas-secret
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  mailhog:
+    image: axllent/mailpit:latest
+    container_name: aatlas-mail
+    ports:
+      - "1025:1025"   # SMTP, what the app sends to
+      - "8025:8025"   # web UI, where the RFQ email actually shows up
+    environment:
+      MP_MAX_MESSAGES: 500
+
+  kafka:
+    image: apache/kafka:latest
+    container_name: aatlas-kafka
+    profiles: ["full"]
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:9093
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+
+volumes:
+  postgres-data:
+  redis-data:
+  minio-data:

@@ -1,0 +1,50 @@
+
+# ============================================================================
+#  test - Testcontainers supplies the datasource; everything else is stubbed out
+# ============================================================================
+
+spring:
+  # @ServiceConnection injects the container's URL, user and password.
+  datasource:
+    url: ""
+    username: ""
+    password: ""
+
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.kafka.KafkaAutoConfiguration
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+management:
+  health:
+    redis:
+      enabled: false
+    mail:
+      enabled: false
+
+aatlas:
+  cache:
+    mode: caffeine
+  rls:
+    # Off in tests: the policies compare against a connection variable that a
+    # test transaction has no reason to set, and turning it on here would only
+    # test the plumbing, not the policies. There is a dedicated test for those.
+    enabled: false
+  clock:
+    # Frozen, so a golden-file comparison gives the same answer at any hour.
+    fixed: true
+    fixed-at: 2026-09-01T12:00:00Z
+
+logging:
+  level:
+    org.testcontainers: WARN
+    com.github.dockerjava: WARN
+    org.flywaydb: INFO

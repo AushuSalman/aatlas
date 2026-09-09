@@ -1,0 +1,55 @@
+
+# ============================================================================
+#  local - a laptop with PostgreSQL and nothing else
+#
+#  No Redis, no Kafka, no S3, no SMTP required. Caching is in-process and events
+#  are delivered in-process through the same transactional registry, so the code
+#  path is identical to production; only the transport differs.
+# ============================================================================
+
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/aatlas}
+    username: ${DB_USER:aatlas}
+    password: ${DB_PASSWORD:aatlas}
+
+  jpa:
+    properties:
+      hibernate:
+        format_sql: true
+
+  # Autoconfigure would otherwise try to reach a broker that is not there.
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.kafka.KafkaAutoConfiguration
+
+  devtools:
+    restart:
+      enabled: true
+
+management:
+  health:
+    # Nothing to reach on a laptop; leaving these on makes /health red for no reason.
+    redis:
+      enabled: false
+    mail:
+      enabled: false
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+  endpoint:
+    health:
+      show-details: always
+
+aatlas:
+  cache:
+    mode: caffeine
+  rls:
+    enabled: false
+
+logging:
+  level:
+    com.aatlas: DEBUG
+    org.springframework.web: INFO
+    org.flywaydb: INFO
