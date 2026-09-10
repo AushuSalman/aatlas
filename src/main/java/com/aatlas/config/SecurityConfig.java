@@ -36,7 +36,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 @EnableMethodSecurity
 public class SecurityConfig {
 
-    /** Open to anyone: auth, reference data, health, and the generated API docs. */
+    /** Open to anyone: auth, reference data (countries, currencies, logistics), health, and the generated API docs. */
     private static final String[] PUBLIC = {
         "/api/v1/auth/**",
         "/api/v1/reference/**",
