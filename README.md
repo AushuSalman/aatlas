@@ -237,6 +237,43 @@ Connecting the sample dataset publishes `SampleDataConnected(tenantId, dataSourc
 
 ---
 
+## Decisions and analytics (wave 2, blueprint groups L, N)
+
+`decisions` is what a user actually did — every other wave-2 track (`sell`, `buy`, `bulk`) writes against its public `DecisionRecorder` interface. `analytics` is the procurement ledger the Buying insights dashboard reduces at read time. Both are ported from `intel/decisions.ts`, `intel/history.ts`, the impact half of `platform/api.ts`, and `platform/procurement.ts` — see `docs/decisions.md` for the porting notes, including two genuine cross-module dependencies inside this single track (`decisions` calls `analytics`'s public `ProcurementAnalytics`/`ProcurementLedger` interfaces for the buy-side impact figure and to badge an awarded purchase order) and one deliberate stand-in (`analytics.internal.fixtures.PricingCost`, standing in for the real `getPricingModel` port owned by `sell`/`engine`).
+
+**Decisions** (`decisions`, `/api/v1/decisions`, `/api/v1/history`, `/api/v1/deals`, `/api/v1/impact`)
+
+| Method | Path | Notes |
+|---|---|---|
+| GET | `/api/v1/decisions` | Recent decisions, newest first, keyset paged. |
+| GET | `/api/v1/decisions/{id}` | One decision with its deals. |
+| POST | `/api/v1/decisions` | Not in the wave-2 brief's endpoint list — see `DecisionsController`'s class javadoc for why it exists anyway. Mirrors `DecisionRecorder.record`. |
+| POST | `/api/v1/decisions/sale` / `/purchase` | Same: mirror `DecisionRecorder.recordSale`/`recordPurchase`. A purchase with `supplierId`+`destinationId` also badges a real `analytics` ledger row. |
+| DELETE | `/api/v1/decisions/mine` | Deletes the signed-in user's own decision rows. Deals already recorded are untouched. |
+| GET | `/api/v1/history` | History rows (`side`/`item`/`q` filters, `sort`, keyset paged). |
+| GET | `/api/v1/history/summary` | `decisions`/`followedPct`/`gained`/`lost`/`net`. |
+| GET | `/api/v1/deals` | Recorded deals (the 181 seeded plus any live), newest first, keyset paged. |
+| GET | `/api/v1/impact` | Sell + buy `ImpactSummary` by month. |
+
+**Analytics** (`analytics`, `/api/v1/analytics/procurement/*`)
+
+| Method | Path | Notes |
+|---|---|---|
+| GET | `/api/v1/analytics/procurement` | The full dashboard payload for one `range`/`from`/`to`/`branch`/`category`. |
+| GET | `/api/v1/analytics/procurement/timeline` | Spend over time, bucketed by day/week/month depending on the range. |
+| GET | `/api/v1/analytics/procurement/suppliers` | Scorecard with risk (exposure × reliability). |
+| GET | `/api/v1/analytics/procurement/mix?dimension=` | `supplier` (default) / `category` / `branch` / `region` / `origin`. |
+| GET | `/api/v1/analytics/procurement/delivery` | On-time record by bucket, plus the worst misses. |
+| GET | `/api/v1/analytics/procurement/opportunities` | The (at most 7) lines furthest over target. |
+| GET | `/api/v1/analytics/procurement/ledger?q=&status=` | The raw PO rows, searchable, keyset paged. |
+| GET | `/api/v1/analytics/procurement/ranges` | The seven range presets plus the earliest order on file. |
+
+Connecting the sample data source seeds both: 181 historical deals (`seed/deals.json`, 151 sell + 30 buy — the frontend's `DEALS` fixture) into `deal`, and the ~800-row, 26-month procurement ledger into `purchase_order`, each from its own `SampleDataConnected` listener, idempotent per tenant.
+
+Verified against `golden/history.json` and `golden/procurement-analytics.json` with plain, Spring-free unit tests (`HistoryEngineGoldenTest`, `ProcurementAnalyticsGoldenTest`) — see `docs/decisions.md` for what those pin and the one place (the ledger's first-50-row order) where getting it wrong would be silent otherwise.
+
+---
+
 ## What comes next
 
 Following the blueprint's build order:

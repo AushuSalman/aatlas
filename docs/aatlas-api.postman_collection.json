@@ -2298,6 +2298,989 @@
 				},
 				"description": "Only a supplier added from a lookup can be removed; sup-2 (Cascade Copper Mills) is part of the seeded panel."
 			}
+		},
+		{
+			"name": "History — rows (paged)",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{accessToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/history?limit=20",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"history"
+					],
+					"query": [
+						{
+							"key": "limit",
+							"value": "20"
+						}
+					]
+				},
+				"description": "The 181 seeded deals reduced into decision history. limit/cursor keyset paged; side/item/q filter."
+			},
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('200 OK', () => pm.response.to.have.status(200));",
+							"pm.test('items is an array of history rows', () => {",
+							"  const body = pm.response.json();",
+							"  pm.expect(body.items).to.be.an('array');",
+							"  if (body.items.length) pm.expect(body.items[0]).to.have.property('outcome');",
+							"});"
+						]
+					}
+				}
+			]
+		},
+		{
+			"name": "History — summary (decisions/followed%/gained/lost/net)",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{accessToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/history/summary",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"history",
+						"summary"
+					]
+				}
+			},
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('200 OK', () => pm.response.to.have.status(200));",
+							"pm.test('summary carries the five headline figures', () => {",
+							"  const body = pm.response.json();",
+							"  pm.expect(body.decisions).to.be.a('number');",
+							"  pm.expect(body.followedPct).to.be.a('number');",
+							"  pm.expect(body.gained).to.be.a('number');",
+							"  pm.expect(body.lost).to.be.a('number');",
+							"  pm.expect(body.net).to.be.a('number');",
+							"});"
+						]
+					}
+				}
+			]
+		},
+		{
+			"name": "History — 400 invalid cursor",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{accessToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/history?cursor=not-a-real-cursor",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"history"
+					],
+					"query": [
+						{
+							"key": "cursor",
+							"value": "not-a-real-cursor"
+						}
+					]
+				}
+			},
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('400 Bad Request', () => pm.response.to.have.status(400));",
+							"pm.test('invalid_cursor', () => pm.expect(pm.response.json().code).to.eql('invalid_cursor'));"
+						]
+					}
+				}
+			]
+		},
+		{
+			"name": "Impact — sell + buy summaries by month",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{accessToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/impact",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"impact"
+					]
+				}
+			},
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('200 OK', () => pm.response.to.have.status(200));",
+							"pm.test('both sides present, 181 deals total', () => {",
+							"  const body = pm.response.json();",
+							"  pm.expect(body.sell.side).to.eql('sell');",
+							"  pm.expect(body.buy.side).to.eql('buy');",
+							"  pm.expect(body.deals).to.have.lengthOf(181);",
+							"});"
+						]
+					}
+				}
+			]
+		},
+		{
+			"name": "Deals — recorded deals (paged)",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{accessToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/deals?limit=20",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"deals"
+					],
+					"query": [
+						{
+							"key": "limit",
+							"value": "20"
+						}
+					]
+				}
+			},
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('200 OK', () => pm.response.to.have.status(200));",
+							"pm.test('20 items, a cursor for the next page', () => {",
+							"  const body = pm.response.json();",
+							"  pm.expect(body.items).to.have.lengthOf(20);",
+							"  pm.expect(body.nextCursor).to.be.a('string').and.not.empty;",
+							"});"
+						]
+					}
+				}
+			]
+		},
+		{
+			"name": "Decisions — record a sell decision (happy path)",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					},
+					{
+						"key": "Authorization",
+						"value": "Bearer {{accessToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/decisions",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"decisions"
+					]
+				},
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"kind\": \"sell\",\n  \"title\": \"Price applied for HRD118902 at Dallas — TX\",\n  \"itemNumber\": \"HRD118902\",\n  \"scope\": \"Dallas — TX\",\n  \"recommended\": 27.4,\n  \"applied\": 27.4,\n  \"expectedImpact\": 1250,\n  \"impactLabel\": \"over 12 months\",\n  \"detail\": \"Optimal tier applied\",\n  \"count\": 1\n}"
+				},
+				"description": "Not in the wave-2 brief's Group L list - added so the recorder is exercisable over HTTP before sell/buy/bulk exist to call it directly. Mirrors intel/decisions.ts's recordDecision."
+			},
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('200 OK', () => pm.response.to.have.status(200));",
+							"const body = pm.response.json();",
+							"pm.test('status defaults to applied', () => pm.expect(body.status).to.eql('applied'));",
+							"pm.collectionVariables.set('decisionId', body.id);"
+						]
+					}
+				}
+			]
+		},
+		{
+			"name": "Decisions — list (newest first)",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{accessToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/decisions",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"decisions"
+					]
+				}
+			},
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('200 OK', () => pm.response.to.have.status(200));",
+							"pm.test('the decision just recorded is first', () => {",
+							"  const body = pm.response.json();",
+							"  pm.expect(body.items[0].id).to.eql(pm.collectionVariables.get('decisionId'));",
+							"});"
+						]
+					}
+				}
+			]
+		},
+		{
+			"name": "Decisions — one decision with its deals",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{accessToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/decisions/{{decisionId}}",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"decisions",
+						"{{decisionId}}"
+					]
+				}
+			},
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('200 OK', () => pm.response.to.have.status(200));",
+							"pm.test('decision id matches', () => pm.expect(pm.response.json().decision.id).to.eql(pm.collectionVariables.get('decisionId')));"
+						]
+					}
+				}
+			]
+		},
+		{
+			"name": "Decisions — 404 unknown decision id",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{accessToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/decisions/00000000-0000-7000-8000-000000000000",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"decisions",
+						"00000000-0000-7000-8000-000000000000"
+					]
+				}
+			},
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('404 Not Found', () => pm.response.to.have.status(404));",
+							"pm.test('not_found', () => pm.expect(pm.response.json().code).to.eql('not_found'));"
+						]
+					}
+				}
+			]
+		},
+		{
+			"name": "Decisions — record a sell-side deal",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					},
+					{
+						"key": "Authorization",
+						"value": "Bearer {{accessToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/decisions/sale",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"decisions",
+						"sale"
+					]
+				},
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"itemNumber\": \"HRD118902\",\n  \"description\": \"1/2 IN COPPER TYPE L HARD TUBE 10FT\",\n  \"storeName\": \"Dallas — TX\",\n  \"customerName\": \"Halloran Mechanical\",\n  \"qty\": 240,\n  \"cost\": 18.2,\n  \"baselinePrice\": 24.5,\n  \"suggestedPrice\": 27.4,\n  \"actualPrice\": 27.9,\n  \"marginFloor\": 24.27,\n  \"date\": \"2026-08-30\"\n}"
+				}
+			},
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('200 OK', () => pm.response.to.have.status(200));",
+							"pm.test('followed is derived (actual >= suggested)', () => pm.expect(pm.response.json().followed).to.be.true);"
+						]
+					}
+				}
+			]
+		},
+		{
+			"name": "Decisions — record a buy-side deal (also badges a purchase order)",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					},
+					{
+						"key": "Authorization",
+						"value": "Bearer {{accessToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/decisions/purchase",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"decisions",
+						"purchase"
+					]
+				},
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"itemNumber\": \"HRD983377\",\n  \"description\": \"3 TON 14 SEER AC CONDENSING UNIT R-410A\",\n  \"supplierName\": \"Thermaline Systems\",\n  \"qty\": 40,\n  \"cost\": 5.4,\n  \"targetCost\": 4.6,\n  \"agreedCost\": 4.5,\n  \"date\": \"2026-08-30\",\n  \"destinationId\": \"100959\",\n  \"supplierId\": \"sup-5\",\n  \"country\": \"Mexico\",\n  \"category\": \"equipment\"\n}"
+				},
+				"description": "supplierId + destinationId given, so this also lands a real row in analytics' purchase_order ledger, badged with decisionId when one is passed."
+			},
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('200 OK', () => pm.response.to.have.status(200));",
+							"pm.test('followed at or under target', () => pm.expect(pm.response.json().followed).to.be.true);"
+						]
+					}
+				}
+			]
+		},
+		{
+			"name": "Decisions — clear my applied decisions",
+			"request": {
+				"method": "DELETE",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{accessToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/decisions/mine",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"decisions",
+						"mine"
+					]
+				}
+			},
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('200 OK', () => pm.response.to.have.status(200));",
+							"pm.test('deleted at least the one recorded above', () => pm.expect(pm.response.json().deleted).to.be.at.least(1));"
+						]
+					}
+				}
+			]
+		},
+		{
+			"name": "Analytics — full procurement dashboard payload",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{accessToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/analytics/procurement?range=90d",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"analytics",
+						"procurement"
+					],
+					"query": [
+						{
+							"key": "range",
+							"value": "90d"
+						}
+					]
+				}
+			},
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('200 OK', () => pm.response.to.have.status(200));",
+							"pm.test('the shape a dashboard needs is all there', () => {",
+							"  const body = pm.response.json();",
+							"  pm.expect(body.range.key).to.eql('90d');",
+							"  pm.expect(body.spend.value).to.be.a('number');",
+							"  pm.expect(body.suppliers).to.be.an('array');",
+							"  pm.expect(body.opportunities).to.be.an('array');",
+							"});"
+						]
+					}
+				}
+			]
+		},
+		{
+			"name": "Analytics — spend timeline",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{accessToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/analytics/procurement/timeline?range=12m",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"analytics",
+						"procurement",
+						"timeline"
+					],
+					"query": [
+						{
+							"key": "range",
+							"value": "12m"
+						}
+					]
+				}
+			},
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('200 OK', () => pm.response.to.have.status(200));",
+							"pm.test('one point per bucket', () => pm.expect(pm.response.json()).to.be.an('array').that.is.not.empty);"
+						]
+					}
+				}
+			]
+		},
+		{
+			"name": "Analytics — supplier scorecard with risk",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{accessToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/analytics/procurement/suppliers?range=12m",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"analytics",
+						"procurement",
+						"suppliers"
+					],
+					"query": [
+						{
+							"key": "range",
+							"value": "12m"
+						}
+					]
+				}
+			},
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('200 OK', () => pm.response.to.have.status(200));",
+							"pm.test('every row carries a risk level', () => {",
+							"  const rows = pm.response.json();",
+							"  pm.expect(rows).to.be.an('array').that.is.not.empty;",
+							"  pm.expect(['low','watch','high']).to.include(rows[0].risk);",
+							"});"
+						]
+					}
+				}
+			]
+		},
+		{
+			"name": "Analytics — spend mix by category",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{accessToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/analytics/procurement/mix?dimension=category&range=12m",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"analytics",
+						"procurement",
+						"mix"
+					],
+					"query": [
+						{
+							"key": "dimension",
+							"value": "category"
+						},
+						{
+							"key": "range",
+							"value": "12m"
+						}
+					]
+				}
+			},
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('200 OK', () => pm.response.to.have.status(200));",
+							"pm.test('slices sum to roughly 100 share points', () => pm.expect(pm.response.json()).to.be.an('array'));"
+						]
+					}
+				}
+			]
+		},
+		{
+			"name": "Analytics — 400 invalid mix dimension",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{accessToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/analytics/procurement/mix?dimension=nonsense",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"analytics",
+						"procurement",
+						"mix"
+					],
+					"query": [
+						{
+							"key": "dimension",
+							"value": "nonsense"
+						}
+					]
+				}
+			},
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('400 Bad Request', () => pm.response.to.have.status(400));",
+							"pm.test('invalid_dimension', () => pm.expect(pm.response.json().code).to.eql('invalid_dimension'));"
+						]
+					}
+				}
+			]
+		},
+		{
+			"name": "Analytics — delivery record and worst misses",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{accessToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/analytics/procurement/delivery?range=12m",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"analytics",
+						"procurement",
+						"delivery"
+					],
+					"query": [
+						{
+							"key": "range",
+							"value": "12m"
+						}
+					]
+				}
+			},
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('200 OK', () => pm.response.to.have.status(200));",
+							"pm.test('delivery and lateLines are arrays', () => {",
+							"  const body = pm.response.json();",
+							"  pm.expect(body.delivery).to.be.an('array');",
+							"  pm.expect(body.lateLines).to.be.an('array');",
+							"});"
+						]
+					}
+				}
+			]
+		},
+		{
+			"name": "Analytics — opportunities (furthest over target)",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{accessToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/analytics/procurement/opportunities?range=12m",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"analytics",
+						"procurement",
+						"opportunities"
+					],
+					"query": [
+						{
+							"key": "range",
+							"value": "12m"
+						}
+					]
+				}
+			},
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('200 OK', () => pm.response.to.have.status(200));",
+							"pm.test('at most 7 rows', () => pm.expect(pm.response.json().length).to.be.at.most(7));"
+						]
+					}
+				}
+			]
+		},
+		{
+			"name": "Analytics — ledger, searchable and keyset paged",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{accessToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/analytics/procurement/ledger?limit=20",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"analytics",
+						"procurement",
+						"ledger"
+					],
+					"query": [
+						{
+							"key": "limit",
+							"value": "20"
+						}
+					]
+				}
+			},
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('200 OK', () => pm.response.to.have.status(200));",
+							"pm.test('20 rows, a cursor for the next page', () => {",
+							"  const body = pm.response.json();",
+							"  pm.expect(body.items).to.have.lengthOf(20);",
+							"  pm.expect(body.nextCursor).to.be.a('string').and.not.empty;",
+							"});"
+						]
+					}
+				}
+			]
+		},
+		{
+			"name": "Analytics — ledger filtered to open orders",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{accessToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/analytics/procurement/ledger?status=open&limit=10",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"analytics",
+						"procurement",
+						"ledger"
+					],
+					"query": [
+						{
+							"key": "status",
+							"value": "open"
+						},
+						{
+							"key": "limit",
+							"value": "10"
+						}
+					]
+				}
+			},
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('200 OK', () => pm.response.to.have.status(200));",
+							"pm.test('every row is open', () => {",
+							"  const rows = pm.response.json().items;",
+							"  rows.forEach(r => pm.expect(r.status).to.eql('open'));",
+							"});"
+						]
+					}
+				}
+			]
+		},
+		{
+			"name": "Analytics — range presets and the earliest order on file",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{accessToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/analytics/procurement/ranges",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"analytics",
+						"procurement",
+						"ranges"
+					]
+				}
+			},
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('200 OK', () => pm.response.to.have.status(200));",
+							"pm.test('seven presets, an earliest date', () => {",
+							"  const body = pm.response.json();",
+							"  pm.expect(body.ranges).to.have.lengthOf(7);",
+							"  pm.expect(body.earliestOrder).to.be.a('string').and.not.empty;",
+							"});"
+						]
+					}
+				}
+			]
+		},
+		{
+			"name": "Analytics — 401 without a token",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/analytics/procurement/ranges",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"analytics",
+						"procurement",
+						"ranges"
+					]
+				}
+			},
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('401 Unauthorized', () => pm.response.to.have.status(401));"
+						]
+					}
+				}
+			]
 		}
 	]
 }
