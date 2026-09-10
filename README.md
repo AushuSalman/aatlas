@@ -4,7 +4,7 @@ Backend for the Aatlas decision-intelligence platform: what to charge, who to bu
 
 A **modular monolith** on Java 21 and Spring Boot — one deployable, sixteen modules whose boundaries are enforced at build time, with the compute-heavy work running out-of-band as workers. This is the scaffold described in `backend-blueprint.html`; the engines and endpoints land on top of it.
 
-> **Status: wave 1 landed.** Infrastructure, configuration, module boundaries and the build are in place and verified. `identity` (signup, login, refresh, logout, password reset, `/me`), `tenant` (settings, reference data, FX), `policy` (role policy, guardrails), `catalog` and `ingest` (products, stores, regions, customers, sample-data provisioning), and `suppliers` (panel, terms, ratings, reviews, risk, lookup) all carry real endpoints and tables — see "Wave 1" below. The rest of the build order in the blueprint still arrives module by module.
+> **Status: wave 1 landed; wave 2 `insights` landed.** Infrastructure, configuration, module boundaries and the build are in place and verified. `identity` (signup, login, refresh, logout, password reset, `/me`), `tenant` (settings, reference data, FX), `policy` (role policy, guardrails), `catalog` and `ingest` (products, stores, regions, customers, sample-data provisioning), and `suppliers` (panel, terms, ratings, reviews, risk, lookup) all carry real endpoints and tables — see "Wave 1" below. `insights` (Overview, Insights-sell, Stores, Products) now carries real endpoints too, computed on demand from wave 1's catalogue and supplier rows — see "Wave 2: `insights`" below. The rest of wave 2 (`sell`, `buy`, `decisions`/`analytics`, `bulk`/`integrations`/`assistant`) is landing in parallel worktrees.
 
 ---
 
@@ -234,6 +234,43 @@ Connecting the sample dataset publishes `SampleDataConnected(tenantId, dataSourc
 **Which branches sell an item.** `SellersRule` (`catalog.internal.seed`) is a bit-for-bit port of the frontend's `hashString` (FNV-1a, `Math.imul`-equivalent 32-bit multiply) and `tenantsSellingItem`: the item's default branch always sells it, every other branch sells it unless `(hash(itemNumber) >> branchIndex) % 3 == 0`. Reproduced rather than replaced with something tidier because it decides which (item, branch) pairs get a `product_stores` row, and a different rule would silently diverge from the frontend fixtures the demo story and later golden-file tests depend on. Verified in `SellersRuleTest` against values computed by running the actual TypeScript in Node, not re-derived in Java.
 
 **What the sample provisioner seeds**, from `seed/stores.json`, `seed/products.json`, `seed/customers.json`: every branch for the tenant's country (`tenants.country`, US or UK); every product, with `has_sales` and `default_store_code` carried straight from the seed; a `product_stores` row for every (item, branch) pair `SellersRule` selects for a sellable item, with `first_sale_at`/`last_sale_at` spanning the trailing 12 months from `AatlasClock`; every customer. Idempotent by tenant: a tenant that already has branches is left alone and the summary says so, so reconnecting after a disconnect never duplicates rows.
+
+---
+
+## Wave 2: `insights` (Overview, Insights-sell, Stores, Products)
+
+Backs four frontend routes — `/app` (Overview), `/app/insights` (Insights-sell), `/app/stores`, `/app/products` — with real Postgres-backed endpoints, ported from `src/lib/intel/geo.ts`, `demographics.ts`, `overview.ts` and `score.ts` in the frontend. No new migration: everything is computed on demand from wave 1's `catalog` and `suppliers` tables, exactly as the wave-2 brief expects ("almost none of this needs new fact tables") — `V11` is reserved but unused.
+
+**No new fact tables, but no shared reader either.** `catalog` and `suppliers` each publish only a *seeding* interface in their public API (`CatalogSeeding`, `SupplierPanelSeeder`); neither has a reader another module can call, and `ModularityTests` forbids reaching into either module's `internal` package. `insights.internal.CatalogSnapshotReader` reads the same physical tables directly with its own JDBC queries — products, stores, product_stores, suppliers (tenant-scoped) plus regions/subdivisions, commodities, logistics_origins/logistics_lanes (shared reference tables) — into an in-memory `CatalogSnapshot` once per request, the same role `TENANTS`/`PRODUCTS`/`SUPPLIERS`/`MARKET_REGIONS` played as in-memory constants in the TypeScript. Every engine below is a pure function of that snapshot plus `common/seed/Seeded`.
+
+**Endpoints** (`/api/v1/...`, tenant-scoped, camelCase matching the TypeScript field for field; all 404 `no_catalogue` until a source is connected):
+
+| Method | Path | Notes |
+|---|---|---|
+| GET | `/overview` | The full `Overview` payload — since-yesterday sentence, six KPIs, opportunities (ranked by money — the frontend re-orders per seat), risks, changes, regions, branches. Two KPIs read low; see the stand-in note below. |
+| GET | `/overview/changes` | Paged what-changed feed. |
+| GET | `/overview/opportunities` | The opportunity list. |
+| GET | `/overview/risks` | The risk radar. |
+| GET | `/insights/regions` | All four market regions, with their branches and actions. |
+| GET | `/insights/regions/{key}` | One region (`south`/`west`/`north`/`east`). |
+| GET | `/insights/stores` | Every branch — backs the Stores screen's list. |
+| GET | `/insights/stores/{id}` | One branch, with its opportunities and priced products. By branch code or our uuid. |
+| GET | `/insights/demographics?region=&state=&store=&segment=&category=&period=` | `getDemographics`'s full shape. |
+| GET | `/insights/price-moves?region=&store=&category=` | The biggest expected 90-day price moves in scope — a small forecast stand-in (`priceDriftPct90`'s formula, already ported for `geo.ts`/`demographics.ts`), not Sell's own forecast screen; not golden-pinned. |
+| GET | `/products/scores?filter=&region=&sort=` | One row per priceable item-branch pair in scope — the frontend's own `ProductScoreRow` (`platform/backend.ts`): `OpportunityScore` plus `name`/`category`. Not pre-aggregated into "best branch per product" — the Products screen already folds a flat list like this itself. |
+| GET | `/products/{item}/scores` | One product's score at every branch, same `ProductScoreRow[]` shape. |
+
+**Three cross-track stand-ins**, each a small interface plus a straightforward implementation in `insights.internal`, per the wave-2 brief's "stand-in now, retarget at merge" rule:
+
+1. **Opportunity score** (`ScoreEngine`, port of `intel/score.ts`) — canonically owned by the `sell` module (a different worktree). This module's own full port, not a stub, because Products/Overview/Stores need it and it is a small pure function; pinned by the same `golden/opportunity-score.json` the canonical version will be. `TODO(merge)` on the class names the `sell` module's `OpportunityScores` reader as the eventual replacement.
+2. **Recent decisions** (`CrossTrackStandIns.RecentDecisionsReader`) — Overview's "what you decided recently" panel, owned by the `decisions` module (`wave2-history`, a different worktree). Stood in as an empty list, matching `golden/overview.json`'s own empty-browser-state capture.
+3. **Procurement impact** (`CrossTrackStandIns.ProcurementImpactReader`) — discovered while porting `overview.ts`, not named in the wave-2 brief's two call-outs: `impact.buy` (`platform/api.ts`'s `summariseBuy()`, reduced from the `buy` module's 794-row procurement ledger) feeds two KPIs — "Procurement savings" and "Recommendation adoption" — and is squarely `buy`-module territory, not a small pure function like the other engines here. Stood in as zero; **`kpis[2]` ("savings"), `kpis[5]` ("adoption") and the top-level `adoptionPct` do not match `golden/overview.json`** until the real reader is wired in at merge — every other field does, including the sell-side half of the same figure (`DealsIndex`, below), which this module computes for real.
+
+**The seeded deal ledger is read, not re-derived.** `getStoreIntel`'s branch adoption percentage and Overview's sell-side KPI footer need `platform/data.ts`'s `DEALS` (181 rows: `buildSellDeals()` + `buildBuyDeals()`, a pure function of the catalogue and the pricing engine). Rather than re-port those two builder functions, `insights.internal.DealsIndex` reads `seed/deals.json` directly — the same shared, deterministic seed file `deals.json` already is per `API-BRIEF.md`, and byte-identical to what re-running the formula would produce. This is why `geo.json`'s per-branch `adoptionPct` matches exactly: some branches have no seeded deals at all and fall back to a seeded-random figure, others are pulled from real rows, and the golden file pins both cases.
+
+**Iteration order matters in exactly one engine.** Every number this module produces is order-independent — a sum, an average, a value-sorted top-N — except a handful of `Set`s in `overview.ts` read back as "the first one or two members" (which branch is named first when several are overstocked, which product first when several have thin margins) or spread into an array verbatim (`RegionIntel.raisePrices`/`increaseInventory`/`reviewSuppliers`, and a stable sort's tie-break when two products share the same integer score). Those depend on the order the TypeScript walked `TENANTS`/`SELLABLE_PRODUCTS` while building the set — not alphabetical, not the branch/product tables' natural code order used everywhere else. `FixtureOrder` reproduces that exact declared order (cross-checked against `seed/stores.json`'s own row order, which matches) and is used only where it changes a result: `OverviewEngine`'s main loop, and the store/product loops inside `GeoEngine.getRegionIntel` that feed those three set-valued fields.
+
+**Verify:** `GeoEngineGoldenTest`, `DemographicsEngineGoldenTest`, `ScoreEngineGoldenTest` reproduce their golden files exactly (structural JSON comparison, numbers compared as doubles). `OverviewEngineGoldenTest` reproduces every field except the two KPIs named above, asserted field by field rather than as one whole-object comparison, with the deviation documented at the point it is asserted. `InsightsIT` exercises every endpoint over HTTP against a real (Testcontainers) PostgreSQL: signup, connect the sample dataset, read each route, plus the `no_catalogue` gate and the three 404s.
 
 ---
 
