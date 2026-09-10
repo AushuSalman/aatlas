@@ -40,6 +40,34 @@
 		{
 			"key": "resetToken",
 			"value": ""
+		},
+		{
+			"key": "bulkRunEmail",
+			"value": ""
+		},
+		{
+			"key": "bulkToken",
+			"value": ""
+		},
+		{
+			"key": "sellHeadRunEmail",
+			"value": ""
+		},
+		{
+			"key": "sellHeadToken",
+			"value": ""
+		},
+		{
+			"key": "buyHeadRunEmail",
+			"value": ""
+		},
+		{
+			"key": "buyHeadToken",
+			"value": ""
+		},
+		{
+			"key": "sellRecommendedKey",
+			"value": ""
 		}
 	],
 	"item": [
@@ -2297,6 +2325,1052 @@
 					]
 				},
 				"description": "Only a supplier added from a lookup can be removed; sup-2 (Cascade Copper Mills) is part of the seeded panel."
+			}
+		},
+		{
+			"name": "Bulk/Integrations/Assistant — Signup a director seat",
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.collectionVariables.set('bulkRunEmail', 'bulk-' + Date.now() + '@kestrelsupply.com');"
+						]
+					}
+				},
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('201 Created', () => pm.response.to.have.status(201));",
+							"const body = pm.response.json();",
+							"pm.collectionVariables.set('bulkToken', body.accessToken);"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/auth/signup",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"auth",
+						"signup"
+					]
+				},
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"fullName\": \"Alex Moreno\",\n  \"email\": \"{{bulkRunEmail}}\",\n  \"password\": \"{{password}}\",\n  \"company\": \"Kestrel Supply Co.\",\n  \"country\": \"US\",\n  \"role\": \"both\"\n}"
+				},
+				"description": "A director seat (both) for the bulk and integrations requests below."
+			}
+		},
+		{
+			"name": "Assistant — Signup a sales-head seat (persona-aware suggestions)",
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.collectionVariables.set('sellHeadRunEmail', 'sellhead-' + Date.now() + '@kestrelsupply.com');"
+						]
+					}
+				},
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('201 Created', () => pm.response.to.have.status(201));",
+							"pm.collectionVariables.set('sellHeadToken', pm.response.json().accessToken);"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/auth/signup",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"auth",
+						"signup"
+					]
+				},
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"fullName\": \"Priya Nair\",\n  \"email\": \"{{sellHeadRunEmail}}\",\n  \"password\": \"{{password}}\",\n  \"company\": \"Kestrel Supply Co.\",\n  \"country\": \"US\",\n  \"role\": \"sales-head\"\n}"
+				}
+			}
+		},
+		{
+			"name": "Assistant — Signup a purchase-head seat (persona-aware suggestions)",
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.collectionVariables.set('buyHeadRunEmail', 'buyhead-' + Date.now() + '@kestrelsupply.com');"
+						]
+					}
+				},
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('201 Created', () => pm.response.to.have.status(201));",
+							"pm.collectionVariables.set('buyHeadToken', pm.response.json().accessToken);"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/auth/signup",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"auth",
+						"signup"
+					]
+				},
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"fullName\": \"Omar Idris\",\n  \"email\": \"{{buyHeadRunEmail}}\",\n  \"password\": \"{{password}}\",\n  \"company\": \"Kestrel Supply Co.\",\n  \"country\": \"US\",\n  \"role\": \"purchase-head\"\n}"
+				}
+			}
+		},
+		{
+			"name": "Bulk sell — plan three strategies",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('200 OK', () => pm.response.to.have.status(200));",
+							"const body = pm.response.json();",
+							"pm.test('seven priceable lines, three strategies', () => {",
+							"  pm.expect(body.lines).to.have.lengthOf(7);",
+							"  pm.expect(body.strategies).to.have.lengthOf(3);",
+							"  pm.expect(['max-profit', 'fast-movement', 'balanced']).to.include(body.recommendedKey);",
+							"});",
+							"pm.collectionVariables.set('sellRecommendedKey', body.recommendedKey);"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{bulkToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/sell/bulk/plan?store=100959&items=HRD304148,HRD118902,HRD450871,HRD661204,HRD512066,HRD874019,HRD248813",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"sell",
+						"bulk",
+						"plan?store=100959&items=HRD304148,HRD118902,HRD450871,HRD661204,HRD512066,HRD874019,HRD248813"
+					]
+				},
+				"description": "Same basket golden/bulk.json's bulkSellPlan row uses. Every figure computed on the request thread."
+			}
+		},
+		{
+			"name": "Bulk sell — apply the recommended strategy",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('200 OK', () => pm.response.to.have.status(200));",
+							"const body = pm.response.json();",
+							"pm.test('a decision id and the applied strategy come back', () => {",
+							"  pm.expect(body.decisionId).to.be.a('string').and.not.empty;",
+							"  pm.expect(body.appliedStrategy).to.eql(pm.collectionVariables.get('sellRecommendedKey'));",
+							"});"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					},
+					{
+						"key": "Authorization",
+						"value": "Bearer {{bulkToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/sell/bulk/apply",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"sell",
+						"bulk",
+						"apply"
+					]
+				},
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"storeId\": \"100959\",\n  \"items\": [\"HRD304148\", \"HRD118902\"],\n  \"strategyKey\": \"{{sellRecommendedKey}}\"\n}"
+				},
+				"description": "Writes a bulk_decision plus one bulk_deal per line — stand-in for the decisions module, see docs/decisions.md."
+			}
+		},
+		{
+			"name": "400 — Bulk sell apply, unknown strategy",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('400 Bad Request', () => pm.response.to.have.status(400));"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					},
+					{
+						"key": "Authorization",
+						"value": "Bearer {{bulkToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/sell/bulk/apply",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"sell",
+						"bulk",
+						"apply"
+					]
+				},
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"storeId\": \"100959\",\n  \"items\": [\"HRD304148\"],\n  \"strategyKey\": \"not-a-strategy\"\n}"
+				}
+			}
+		},
+		{
+			"name": "Bulk buy — plan five strategies",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('200 OK', () => pm.response.to.have.status(200));",
+							"const body = pm.response.json();",
+							"pm.test('seven lines, five strategies', () => {",
+							"  pm.expect(body.lines).to.have.lengthOf(7);",
+							"  pm.expect(body.strategies.map(s => s.key)).to.eql(['lowest-cost', 'fastest', 'lowest-risk', 'balanced', 'split']);",
+							"});"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{bulkToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/buy/bulk/plan?region=south&items=HRD304148,HRD772310,HRD450871,HRD661204,HRD335590,HRD107744,HRD248813&horizon=1",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"buy",
+						"bulk",
+						"plan?region=south&items=HRD304148,HRD772310,HRD450871,HRD661204,HRD335590,HRD107744,HRD248813&horizon=1"
+					]
+				},
+				"description": "Same basket golden/bulk.json's bulkBuyPlan row uses. Supplier landed cost is this module's own stand-in synthesis — see BuyLineReaderImpl's class doc — so figures will not match the golden file to the cent the way bulk sell does."
+			}
+		},
+		{
+			"name": "Bulk buy — apply the split award",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('200 OK', () => pm.response.to.have.status(200));",
+							"const body = pm.response.json();",
+							"pm.test('a decision id and five strategies in the recomputed plan', () => {",
+							"  pm.expect(body.decisionId).to.be.a('string').and.not.empty;",
+							"  pm.expect(body.plan.strategies).to.have.lengthOf(5);",
+							"});"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					},
+					{
+						"key": "Authorization",
+						"value": "Bearer {{bulkToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/buy/bulk/apply",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"buy",
+						"bulk",
+						"apply"
+					]
+				},
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"regionKey\": \"south\",\n  \"items\": [\"HRD304148\", \"HRD772310\"],\n  \"strategyKey\": \"split\",\n  \"horizon\": 1\n}"
+				}
+			}
+		},
+		{
+			"name": "Integrations — catalogue, all available",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('200 OK', () => pm.response.to.have.status(200));",
+							"const body = pm.response.json();",
+							"pm.test('15 catalogued systems', () => pm.expect(body).to.have.lengthOf(15));"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{bulkToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/integrations",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"integrations"
+					]
+				}
+			}
+		},
+		{
+			"name": "Integrations — connect Salesforce",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('200 OK, now connected', () => {",
+							"  pm.response.to.have.status(200);",
+							"  pm.expect(pm.response.json().status).to.eql('connected');",
+							"});"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					},
+					{
+						"key": "Authorization",
+						"value": "Bearer {{bulkToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/integrations/salesforce/connect",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"integrations",
+						"salesforce",
+						"connect"
+					]
+				},
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"config\": {\"instanceUrl\": \"https://kestrel.my.salesforce.com\"}\n}"
+				},
+				"description": "config is stored plain, not encrypted at rest — demo config, not a live secret. See docs/decisions.md."
+			}
+		},
+		{
+			"name": "404 — Integrations connect, unknown key",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('404 Not Found', () => pm.response.to.have.status(404));"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{bulkToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/integrations/not-a-system/connect",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"integrations",
+						"not-a-system",
+						"connect"
+					]
+				}
+			}
+		},
+		{
+			"name": "Integrations — disconnect Salesforce",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('204 No Content', () => pm.response.to.have.status(204));"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "DELETE",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{bulkToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/integrations/salesforce/connect",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"integrations",
+						"salesforce",
+						"connect"
+					]
+				}
+			}
+		},
+		{
+			"name": "MCP — endpoint and three clients",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('200 OK', () => pm.response.to.have.status(200));",
+							"const body = pm.response.json();",
+							"pm.test('three client kinds, none connected yet', () => {",
+							"  pm.expect(body.clients).to.have.lengthOf(3);",
+							"  pm.expect(body.clients.every(c => c.connected === false)).to.be.true;",
+							"});"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{bulkToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/mcp",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"mcp"
+					]
+				}
+			}
+		},
+		{
+			"name": "MCP — connect Claude",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('200 OK, connected', () => {",
+							"  pm.response.to.have.status(200);",
+							"  pm.expect(pm.response.json().connected).to.be.true;",
+							"});"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{bulkToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/mcp/clients/claude/connect",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"mcp",
+						"clients",
+						"claude",
+						"connect"
+					]
+				}
+			}
+		},
+		{
+			"name": "MCP — permissions, catalogue defaults",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('200 OK, 16 permissions in three groups', () => {",
+							"  pm.response.to.have.status(200);",
+							"  const body = pm.response.json();",
+							"  pm.expect(body.permissions).to.have.lengthOf(16);",
+							"  pm.expect(Object.keys(body.groups).sort()).to.eql(['actions', 'read', 'restricted']);",
+							"});"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{bulkToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/mcp/permissions",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"mcp",
+						"permissions"
+					]
+				}
+			}
+		},
+		{
+			"name": "MCP — turn on a restricted permission",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('200 OK, enabled and still requires approval', () => {",
+							"  pm.response.to.have.status(200);",
+							"  const row = pm.response.json().permissions.find(p => p.key === 'restricted-apply-price');",
+							"  pm.expect(row.enabled).to.be.true;",
+							"  pm.expect(row.requiresApproval).to.be.true;",
+							"});"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "PUT",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					},
+					{
+						"key": "Authorization",
+						"value": "Bearer {{bulkToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/mcp/permissions",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"mcp",
+						"permissions"
+					]
+				},
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"permissions\": {\"restricted-apply-price\": true}\n}"
+				}
+			}
+		},
+		{
+			"name": "Assistant — ask which products to raise",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('200 OK, a real recommendation', () => {",
+							"  pm.response.to.have.status(200);",
+							"  pm.expect(pm.response.json().cta.href).to.eql('/app/sell/bulk?preset=raise');",
+							"});"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					},
+					{
+						"key": "Authorization",
+						"value": "Bearer {{sellHeadToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/assistant/ask",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"assistant",
+						"ask"
+					]
+				},
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"question\": \"Which products should I increase prices on today?\"\n}"
+				},
+				"description": "Real: loops every sellable item x branch through the same SellLineReader bulk sell uses."
+			}
+		},
+		{
+			"name": "Assistant — ask which supplier",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('200 OK, recommends a supplier', () => {",
+							"  pm.response.to.have.status(200);",
+							"  pm.expect(pm.response.json().title).to.match(/^Recommended:/);",
+							"});"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					},
+					{
+						"key": "Authorization",
+						"value": "Bearer {{buyHeadToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/assistant/ask",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"assistant",
+						"ask"
+					]
+				},
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"question\": \"Which supplier should we use for a 50,000-unit copper order?\"\n}"
+				},
+				"description": "Simplified stand-in for buy2.ts's procurementPlan — see AssistantService's class doc."
+			}
+		},
+		{
+			"name": "Assistant — ask what changed",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('200 OK', () => pm.response.to.have.status(200));"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					},
+					{
+						"key": "Authorization",
+						"value": "Bearer {{sellHeadToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/assistant/ask",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"assistant",
+						"ask"
+					]
+				},
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"question\": \"What changed today?\"\n}"
+				}
+			}
+		},
+		{
+			"name": "Assistant — nothing matches, suggestions come back",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('200 OK, six suggested questions', () => {",
+							"  pm.response.to.have.status(200);",
+							"  const body = pm.response.json();",
+							"  pm.expect(body.title).to.eql('I can answer these');",
+							"  pm.expect(body.lines).to.have.lengthOf(6);",
+							"});"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					},
+					{
+						"key": "Authorization",
+						"value": "Bearer {{sellHeadToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/assistant/ask",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"assistant",
+						"ask"
+					]
+				},
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"question\": \"xyzzy plugh\"\n}"
+				}
+			}
+		},
+		{
+			"name": "400 — Assistant ask, blank question",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('400 Bad Request', () => pm.response.to.have.status(400));"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					},
+					{
+						"key": "Authorization",
+						"value": "Bearer {{sellHeadToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/assistant/ask",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"assistant",
+						"ask"
+					]
+				},
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"question\": \"\"\n}"
+				}
+			}
+		},
+		{
+			"name": "Assistant — suggestions, sell-side seat",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('200 OK, six questions, raise-prices first', () => {",
+							"  pm.response.to.have.status(200);",
+							"  const body = pm.response.json();",
+							"  pm.expect(body).to.have.lengthOf(6);",
+							"  pm.expect(body[0]).to.match(/increase prices/);",
+							"});"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{sellHeadToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/assistant/suggestions",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"assistant",
+						"suggestions"
+					]
+				}
+			}
+		},
+		{
+			"name": "Assistant — suggestions, buy-side seat (different order)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('200 OK, which-supplier first', () => {",
+							"  pm.response.to.have.status(200);",
+							"  pm.expect(pm.response.json()[0]).to.match(/Which supplier/);",
+							"});"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{buyHeadToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/assistant/suggestions",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"assistant",
+						"suggestions"
+					]
+				}
+			}
+		},
+		{
+			"name": "Assistant — recent questions",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('200 OK, newest first', () => {",
+							"  pm.response.to.have.status(200);",
+							"  const body = pm.response.json();",
+							"  pm.expect(body.length).to.be.greaterThan(0);",
+							"});"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{sellHeadToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/assistant/history?limit=10",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"assistant",
+						"history?limit=10"
+					]
+				}
 			}
 		}
 	]

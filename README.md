@@ -237,6 +237,81 @@ Connecting the sample dataset publishes `SampleDataConnected(tenantId, dataSourc
 
 ---
 
+## Bulk, integrations and assistant (wave 2, V13)
+
+Three modules, one migration number, one track: `bulk` (new), `integrations` and
+`assistant` (both filled in from empty placeholders). Per `WAVE2-BRIEF.md`'s
+simplification for this wave, every read here **computes on the request thread** —
+no snapshot table, unlike "the one idea worth knowing" above, which is the target
+architecture once caching is needed at scale, not yet.
+
+### `bulk` — bulk sell and bulk buy
+
+Port of `src/lib/intel/bulk.ts`'s `bulkSellPlan`/`bulkBuyPlan`. Both call the same
+per-item recommendation logic the `sell` and `buy` modules compute — modules this
+worktree cannot see — so this module carries its **own small, honest ports** of just
+enough of `getSellIntel`/`getBuyIntel` to run the two strategies, behind two public
+interfaces named for exactly what they stand in for: `SellLineReader` and
+`BuyLineReader`, each `TODO(merge)`-tagged at its implementation. `DecisionRecorder`
+is the same pattern for the decisions module, which was still an empty placeholder in
+every worktree that could be checked at build time (including `wave2-history`'s own
+branch) — see `docs/decisions.md` for the full account of what each stand-in covers,
+what it deliberately leaves out, and why.
+
+One genuine port, not a stand-in: `PricingEngine` (`mock/pricing.ts`'s
+`getPricingModel`) and everything `SellLineReaderImpl` builds on top of it
+(`monthlyUnitsFor`, `inventoryFor`, the sell-side elasticity coefficient,
+`opportunityScore`) reproduce the TypeScript exactly, pinned by
+`PricingEngineGoldenTest` and `BulkSellEngineGoldenTest` against `golden/pricing-model.json`
+and `golden/bulk.json`'s `bulkSellPlan` row, field for field. Bulk sell's numbers are
+therefore byte-for-byte what the frontend would show; bulk buy's are not — see
+`BuyLineReaderImpl`'s class doc for its synthetic landed-cost model.
+
+| Method | Path | Notes |
+|---|---|---|
+| GET | `/api/v1/sell/bulk/plan` | `store`, `items` (comma-separated). Three strategies (max profit, fast movement, balanced), each with projected revenue/profit/margin/turnover and line prices. |
+| POST | `/api/v1/sell/bulk/apply` | `{storeId, items[], strategyKey}`. Recomputes the plan and applies one strategy: a `bulk_deal` per line plus one `bulk_decision`. `403 not_allowed` unless the seat's `Persona.bulk` is true. |
+| GET | `/api/v1/buy/bulk/plan` | `region`, `items`, `horizon` (quarters of volume: 1/2/4). Five strategies (lowest cost, fastest, lowest risk, balanced, split) with awards, fulfilment and supplier dependency. |
+| POST | `/api/v1/buy/bulk/apply` | `{regionKey, items[], strategyKey, horizon}`. Recomputes the plan and applies one award strategy: the same stand-in decision recorder. Same `Persona.bulk` gate. |
+
+`bulk_decision`/`bulk_deal` (migration V13) exist only because `decisions` does not
+yet — see the `DecisionRecorder` note above.
+
+### `integrations` — business systems and MCP
+
+Genuinely simple: a static catalogue (`IntegrationCatalog`, ported field-for-field from
+`INTEGRATIONS`/`MCP_CLIENTS`/`MCP_PERMISSIONS`/`GROUP_LABEL`) merged with per-tenant
+connection state. No engine to port, no stand-in.
+
+| Method | Path | Notes |
+|---|---|---|
+| GET | `/api/v1/integrations` | The 15 systems with this tenant's `connected`/`available` status. |
+| POST/DELETE | `/api/v1/integrations/{key}/connect` | Idempotent. `config` is plain `jsonb`, not encrypted — demo config, not a live secret (see `docs/decisions.md`). |
+| GET | `/api/v1/mcp` | The illustrative endpoint URL, the three client kinds, connection state. |
+| POST/DELETE | `/api/v1/mcp/clients/{key}/connect` | |
+| GET/PUT | `/api/v1/mcp/permissions` | 16 permissions in three groups (read/actions/restricted); `PUT` takes `{permissions: {key: enabled}}`. Restricted permissions always carry `requiresApproval=true` from the catalogue. |
+
+Webhooks are P2 per the blueprint and out of scope for this pass.
+
+### `assistant` — Ask Aatlas
+
+Port of `src/lib/intel/assistant.ts`'s `ask()`: an intent router, not a chatbot. Of
+its seven branches, **raise-prices**, **demand-by-region** and **a store** are real —
+computed from `SellLineReader`/`BuyLineReader` and this module's own tiny product/store
+lookup, the same way the screens would. **which-supplier**, **liquidate**,
+**hold-vs-sell** and **what-changed** are simplified stand-ins for engines that live in
+other tracks' worktrees (`buy2.ts`'s procurement planner, `sell2.ts`'s liquidation/hold
+signals, `overview.ts`) — small, honest computations over real seeded data, explicitly
+not the real formula. See `AssistantService`'s class doc for the precise line.
+
+| Method | Path | Notes |
+|---|---|---|
+| POST | `/api/v1/assistant/ask` | `{question}`. Matches one of six regex intents, a store by name, or returns the suggested questions (eight branches in total). Recorded to this seat's history. |
+| GET | `/api/v1/assistant/suggestions` | The six questions, reordered so this seat's own side of the business (from `policy`'s `Persona.side`) comes first. |
+| GET | `/api/v1/assistant/history` | `limit` (default 20). This seat's recent questions, newest first. |
+
+---
+
 ## What comes next
 
 Following the blueprint's build order:
