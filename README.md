@@ -4,7 +4,7 @@ Backend for the Aatlas decision-intelligence platform: what to charge, who to bu
 
 A **modular monolith** on Java 21 and Spring Boot — one deployable, sixteen modules whose boundaries are enforced at build time, with the compute-heavy work running out-of-band as workers. This is the scaffold described in `backend-blueprint.html`; the engines and endpoints land on top of it.
 
-> **Status: wave 1 landed.** Infrastructure, configuration, module boundaries and the build are in place and verified. `identity` (signup, login, refresh, logout, password reset, `/me`), `tenant` (settings, reference data, FX), `policy` (role policy, guardrails), `catalog` and `ingest` (products, stores, regions, customers, sample-data provisioning), and `suppliers` (panel, terms, ratings, reviews, risk, lookup) all carry real endpoints and tables — see "Wave 1" below. The rest of the build order in the blueprint still arrives module by module.
+> **Status: wave 1 landed; this worktree adds wave 2's `buy` track.** Infrastructure, configuration, module boundaries and the build are in place and verified. `identity` (signup, login, refresh, logout, password reset, `/me`), `tenant` (settings, reference data, FX), `policy` (role policy, guardrails), `catalog` and `ingest` (products, stores, regions, customers, sample-data provisioning), and `suppliers` (panel, terms, ratings, reviews, risk, lookup) all carry real endpoints and tables — see "Wave 1" below. `buy` (`V10`, branch `wave2-buy`) now carries the landed-cost panel, buy intel, the procurement plan and its what-ifs, negotiation, and select — see "Wave 2 — Buy" below. Sell, Insights, History/Analytics and Bulk/Integrations/Assistant are being built in parallel, in worktrees this one does not see.
 
 ---
 
@@ -91,6 +91,58 @@ Built on branch `wave1-auth`, on top of the signup and tenant-provisioning scaff
 **Two scaffold fixes, in `JwtConfig`:**
 - The `prod` profile now fails to start rather than minting an ephemeral RSA key pair when `JWT_PRIVATE_KEY` / `JWT_PUBLIC_KEY` are unset — a missing secret should be a page, not a pod that silently can't verify another pod's tokens.
 - The JWT decoder's expiry check is bound to `AatlasClock` rather than the system clock, so token minting and verification agree even when the clock is frozen for the demo tenant (and for every test) — see `docs/decisions.md`.
+
+---
+
+## Wave 2 — Buy
+
+Built on branch `wave2-buy`, `V10`. **Computed on demand, synchronously, in the request
+thread** — a deliberate, temporary departure from "the one idea worth knowing" above. The
+wave-2 brief's priority is every route reading and writing real data correctly for a demo,
+over the blueprint's full snapshot/worker/cache architecture; a controller here calls the
+same engine the TypeScript prototype did, at request time instead of on a schedule, which is
+exactly what the blueprint says happens later once caching is needed for scale. No new fact
+tables besides `buy_decisions` (below) — everything else is a pure function of the item,
+region/branch, quantity and the deterministic hash, read against `catalog`'s and
+`suppliers'` real seeded rows.
+
+**`buy`** (`V10` adds `buy_decisions`)
+
+| Method | Path | Notes |
+|---|---|---|
+| GET | `/api/v1/buy/recommendation` | `item`, `destination`, `supplier?` — the landed-cost panel for one supplier (the incumbent, or an override) into one branch, ranked against the panel. `buildBuyRecommendation`. |
+| GET | `/api/v1/buy/intel` | `item`, `region`, `qty`, `destination?` — effective cost per supplier (landed plus reliability, quality, terms), now-vs-wait, the negotiation letter. `getBuyIntel`. `destination` defaults to the region's busiest branch. |
+| GET | `/api/v1/buy/compare` | `item`, `region`, `qty`, `destination?` — `BuyIntel.suppliers` alone, for the side-by-side compare. |
+| GET | `/api/v1/buy/plan` | `item`, `region`, `qty`, `requiredDays`, `priority`, `destination?` — options A–D, ranked suppliers, trade-offs, a decision score, a cost/speed matrix. `procurementPlan`. |
+| POST | `/api/v1/buy/what-if` | `{item, region, qty, requiredDays, priority, scenario}` — one of the four named scenarios against the plan's recommendation. `buyWhatIf`. |
+| GET | `/api/v1/buy/negotiation` | `item`, `region`, `qty`, `destination?` — `BuyIntel.negotiation` alone. |
+| POST | `/api/v1/buy/select` | `{itemNumber, regionKey, destinationId, optionKey, orderValue}` — writes a decision (`buy_decisions`); `{ok:true}` when the signed-in seat's `Persona.approveLimit` covers `orderValue`, `{ok:false, pending:true, limit, approver}` when it does not. |
+
+Query parameter names match `buyApi` in the frontend's `src/lib/platform/backend.ts`
+exactly — that file is the contract every wave-2 backend track was given, field for field, so
+it settles the ambiguity the brief itself flagged (`store` vs `destination`, whether
+`supplier` is part of the recommendation call) rather than guessing from the page component.
+
+**Stand-ins** (see each type's own Javadoc for the full note; every one is a real,
+straightforward, deterministic port — not a mock):
+
+- `CommercialTerms`, `SupplierRisk` (`com.aatlas.buy` package root) — `suppliers` (wave 1) already ported `intel/terms.ts`'s `commercialTerms` and `intel/buy2.ts`'s `supplierRisk`, but its only public type is `SupplierPanelSeeder`; nothing exposes them for reuse. Ported again here, keyed the same way. `TODO(merge)`: depend on a `suppliers` public reader if one lands.
+- A small slice of `intel/suppliers.ts`'s rating engine (`RatingEngine`, internal) — needed only for the "Buyer rating" factor `supplierRisk` reads and the relationship sub-score `scoreSuppliers` reads. Same situation as above.
+- The three fields of `sell`'s `PricingModel` that `buy` actually reads — `priceable`, `cost`, `currentPrice` (`PricingStandIn`, internal) — `sell` (a parallel wave-2 track, different worktree) is not visible here. Nothing else of that engine (demand, competitors, bands, optimal/aggressive tiers) is reproduced.
+- `CatalogGateway`, `SupplierGateway` (internal): `catalog` and `suppliers` own the products/branches/logistics-reference and supplier-panel tables respectively, but expose no public (package-root) reader for them — only `CatalogSeeding` and `SupplierPanelSeeder`, both writers. Rather than re-deriving that data from the seed files a second time, these gateways read the **real, live tables** those modules already seeded, with plain SQL (`JdbcTemplate`) scoped by `tenant_id` from `TenantContext` — no Java dependency on `catalog.internal`/`suppliers.internal`, so `ModularityTests` passes, but still a stand-in for a proper cross-module reader. `TODO(merge)`: a public reader on each module.
+- `DecisionRecorder` + `buy_decisions` (`V10`, internal): the decision/deal write on `POST /buy/select` belongs to the `decisions` module (Track D / History-Analytics, a different worktree, not yet built here). Recorded to `buy` module's own table instead of guessing `decisions`'s shape. `TODO(merge)`: retarget at `decisions`' real writer.
+- `Persona.approveLimit`/`canApprove` is **not** a stand-in — `policy` is wave 1, already merged onto `salman`, this branch's ancestor — `POST /buy/select` depends on it directly.
+
+**Exposed for `bulk`'s future stand-in.** `BuyIntelReader` and `ProcurementPlanReader`
+(`com.aatlas.buy` package root), returning the public `BuyIntel`/`ProcurementPlan` record
+graphs, are implemented by `BuyIntelEngine`/`ProcurementEngine`. The `bulk` module (Track
+Bulk/Integrations/Assistant, a different worktree) is building `/buy/bulk/plan` against a
+stand-in of this reader without being able to see this code; keeping the interface and its
+return types at the package root — not `buy.internal` — is what lets that stand-in be
+retargeted here at merge time.
+
+**`GET /buy/what-if`'s data model:** `buyWhatIf(intel, plan, scenario)` already exists in the
+prototype's `intel/buy2.ts`, so it is ported, not skipped as P2.
 
 ---
 
@@ -189,6 +241,7 @@ Flyway owns the schema; Hibernate only validates against it (`ddl-auto: validate
 | `V6__guardrails_and_fx.sql` | `pricing_guardrails`, `pricing_guardrail_history`, `fx_rate` (seeded from `seed/currencies.json`) |
 | `V7__catalog_and_data_sources.sql` | Regions/subdivisions, the logistics rate card, commodities (reference — not tenant-scoped); stores, products, product_stores, customers (catalogue — tenant-scoped); data_sources (catalog + ingest modules) |
 | `V8__suppliers.sql` | `suppliers`, `supplier_terms`, `supplier_ratings`, `supplier_reviews`, `supplier_risk`, `supplier_lookups`, `supplier_performance_months` (suppliers module) |
+| `V10__buy_decisions.sql` | `buy_decisions` — what `POST /buy/select` recorded (buy module; stand-in for the `decisions` module's own table, see "Wave 2 — Buy") |
 
 Business tables arrive with the modules that own them, so a table and the code reading it are reviewed together. Migration numbers are reserved per builder and are not contiguous in any one worktree (V5–V7 belong to other in-flight modules).
 

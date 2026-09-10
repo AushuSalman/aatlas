@@ -4250,6 +4250,2433 @@
 					]
 				}
 			}
+		},
+		{
+			"name": "Signup — US / Commercial director (happy path)",
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"// Email is globally unique, so a fixed value would 409 on a second run.",
+							"pm.collectionVariables.set('runEmail', 'alex-' + Date.now() + '@kestrelsupply.com');"
+						]
+					}
+				},
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('201 Created', () => pm.response.to.have.status(201));",
+							"pm.test('Location header points at the new user', () =>",
+							"  pm.expect(pm.response.headers.get('Location')).to.match(/^\\/api\\/v1\\/users\\//));",
+							"",
+							"const body = pm.response.json();",
+							"",
+							"pm.test('tokens are present', () => {",
+							"  pm.expect(body.accessToken).to.be.a('string').and.not.empty;",
+							"  pm.expect(body.refreshToken).to.be.a('string').and.not.empty;",
+							"  pm.expect(body.tokenType).to.eql('Bearer');",
+							"  pm.expect(body.expiresIn).to.eql(900);",
+							"});",
+							"",
+							"pm.test('session matches the frontend Session shape', () => {",
+							"  pm.expect(body.session.company).to.eql('Kestrel Supply Co.');",
+							"  pm.expect(body.session.country).to.eql('US');",
+							"  pm.expect(body.session.currency).to.eql('USD');",
+							"  pm.expect(body.session.isNewAccount).to.be.true;",
+							"  pm.expect(body.session.user.title).to.eql('Commercial director');",
+							"  pm.expect(body.session.user.initials).to.eql('AM');",
+							"});",
+							"",
+							"pm.test('a new tenant has no data source, which routes to onboarding', () =>",
+							"  pm.expect(body.session.dataSource == null).to.be.true);",
+							"",
+							"pm.test('the password is never echoed back', () =>",
+							"  pm.expect(pm.response.text()).to.not.include(pm.collectionVariables.get('password')));",
+							"",
+							"pm.test('the id is a time-ordered UUID v7', () =>",
+							"  pm.expect(body.session.user.id.charAt(14)).to.eql('7'));",
+							"",
+							"// Hand the credentials to the rest of the collection.",
+							"pm.collectionVariables.set('accessToken', body.accessToken);",
+							"pm.collectionVariables.set('refreshToken', body.refreshToken);",
+							"pm.collectionVariables.set('userId', body.session.user.id);",
+							"pm.collectionVariables.set('takenEmail', body.session.user.email);"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/auth/signup",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"auth",
+						"signup"
+					]
+				},
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"fullName\": \"Alex Moreno\",\n  \"email\": \"{{runEmail}}\",\n  \"password\": \"{{password}}\",\n  \"company\": \"Kestrel Supply Co.\",\n  \"country\": \"US\",\n  \"role\": \"both\"\n}"
+				},
+				"description": "Creates the tenant, its first user and a signed-in session in one transaction."
+			}
+		},
+		{
+			"name": "Signup — UK / blank company (currency + default)",
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.collectionVariables.set('runEmail', 'harriet-' + Date.now() + '@haldenmetals.co.uk');"
+						]
+					}
+				},
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('201 Created', () => pm.response.to.have.status(201));",
+							"const body = pm.response.json();",
+							"pm.test('UK implies GBP without the client sending a currency', () =>",
+							"  pm.expect(body.session.currency).to.eql('GBP'));",
+							"pm.test('a blank company falls back rather than failing the form', () =>",
+							"  pm.expect(body.session.company).to.eql('Northwind Industrial'));",
+							"pm.test('the title comes from the seat, never from input', () =>",
+							"  pm.expect(body.session.user.title).to.eql('Purchase manager'));",
+							"",
+							"// purchase-manager's persona has guardrails: false — reused below for the 403 checks.",
+							"pm.collectionVariables.set('nonGuardrailToken', body.accessToken);"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/auth/signup",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"auth",
+						"signup"
+					]
+				},
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"fullName\": \"Harriet Vane\",\n  \"email\": \"{{runEmail}}\",\n  \"password\": \"{{password}}\",\n  \"company\": \"\",\n  \"country\": \"UK\",\n  \"role\": \"purchase-manager\"\n}"
+				},
+				"description": "Company is optional on the form. Country alone decides the trading currency."
+			}
+		},
+		{
+			"name": "409 — duplicate email (case and padding folded)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('409 Conflict', () => pm.response.to.have.status(409));",
+							"pm.test('carries a stable machine-readable code', () =>",
+							"  pm.expect(pm.response.json().code).to.eql('email_taken'));",
+							"// Proves email_normalised, not email, carries the unique index."
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/auth/signup",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"auth",
+						"signup"
+					]
+				},
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"fullName\": \"Someone Else\",\n  \"email\": \"  {{takenEmail}}  \",\n  \"password\": \"{{password}}\",\n  \"company\": \"Other Co.\",\n  \"country\": \"US\",\n  \"role\": \"seller\"\n}"
+				},
+				"description": "Run the happy path first — this reuses the address it registered, padded with spaces."
+			}
+		},
+		{
+			"name": "400 — weak password",
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.collectionVariables.set('runEmail', 'weak-' + Date.now() + '@kestrelsupply.com');"
+						]
+					}
+				},
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('400 Bad Request', () => pm.response.to.have.status(400));",
+							"pm.test('weak_password, with a message the form can show verbatim', () => {",
+							"  const body = pm.response.json();",
+							"  pm.expect(body.code).to.eql('weak_password');",
+							"  pm.expect(body.detail).to.be.a('string').and.not.empty;",
+							"});"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/auth/signup",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"auth",
+						"signup"
+					]
+				},
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"fullName\": \"Bee Cee\",\n  \"email\": \"{{runEmail}}\",\n  \"password\": \"passwordpassword\",\n  \"company\": \"Kestrel Supply Co.\",\n  \"country\": \"US\",\n  \"role\": \"both\"\n}"
+				},
+				"description": "Sixteen characters, so it passes the length rule and is caught by the screen for obvious choices."
+			}
+		},
+		{
+			"name": "400 — unknown seat",
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.collectionVariables.set('runEmail', 'seat-' + Date.now() + '@kestrelsupply.com');"
+						]
+					}
+				},
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('400, not 500 — binding failures are the caller\\'s fault', () =>",
+							"  pm.response.to.have.status(400));",
+							"pm.test('names the offending field and value', () => {",
+							"  const body = pm.response.json();",
+							"  pm.expect(body.code).to.eql('malformed_request');",
+							"  pm.expect(body.rejectedValue).to.eql('superuser');",
+							"});"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/auth/signup",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"auth",
+						"signup"
+					]
+				},
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"fullName\": \"Dee Eff\",\n  \"email\": \"{{runEmail}}\",\n  \"password\": \"{{password}}\",\n  \"company\": \"Kestrel Supply Co.\",\n  \"country\": \"US\",\n  \"role\": \"superuser\"\n}"
+				},
+				"description": "An unknown seat is refused rather than defaulted — a default would be an authorisation decision made by a typo."
+			}
+		},
+		{
+			"name": "400 — field validation (empty name, bad email)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('400 Bad Request', () => pm.response.to.have.status(400));",
+							"pm.test('reports per-field messages', () => {",
+							"  const body = pm.response.json();",
+							"  pm.expect(body.code).to.eql('validation_failed');",
+							"  pm.expect(body.fields).to.be.an('object');",
+							"});"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/auth/signup",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"auth",
+						"signup"
+					]
+				},
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"fullName\": \"\",\n  \"email\": \"not-an-email\",\n  \"password\": \"short\",\n  \"company\": \"Kestrel Supply Co.\",\n  \"country\": \"US\",\n  \"role\": \"both\"\n}"
+				},
+				"description": "Three violations at once. The response body carries a `fields` map keyed by field name."
+			}
+		},
+		{
+			"name": "Login — happy path",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('200 OK', () => pm.response.to.have.status(200));",
+							"const body = pm.response.json();",
+							"pm.test('same shape as signup', () => {",
+							"  pm.expect(body.accessToken).to.be.a('string').and.not.empty;",
+							"  pm.expect(body.session.isNewAccount).to.be.false;",
+							"});",
+							"pm.collectionVariables.set('accessToken', body.accessToken);",
+							"pm.collectionVariables.set('refreshToken', body.refreshToken);"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/auth/login",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"auth",
+						"login"
+					]
+				},
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"email\": \"{{takenEmail}}\",\n  \"password\": \"{{password}}\"\n}"
+				},
+				"description": "Run the first Signup request before this one — it reuses the address it registered. Replaces the tokens from signup with fresh ones."
+			}
+		},
+		{
+			"name": "401 — wrong password",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('401 Unauthorized', () => pm.response.to.have.status(401));",
+							"pm.test('one message for a wrong password and an unknown email', () =>",
+							"  pm.expect(pm.response.json().code).to.eql('invalid_credentials'));"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/auth/login",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"auth",
+						"login"
+					]
+				},
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"email\": \"{{takenEmail}}\",\n  \"password\": \"NotTheRightOne1\"\n}"
+				}
+			}
+		},
+		{
+			"name": "401 — /me without a token",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('401 Unauthorized', () => pm.response.to.have.status(401));"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/me",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"me"
+					]
+				}
+			}
+		},
+		{
+			"name": "403 — PUT /guardrails without the seat for it",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('403 Forbidden', () => pm.response.to.have.status(403));",
+							"pm.test('not_allowed', () => pm.expect(pm.response.json().code).to.eql('not_allowed'));"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "PUT",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{nonGuardrailToken}}"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/guardrails",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"guardrails"
+					]
+				},
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"minMarginPct\": 30,\n  \"maxDiscountPct\": 12,\n  \"maxSpeedPremiumPct\": 6,\n  \"maxMarketDeviationPct\": 9\n}"
+				},
+				"description": "purchase-manager's persona has guardrails: false. Run the second Signup request first so nonGuardrailToken is set."
+			}
+		},
+		{
+			"name": "403 — PATCH /tenant, not a head or the director",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('403 Forbidden', () => pm.response.to.have.status(403));",
+							"pm.test('not_allowed', () => pm.expect(pm.response.json().code).to.eql('not_allowed'));"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "PATCH",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{nonGuardrailToken}}"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/tenant",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"tenant"
+					]
+				},
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"name\": \"Should Not Stick\"\n}"
+				},
+				"description": "purchase-manager is a manager, not a head and not the director."
+			}
+		},
+		{
+			"name": "400 — PUT /tenant/settings, unsupported currency",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('400 Bad Request', () => pm.response.to.have.status(400));",
+							"pm.test('validation_failed, names the field', () => {",
+							"  const body = pm.response.json();",
+							"  pm.expect(body.code).to.eql('validation_failed');",
+							"  pm.expect(body.fields.currency).to.be.a('string');",
+							"});"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "PUT",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{accessToken}}"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/tenant/settings",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"tenant",
+						"settings"
+					]
+				},
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"currency\": \"XYZ\"\n}"
+				}
+			}
+		},
+		{
+			"name": "401 — refresh token reused revokes the family",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('401 Unauthorized', () => pm.response.to.have.status(401));",
+							"pm.test('refresh_reused', () => pm.expect(pm.response.json().code).to.eql('refresh_reused'));"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/auth/refresh",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"auth",
+						"refresh"
+					]
+				},
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"refreshToken\": \"{{spentRefreshToken}}\"\n}"
+				},
+				"description": "Run 'POST /auth/refresh (rotates)' first — this presents the token it spent, which the current live token is a descendant of and also gets revoked."
+			}
+		},
+		{
+			"name": "400 — password/reset with a token that was never issued",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('400 Bad Request', () => pm.response.to.have.status(400));",
+							"pm.test('invalid_reset_token', () => pm.expect(pm.response.json().code).to.eql('invalid_reset_token'));"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/auth/password/reset",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"auth",
+						"password",
+						"reset"
+					]
+				},
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"token\": \"{{resetToken}}\",\n  \"password\": \"NewZephyr!99Bridge\"\n}"
+				},
+				"description": "Set {{resetToken}} from the LogMailer output after running the forgot request to exercise the happy path instead."
+			}
+		},
+		{
+			"name": "204 — logout is idempotent",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('204 No Content', () => pm.response.to.have.status(204));"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/auth/logout",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"auth",
+						"logout"
+					]
+				},
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+				},
+				"description": "204 the first time and 204 again if you send it twice — sign-out does not distinguish a live token from one already gone."
+			}
+		},
+		{
+			"name": "Catalog — 404 no_catalogue before connecting",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('404 Not Found', () => pm.response.to.have.status(404));",
+							"pm.test('a helpful code, not just an empty list', () =>",
+							"  pm.expect(pm.response.json().code).to.eql('no_catalogue'));"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{accessToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/products",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"products"
+					]
+				},
+				"description": "Run right after the happy-path signup, before any data source is connected. Every catalogue read behaves the same way."
+			}
+		},
+		{
+			"name": "Data sources — list (empty before onboarding)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('200 OK, empty array', () => {",
+							"  pm.response.to.have.status(200);",
+							"  pm.expect(pm.response.json()).to.be.an('array').that.is.empty;",
+							"});"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{accessToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/data-sources",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"data-sources"
+					]
+				},
+				"description": "An empty list is what routes a real client to onboarding."
+			}
+		},
+		{
+			"name": "Data sources — connect the sample dataset (happy path)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('201 Created', () => pm.response.to.have.status(201));",
+							"const body = pm.response.json();",
+							"pm.test('the recorded source', () => {",
+							"  pm.expect(body.kind).to.eql('sample');",
+							"  pm.expect(body.label).to.eql('Sample dataset');",
+							"  pm.expect(body.status).to.eql('connected');",
+							"  pm.expect(body.connectedAt).to.be.a('string').and.not.empty;",
+							"});",
+							"pm.collectionVariables.set('dataSourceId', body.id);"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{accessToken}}"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/data-sources",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"data-sources"
+					]
+				},
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"kind\": \"sample\"\n}"
+				},
+				"description": "Seeds stores, products, product_stores and customers for the tenant's country and records the source."
+			}
+		},
+		{
+			"name": "Data sources — connect again (409 already_connected)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('409 Conflict', () => pm.response.to.have.status(409));",
+							"pm.test('names the existing source, does not reseed', () => {",
+							"  const body = pm.response.json();",
+							"  pm.expect(body.code).to.eql('already_connected');",
+							"  pm.expect(body.dataSourceId).to.eql(pm.collectionVariables.get('dataSourceId'));",
+							"});"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{accessToken}}"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/data-sources",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"data-sources"
+					]
+				},
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"kind\": \"sample\"\n}"
+				},
+				"description": "A partial unique index makes this race-proof, not just a check-then-act."
+			}
+		},
+		{
+			"name": "Catalog — products search (q + hasSales)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('200 OK', () => pm.response.to.have.status(200));",
+							"pm.test('finds the copper tube by description, case-insensitive q', () => {",
+							"  const items = pm.response.json().items;",
+							"  pm.expect(items.some((p) => p.itemNumber === 'HRD118902')).to.be.true;",
+							"});"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{accessToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/products?q=copper&hasSales=true&limit=20",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"products"
+					],
+					"query": [
+						{
+							"key": "q",
+							"value": "copper"
+						},
+						{
+							"key": "hasSales",
+							"value": "true"
+						},
+						{
+							"key": "limit",
+							"value": "20"
+						}
+					]
+				},
+				"description": "The picker. q matches the item number or description, case-insensitive."
+			}
+		},
+		{
+			"name": "Catalog — one product, with commodity trend and stores",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('200 OK', () => pm.response.to.have.status(200));",
+							"const body = pm.response.json();",
+							"pm.test('carries the trend and the selling branches', () => {",
+							"  pm.expect(body.commodity).to.eql('copper');",
+							"  pm.expect(body.commodityTrend.pct90).to.eql(6.4);",
+							"  pm.expect(body.storeIds).to.include('100959');",
+							"});"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{accessToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/products/HRD118902",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"products",
+						"HRD118902"
+					]
+				}
+			}
+		},
+		{
+			"name": "Catalog — 404 unknown item number",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('404, code not_found', () => {",
+							"  pm.response.to.have.status(404);",
+							"  pm.expect(pm.response.json().code).to.eql('not_found');",
+							"});"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{accessToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/products/NOPE-000",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"products",
+						"NOPE-000"
+					]
+				}
+			}
+		},
+		{
+			"name": "Catalog — stores by market region",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('200 OK, only the requested region', () => {",
+							"  pm.response.to.have.status(200);",
+							"  const items = pm.response.json().items;",
+							"  pm.expect(items.some((s) => s.store_id === '100959')).to.be.true;",
+							"  pm.expect(items.every((s) => s.regionKey === 'south')).to.be.true;",
+							"});"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{accessToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/stores?region=south",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"stores"
+					],
+					"query": [
+						{
+							"key": "region",
+							"value": "south"
+						}
+					]
+				},
+				"description": "store_id, legal_name, msa_name, item_count keep the frontend StoreItem's snake_case verbatim."
+			}
+		},
+		{
+			"name": "Catalog — one store by branch code",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('200 OK', () => pm.response.to.have.status(200));",
+							"const body = pm.response.json();",
+							"pm.test('Dallas #100959', () => {",
+							"  pm.expect(body.legal_name).to.eql('Dallas Branch');",
+							"  pm.expect(body.regionKey).to.eql('south');",
+							"});"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{accessToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/stores/100959",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"stores",
+						"100959"
+					]
+				}
+			}
+		},
+		{
+			"name": "Catalog — market regions with subdivisions and branches",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('200 OK, four regions', () => {",
+							"  pm.response.to.have.status(200);",
+							"  pm.expect(pm.response.json()).to.have.lengthOf(4);",
+							"});",
+							"pm.test('south carries Dallas and TX', () => {",
+							"  const south = pm.response.json().find((r) => r.key === 'south');",
+							"  pm.expect(south.storeIds).to.include('100959');",
+							"  pm.expect(south.subdivisions.map((s) => s.code)).to.include('TX');",
+							"});"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{accessToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/regions",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"regions"
+					]
+				}
+			}
+		},
+		{
+			"name": "Catalog — customers list and one account",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('200 OK', () => pm.response.to.have.status(200));",
+							"pm.test('c-1 is in the picker list', () => {",
+							"  const items = pm.response.json().items;",
+							"  pm.expect(items.some((c) => c.id === 'c-1')).to.be.true;",
+							"});"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{accessToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/customers?limit=100",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"customers"
+					],
+					"query": [
+						{
+							"key": "limit",
+							"value": "100"
+						}
+					]
+				}
+			}
+		},
+		{
+			"name": "Reference — logistics rate card (public, no token)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('200 OK with no Authorization header', () => pm.response.to.have.status(200));",
+							"const body = pm.response.json();",
+							"pm.test('regions and origins, verbatim from the reference tables', () => {",
+							"  pm.expect(body.regions).to.be.an('array').that.is.not.empty;",
+							"  pm.expect(body.origins).to.be.an('object');",
+							"});"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/reference/logistics",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"reference",
+						"logistics"
+					]
+				},
+				"description": "Listed in SecurityConfig.PUBLIC: same for every tenant, cacheable, no sign-in required."
+			}
+		},
+		{
+			"name": "Data sources — disconnect",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('204 No Content', () => pm.response.to.have.status(204));"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "DELETE",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{accessToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/data-sources/{{dataSourceId}}",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"data-sources",
+						"{{dataSourceId}}"
+					]
+				},
+				"description": "Removes the source only. The catalogue it brought stays — run the products search above again and it still answers."
+			}
+		},
+		{
+			"name": "Suppliers — Signup a finance seat (for permission checks)",
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.collectionVariables.set('runEmail', 'finance-' + Date.now() + '@kestrelsupply.com');"
+						]
+					}
+				},
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('201 Created', () => pm.response.to.have.status(201));",
+							"pm.collectionVariables.set('financeAccessToken', pm.response.json().accessToken);"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/auth/signup",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"auth",
+						"signup"
+					]
+				},
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"fullName\": \"Sam Lee\",\n  \"email\": \"{{runEmail}}\",\n  \"password\": \"{{password}}\",\n  \"company\": \"Kestrel Supply Co.\",\n  \"country\": \"US\",\n  \"role\": \"finance\"\n}"
+				},
+				"description": "Finance is neither a buy seat nor the director, so it is the seat the two 403 requests below use. Run after the director's Signup request above (that one is what sets {{accessToken}})."
+			}
+		},
+		{
+			"name": "Suppliers — Seed the panel (happy path)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('200 OK', () => pm.response.to.have.status(200));",
+							"pm.test('seeded is a count', () => pm.expect(pm.response.json().seeded).to.be.a('number'));"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{accessToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/suppliers/seed",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"suppliers",
+						"seed"
+					]
+				},
+				"description": "Director only. Idempotent — eight the first time this tenant calls it, zero on every call after. Normally fired by the sample data source connecting; exposed directly so it can be exercised here."
+			}
+		},
+		{
+			"name": "Suppliers — 403 seed by a non-director seat",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('403 Forbidden', () => pm.response.to.have.status(403));",
+							"pm.test('carries a stable machine-readable code', () =>",
+							"  pm.expect(pm.response.json().code).to.eql('not_allowed'));"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{financeAccessToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/suppliers/seed",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"suppliers",
+						"seed"
+					]
+				},
+				"description": "Finance is not the commercial director."
+			}
+		},
+		{
+			"name": "Suppliers — Panel ranked by rating",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('200 OK', () => pm.response.to.have.status(200));",
+							"const items = pm.response.json().items;",
+							"pm.test('eight seeded suppliers, each with risk and currency', () => {",
+							"  pm.expect(items).to.have.lengthOf(8);",
+							"  pm.expect(items[0].risk).to.have.property('score');",
+							"  pm.expect(items[0].currency).to.be.a('string');",
+							"});",
+							"pm.test('ranked by rating, highest first', () => {",
+							"  for (let i = 1; i < items.length; i++) pm.expect(items[i - 1].rating).to.be.at.least(items[i].rating);",
+							"});",
+							"pm.test('the two ratings the brief pins', () => {",
+							"  const byName = Object.fromEntries(items.map((s) => [s.name, s.rating]));",
+							"  pm.expect(byName['Cascade Copper Mills']).to.eql(4.5);",
+							"  pm.expect(byName['Gulf States Polymer']).to.eql(3.0);",
+							"});"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{accessToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/suppliers",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"suppliers"
+					]
+				},
+				"description": "Run after \"Seed the panel\". Each row is the frontend's SupplierProfile plus the risk summary and currency columns the panel table adds."
+			}
+		},
+		{
+			"name": "Suppliers — Look a supplier up",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('200 OK', () => pm.response.to.have.status(200));",
+							"const body = pm.response.json();",
+							"pm.test('deterministic: this name always resolves to the same company', () =>",
+							"  pm.expect(body.profile.id).to.eql('cus-f26j4f'));",
+							"pm.collectionVariables.set('supplierLookupId', body.lookupId);"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{accessToken}}"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/suppliers/lookup",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"suppliers",
+						"lookup"
+					]
+				},
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"query\": \"Halden Metals Ltd\",\n  \"country\": \"UK\"\n}"
+				},
+				"description": "Nothing is fetched from the web — the profile, sources and reviews are synthesised deterministically from the name and country, and persisted so \"add\" references what was shown here."
+			}
+		},
+		{
+			"name": "Suppliers — Add the looked-up supplier (happy path)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('201 Created', () => pm.response.to.have.status(201));",
+							"pm.test('Location header points at the new supplier', () =>",
+							"  pm.expect(pm.response.headers.get('Location')).to.match(/\\/api\\/v1\\/suppliers\\/cus-/));",
+							"const body = pm.response.json();",
+							"pm.test('the profile added is the one that was looked up', () => {",
+							"  pm.expect(body.id).to.eql('cus-f26j4f');",
+							"  pm.expect(body.isCustom).to.be.true;",
+							"});"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{accessToken}}"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/suppliers",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"suppliers"
+					]
+				},
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"lookupId\": \"{{supplierLookupId}}\"\n}"
+				},
+				"description": "Buy seats (purchase manager, buyer, purchase head) and the commercial director only. Run after \"Look a supplier up\"."
+			}
+		},
+		{
+			"name": "Suppliers — 403 add by a non-buy seat",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('403 Forbidden', () => pm.response.to.have.status(403));",
+							"pm.test('carries a stable machine-readable code', () =>",
+							"  pm.expect(pm.response.json().code).to.eql('not_allowed'));"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{financeAccessToken}}"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/suppliers",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"suppliers"
+					]
+				},
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"lookupId\": \"{{supplierLookupId}}\"\n}"
+				},
+				"description": "Finance is neither a buy seat nor the director. The seat check runs before the lookup id is even resolved, so this 403s regardless of whose lookup id is sent."
+			}
+		},
+		{
+			"name": "Suppliers — 409 delete a seeded supplier",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('409 Conflict', () => pm.response.to.have.status(409));",
+							"pm.test('carries a stable machine-readable code', () =>",
+							"  pm.expect(pm.response.json().code).to.eql('seeded_supplier'));"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "DELETE",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{accessToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/suppliers/sup-2",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"suppliers",
+						"sup-2"
+					]
+				},
+				"description": "Only a supplier added from a lookup can be removed; sup-2 (Cascade Copper Mills) is part of the seeded panel."
+			}
+		},
+		{
+			"name": "Wave 2 — Buy",
+			"description": "Landed cost, buy intel, procurement plan and its what-ifs, negotiation, and select. Runs at the end of the collection so it can reuse the tenant \"Data sources — connect the sample dataset\" already seeded (catalogue) and \"Suppliers — Seed the panel\" already seeded (supplier panel) earlier in the sequence - run the collection top to bottom the first time.",
+			"item": [
+				{
+					"name": "Buy — GET /buy/recommendation (flagship Copper Tube at Dallas)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('200 OK', () => pm.response.to.have.status(200));",
+									"const body = pm.response.json();",
+									"pm.test('landed-cost panel for the flagship item into Dallas', () => {",
+									"  pm.expect(body.itemNumber).to.eql('HRD118902');",
+									"  pm.expect(body.destinationId).to.eql('100959');",
+									"  pm.expect(body.quotes).to.have.lengthOf(8);",
+									"  pm.expect(body.lane).to.have.property('routeNote');",
+									"  pm.expect(body.marketLow).to.be.at.most(body.marketHigh);",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/buy/recommendation?item=HRD118902&destination=100959",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"buy",
+								"recommendation"
+							],
+							"query": [
+								{
+									"key": "item",
+									"value": "HRD118902"
+								},
+								{
+									"key": "destination",
+									"value": "100959"
+								}
+							]
+						},
+						"description": "buildBuyRecommendation. Runs after the top-of-collection signup and \"Data sources — connect the sample dataset\", which already seeded this tenant's catalogue; no supplier panel is needed for this endpoint alone (it reads suppliers directly)."
+					}
+				},
+				{
+					"name": "Buy — GET /buy/recommendation with a supplier override",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('200 OK', () => pm.response.to.have.status(200));",
+									"const body = pm.response.json();",
+									"pm.test('the override is evaluated, the incumbent is unchanged', () => {",
+									"  pm.expect(body.supplierId).to.eql('sup-2');",
+									"  pm.expect(body.supplierName).to.eql('Cascade Copper Mills');",
+									"  pm.expect(body.isOverride).to.be.true;",
+									"  pm.expect(body.incumbentSupplierId).to.not.eql('sup-2');",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/buy/recommendation?item=HRD118902&destination=100959&supplier=sup-2",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"buy",
+								"recommendation"
+							],
+							"query": [
+								{
+									"key": "item",
+									"value": "HRD118902"
+								},
+								{
+									"key": "destination",
+									"value": "100959"
+								},
+								{
+									"key": "supplier",
+									"value": "sup-2"
+								}
+							]
+						},
+						"description": "\"What if this line moved to Cascade Copper Mills?\" — isOverride flips to true and the incumbent fields still name whoever the line actually sits with today."
+					}
+				},
+				{
+					"name": "404 — GET /buy/recommendation, unknown item number",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('404 not_found', () => pm.response.to.have.status(404));",
+									"pm.test('problem+json code', () => pm.expect(pm.response.json().code).to.eql('not_found'));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/buy/recommendation?item=NOPE-000&destination=100959",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"buy",
+								"recommendation"
+							],
+							"query": [
+								{
+									"key": "item",
+									"value": "NOPE-000"
+								},
+								{
+									"key": "destination",
+									"value": "100959"
+								}
+							]
+						},
+						"description": ""
+					}
+				},
+				{
+					"name": "401 — GET /buy/recommendation without a token",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('401', () => pm.response.to.have.status(401));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/buy/recommendation?item=HRD118902&destination=100959",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"buy",
+								"recommendation"
+							],
+							"query": [
+								{
+									"key": "item",
+									"value": "HRD118902"
+								},
+								{
+									"key": "destination",
+									"value": "100959"
+								}
+							]
+						},
+						"description": ""
+					}
+				},
+				{
+					"name": "Buy — GET /buy/intel (flagship, South region, qty 2400)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('200 OK', () => pm.response.to.have.status(200));",
+									"const body = pm.response.json();",
+									"pm.test('effective cost per supplier, now-vs-wait and a negotiation letter', () => {",
+									"  pm.expect(body.destinationId).to.eql('100959');",
+									"  pm.expect(body.suppliers).to.have.lengthOf(8);",
+									"  pm.expect(body.incumbent.name).to.be.a('string');",
+									"  pm.expect(['now', 'wait']).to.include(body.nowVsWait.recommendation);",
+									"  pm.expect(body.negotiation.message).to.include(body.incumbent.name);",
+									"  pm.expect(body.final).to.have.property('price');",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/buy/intel?item=HRD118902&region=south&qty=2400",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"buy",
+								"intel"
+							],
+							"query": [
+								{
+									"key": "item",
+									"value": "HRD118902"
+								},
+								{
+									"key": "region",
+									"value": "south"
+								},
+								{
+									"key": "qty",
+									"value": "2400"
+								}
+							]
+						},
+						"description": "getBuyIntel. destination omitted -> lands at the region's busiest branch (Dallas #100959)."
+					}
+				},
+				{
+					"name": "400 — GET /buy/intel, missing required qty",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('400', () => pm.response.to.have.status(400));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/buy/intel?item=HRD118902&region=south",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"buy",
+								"intel"
+							],
+							"query": [
+								{
+									"key": "item",
+									"value": "HRD118902"
+								},
+								{
+									"key": "region",
+									"value": "south"
+								}
+							]
+						},
+						"description": ""
+					}
+				},
+				{
+					"name": "Buy — GET /buy/compare (the supplier panel, ranked)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('200 OK', () => pm.response.to.have.status(200));",
+									"const rows = pm.response.json();",
+									"pm.test('eight rows, sorted by effective cost ascending, one recommended', () => {",
+									"  pm.expect(rows).to.have.lengthOf(8);",
+									"  for (let i = 1; i < rows.length; i++) pm.expect(rows[i - 1].effective).to.be.at.most(rows[i].effective);",
+									"  pm.expect(rows.filter((r) => r.recommended)).to.have.lengthOf(1);",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/buy/compare?item=HRD118902&region=south&qty=2400",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"buy",
+								"compare"
+							],
+							"query": [
+								{
+									"key": "item",
+									"value": "HRD118902"
+								},
+								{
+									"key": "region",
+									"value": "south"
+								},
+								{
+									"key": "qty",
+									"value": "2400"
+								}
+							]
+						},
+						"description": "BuyIntel.suppliers alone, for the side-by-side compare tab."
+					}
+				},
+				{
+					"name": "Buy — GET /buy/plan, urgent priority — the flagship story",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('200 OK', () => pm.response.to.have.status(200));",
+									"const plan = pm.response.json();",
+									"pm.test('urgent, Cascade recommended from stock, Gulf States cheapest on paper', () => {",
+									"  pm.expect(plan.urgency).to.eql('urgent');",
+									"  pm.expect(plan.recommended.suppliers[0].name).to.eql('Cascade Copper Mills');",
+									"  pm.expect(plan.recommended.suppliers[0].route).to.eql('From stock, 1 day');",
+									"  pm.expect(plan.options[0].key).to.eql('cost');",
+									"  pm.expect(plan.options[0].suppliers[0].name).to.eql('Gulf States Polymer');",
+									"  pm.expect(plan.options[0].unitCost).to.be.below(plan.recommended.unitCost);",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/buy/plan?item=HRD118902&region=south&qty=2400&requiredDays=2&priority=balanced",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"buy",
+								"plan"
+							],
+							"query": [
+								{
+									"key": "item",
+									"value": "HRD118902"
+								},
+								{
+									"key": "region",
+									"value": "south"
+								},
+								{
+									"key": "qty",
+									"value": "2400"
+								},
+								{
+									"key": "requiredDays",
+									"value": "2"
+								},
+								{
+									"key": "priority",
+									"value": "balanced"
+								}
+							]
+						},
+						"description": "The brief's flagship case: urgent (2-day) priority recommends Cascade Copper Mills from stock, even though Gulf States Polymer is the cheapest quote on paper."
+					}
+				},
+				{
+					"name": "Buy — GET /buy/plan, not urgent (30 days) — notInAHurry appears",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('200 OK', () => pm.response.to.have.status(200));",
+									"const plan = pm.response.json();",
+									"pm.test('a 30-day window surfaces the calm, cheap option', () => {",
+									"  pm.expect(plan.urgency).to.eql('flexible');",
+									"  pm.expect(plan.notInAHurry).to.not.be.null;",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/buy/plan?item=HRD118902&region=south&qty=2400&requiredDays=30&priority=cost",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"buy",
+								"plan"
+							],
+							"query": [
+								{
+									"key": "item",
+									"value": "HRD118902"
+								},
+								{
+									"key": "region",
+									"value": "south"
+								},
+								{
+									"key": "qty",
+									"value": "2400"
+								},
+								{
+									"key": "requiredDays",
+									"value": "30"
+								},
+								{
+									"key": "priority",
+									"value": "cost"
+								}
+							]
+						},
+						"description": ""
+					}
+				},
+				{
+					"name": "Buy — POST /buy/what-if (supplier raises price 3%)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('200 OK', () => pm.response.to.have.status(200));",
+									"const body = pm.response.json();",
+									"pm.test('rows explain the new unit cost and whether the recommendation still holds', () => {",
+									"  pm.expect(body.rows.map((r) => r.label)).to.include('Still the recommendation?');",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/buy/what-if",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"buy",
+								"what-if"
+							]
+						},
+						"description": "buyWhatIf against the same plan as the flagship story above.",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"item\": \"HRD118902\",\n  \"region\": \"south\",\n  \"qty\": 2400,\n  \"requiredDays\": 2,\n  \"priority\": \"balanced\",\n  \"scenario\": \"supplier-up-3\"\n}"
+						}
+					}
+				},
+				{
+					"name": "Buy — GET /buy/negotiation",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('200 OK', () => pm.response.to.have.status(200));",
+									"const body = pm.response.json();",
+									"pm.test('a drafted letter with the levers behind it', () => {",
+									"  pm.expect(body.message).to.include('Subject:');",
+									"  pm.expect(body.levers.length).to.be.at.least(1);",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/buy/negotiation?item=HRD118902&region=south&qty=2400",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"buy",
+								"negotiation"
+							],
+							"query": [
+								{
+									"key": "item",
+									"value": "HRD118902"
+								},
+								{
+									"key": "region",
+									"value": "south"
+								},
+								{
+									"key": "qty",
+									"value": "2400"
+								}
+							]
+						},
+						"description": ""
+					}
+				},
+				{
+					"name": "Buy — Signup a purchase manager seat (for approval limit checks)",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.collectionVariables.set('buyManagerEmail', 'buy-manager-' + Date.now() + '@kestrelsupply.com');"
+								]
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('201 Created', () => pm.response.to.have.status(201));",
+									"pm.collectionVariables.set('buyManagerToken', pm.response.json().accessToken);"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/auth/signup",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"auth",
+								"signup"
+							]
+						},
+						"description": "A fresh tenant, not the one the collection has been building on - approveLimit is what matters here, not the catalogue. purchase-manager's approveLimit is 50,000 (seed/personas.json).",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"fullName\": \"Marcus Reyes\",\n  \"email\": \"{{buyManagerEmail}}\",\n  \"password\": \"{{password}}\",\n  \"company\": \"Kestrel Supply Co.\",\n  \"country\": \"US\",\n  \"role\": \"purchase-manager\"\n}"
+						}
+					}
+				},
+				{
+					"name": "Buy — POST /buy/select, under the approval limit (ok: true)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('200 OK', () => pm.response.to.have.status(200));",
+									"pm.test('goes straight through', () => {",
+									"  const body = pm.response.json();",
+									"  pm.expect(body.ok).to.be.true;",
+									"  pm.expect(body.pending).to.not.be.true;",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{buyManagerToken}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/buy/select",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"buy",
+								"select"
+							]
+						},
+						"description": "",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"itemNumber\": \"HRD118902\",\n  \"regionKey\": \"south\",\n  \"destinationId\": \"100959\",\n  \"optionKey\": \"cost\",\n  \"orderValue\": 10000\n}"
+						}
+					}
+				},
+				{
+					"name": "Buy — POST /buy/select, over the approval limit (pending)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('200 OK', () => pm.response.to.have.status(200));",
+									"pm.test('sent up for approval', () => {",
+									"  const body = pm.response.json();",
+									"  pm.expect(body.ok).to.be.false;",
+									"  pm.expect(body.pending).to.be.true;",
+									"  pm.expect(body.limit).to.eql(50000);",
+									"  pm.expect(body.approver).to.eql('Head of purchasing');",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{buyManagerToken}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/buy/select",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"buy",
+								"select"
+							]
+						},
+						"description": "purchase-manager's limit is 50,000; this order (the flagship plan's recommended total) is well over it.",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"itemNumber\": \"HRD118902\",\n  \"regionKey\": \"south\",\n  \"destinationId\": \"100959\",\n  \"optionKey\": \"speed\",\n  \"orderValue\": 261648\n}"
+						}
+					}
+				},
+				{
+					"name": "400 — POST /buy/select, missing required field",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('400', () => pm.response.to.have.status(400));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/buy/select",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"buy",
+								"select"
+							]
+						},
+						"description": "",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"itemNumber\": \"HRD118902\",\n  \"regionKey\": \"south\",\n  \"destinationId\": \"100959\"\n}"
+						}
+					}
+				}
+			]
 		}
 	]
 }
