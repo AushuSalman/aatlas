@@ -1,7 +1,7 @@
 {
 	"info": {
-		"name": "Aatlas API — Auth, tenant, policy and guardrails",
-		"description": "Signup, sign-in, tenant/settings, roles and pricing guardrails for the Aatlas platform. Local defaults target http://localhost:8080.\n\nThe happy-path requests store tokens, ids and a spent refresh token into collection variables, so later requests can use {{accessToken}} etc. without copying anything by hand. Run the folder top to bottom the first time — several requests depend on ones above them having run first.\n\nEach email is randomised at send time, because the address is globally unique — a fixed one would 409 on the second run.",
+		"name": "Aatlas API â€” Auth, tenant, policy and guardrails",
+		"description": "Signup, sign-in, tenant/settings, roles and pricing guardrails for the Aatlas platform. Local defaults target http://localhost:8080.\n\nThe happy-path requests store tokens, ids and a spent refresh token into collection variables, so later requests can use {{accessToken}} etc. without copying anything by hand. Run the folder top to bottom the first time â€” several requests depend on ones above them having run first.\n\nEach email is randomised at send time, because the address is globally unique â€” a fixed one would 409 on the second run.",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
 	"variable": [
@@ -44,7 +44,7 @@
 	],
 	"item": [
 		{
-			"name": "Signup — US / Commercial director (happy path)",
+			"name": "Signup â€” US / Commercial director (happy path)",
 			"event": [
 				{
 					"listen": "prerequest",
@@ -129,7 +129,7 @@
 			}
 		},
 		{
-			"name": "Signup — UK / blank company (currency + default)",
+			"name": "Signup â€” UK / blank company (currency + default)",
 			"event": [
 				{
 					"listen": "prerequest",
@@ -154,7 +154,7 @@
 							"pm.test('the title comes from the seat, never from input', () =>",
 							"  pm.expect(body.session.user.title).to.eql('Purchase manager'));",
 							"",
-							"// purchase-manager's persona has guardrails: false — reused below for the 403 checks.",
+							"// purchase-manager's persona has guardrails: false â€” reused below for the 403 checks.",
 							"pm.collectionVariables.set('nonGuardrailToken', body.accessToken);"
 						]
 					}
@@ -188,7 +188,7 @@
 			}
 		},
 		{
-			"name": "409 — duplicate email (case and padding folded)",
+			"name": "409 â€” duplicate email (case and padding folded)",
 			"event": [
 				{
 					"listen": "test",
@@ -227,11 +227,11 @@
 					"mode": "raw",
 					"raw": "{\n  \"fullName\": \"Someone Else\",\n  \"email\": \"  {{takenEmail}}  \",\n  \"password\": \"{{password}}\",\n  \"company\": \"Other Co.\",\n  \"country\": \"US\",\n  \"role\": \"seller\"\n}"
 				},
-				"description": "Run the happy path first — this reuses the address it registered, padded with spaces."
+				"description": "Run the happy path first â€” this reuses the address it registered, padded with spaces."
 			}
 		},
 		{
-			"name": "400 — weak password",
+			"name": "400 â€” weak password",
 			"event": [
 				{
 					"listen": "prerequest",
@@ -285,7 +285,7 @@
 			}
 		},
 		{
-			"name": "400 — unknown seat",
+			"name": "400 â€” unknown seat",
 			"event": [
 				{
 					"listen": "prerequest",
@@ -301,7 +301,7 @@
 					"script": {
 						"type": "text/javascript",
 						"exec": [
-							"pm.test('400, not 500 — binding failures are the caller\\'s fault', () =>",
+							"pm.test('400, not 500 â€” binding failures are the caller\\'s fault', () =>",
 							"  pm.response.to.have.status(400));",
 							"pm.test('names the offending field and value', () => {",
 							"  const body = pm.response.json();",
@@ -336,11 +336,11 @@
 					"mode": "raw",
 					"raw": "{\n  \"fullName\": \"Dee Eff\",\n  \"email\": \"{{runEmail}}\",\n  \"password\": \"{{password}}\",\n  \"company\": \"Kestrel Supply Co.\",\n  \"country\": \"US\",\n  \"role\": \"superuser\"\n}"
 				},
-				"description": "An unknown seat is refused rather than defaulted — a default would be an authorisation decision made by a typo."
+				"description": "An unknown seat is refused rather than defaulted â€” a default would be an authorisation decision made by a typo."
 			}
 		},
 		{
-			"name": "400 — field validation (empty name, bad email)",
+			"name": "400 â€” field validation (empty name, bad email)",
 			"event": [
 				{
 					"listen": "test",
@@ -385,7 +385,7 @@
 			}
 		},
 		{
-			"name": "Login — happy path",
+			"name": "Login â€” happy path",
 			"event": [
 				{
 					"listen": "test",
@@ -428,11 +428,11 @@
 					"mode": "raw",
 					"raw": "{\n  \"email\": \"{{takenEmail}}\",\n  \"password\": \"{{password}}\"\n}"
 				},
-				"description": "Run the first Signup request before this one — it reuses the address it registered. Replaces the tokens from signup with fresh ones."
+				"description": "Run the first Signup request before this one â€” it reuses the address it registered. Replaces the tokens from signup with fresh ones."
 			}
 		},
 		{
-			"name": "401 — wrong password",
+			"name": "401 â€” wrong password",
 			"event": [
 				{
 					"listen": "test",
@@ -514,7 +514,7 @@
 			}
 		},
 		{
-			"name": "401 — /me without a token",
+			"name": "401 â€” /me without a token",
 			"event": [
 				{
 					"listen": "test",
@@ -673,7 +673,7 @@
 			}
 		},
 		{
-			"name": "403 — PUT /guardrails without the seat for it",
+			"name": "403 â€” PUT /guardrails without the seat for it",
 			"event": [
 				{
 					"listen": "test",
@@ -878,7 +878,7 @@
 			}
 		},
 		{
-			"name": "403 — PATCH /tenant, not a head or the director",
+			"name": "403 â€” PATCH /tenant, not a head or the director",
 			"event": [
 				{
 					"listen": "test",
@@ -1009,7 +1009,7 @@
 			}
 		},
 		{
-			"name": "400 — PUT /tenant/settings, unsupported currency",
+			"name": "400 â€” PUT /tenant/settings, unsupported currency",
 			"event": [
 				{
 					"listen": "test",
@@ -1181,7 +1181,7 @@
 			}
 		},
 		{
-			"name": "401 — refresh token reused revokes the family",
+			"name": "401 â€” refresh token reused revokes the family",
 			"event": [
 				{
 					"listen": "test",
@@ -1218,7 +1218,7 @@
 					"mode": "raw",
 					"raw": "{\n  \"refreshToken\": \"{{spentRefreshToken}}\"\n}"
 				},
-				"description": "Run 'POST /auth/refresh (rotates)' first — this presents the token it spent, which the current live token is a descendant of and also gets revoked."
+				"description": "Run 'POST /auth/refresh (rotates)' first â€” this presents the token it spent, which the current live token is a descendant of and also gets revoked."
 			}
 		},
 		{
@@ -1264,7 +1264,7 @@
 			}
 		},
 		{
-			"name": "400 — password/reset with a token that was never issued",
+			"name": "400 â€” password/reset with a token that was never issued",
 			"event": [
 				{
 					"listen": "test",
@@ -1306,7 +1306,7 @@
 			}
 		},
 		{
-			"name": "204 — logout is idempotent",
+			"name": "204 â€” logout is idempotent",
 			"event": [
 				{
 					"listen": "test",
@@ -1342,7 +1342,7 @@
 					"mode": "raw",
 					"raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
 				},
-				"description": "204 the first time and 204 again if you send it twice — sign-out does not distinguish a live token from one already gone."
+				"description": "204 the first time and 204 again if you send it twice â€” sign-out does not distinguish a live token from one already gone."
 			}
 		},
 		{
@@ -1373,7 +1373,7 @@
 						"health"
 					]
 				},
-				"description": "Start here if a request fails — it tells you whether the app and its database are up."
+				"description": "Start here if a request fails â€” it tells you whether the app and its database are up."
 			}
 		},
 		{
@@ -1395,7 +1395,7 @@
 			}
 		},
 		{
-			"name": "Catalog — 404 no_catalogue before connecting",
+			"name": "Catalog â€” 404 no_catalogue before connecting",
 			"event": [
 				{
 					"listen": "test",
@@ -1432,7 +1432,7 @@
 			}
 		},
 		{
-			"name": "Data sources — list (empty before onboarding)",
+			"name": "Data sources â€” list (empty before onboarding)",
 			"event": [
 				{
 					"listen": "test",
@@ -1470,7 +1470,7 @@
 			}
 		},
 		{
-			"name": "Data sources — connect the sample dataset (happy path)",
+			"name": "Data sources â€” connect the sample dataset (happy path)",
 			"event": [
 				{
 					"listen": "test",
@@ -1521,7 +1521,7 @@
 			}
 		},
 		{
-			"name": "Data sources — connect again (409 already_connected)",
+			"name": "Data sources â€” connect again (409 already_connected)",
 			"event": [
 				{
 					"listen": "test",
@@ -1569,7 +1569,7 @@
 			}
 		},
 		{
-			"name": "Catalog — products search (q + hasSales)",
+			"name": "Catalog â€” products search (q + hasSales)",
 			"event": [
 				{
 					"listen": "test",
@@ -1622,7 +1622,7 @@
 			}
 		},
 		{
-			"name": "Catalog — one product, with commodity trend and stores",
+			"name": "Catalog â€” one product, with commodity trend and stores",
 			"event": [
 				{
 					"listen": "test",
@@ -1663,7 +1663,7 @@
 			}
 		},
 		{
-			"name": "Catalog — 404 unknown item number",
+			"name": "Catalog â€” 404 unknown item number",
 			"event": [
 				{
 					"listen": "test",
@@ -1701,7 +1701,7 @@
 			}
 		},
 		{
-			"name": "Catalog — stores by market region",
+			"name": "Catalog â€” stores by market region",
 			"event": [
 				{
 					"listen": "test",
@@ -1747,7 +1747,7 @@
 			}
 		},
 		{
-			"name": "Catalog — one store by branch code",
+			"name": "Catalog â€” one store by branch code",
 			"event": [
 				{
 					"listen": "test",
@@ -1787,7 +1787,7 @@
 			}
 		},
 		{
-			"name": "Catalog — market regions with subdivisions and branches",
+			"name": "Catalog â€” market regions with subdivisions and branches",
 			"event": [
 				{
 					"listen": "test",
@@ -1829,7 +1829,7 @@
 			}
 		},
 		{
-			"name": "Catalog — customers list and one account",
+			"name": "Catalog â€” customers list and one account",
 			"event": [
 				{
 					"listen": "test",
@@ -1873,7 +1873,7 @@
 			}
 		},
 		{
-			"name": "Reference — logistics rate card (public, no token)",
+			"name": "Reference â€” logistics rate card (public, no token)",
 			"event": [
 				{
 					"listen": "test",
@@ -1909,7 +1909,7 @@
 			}
 		},
 		{
-			"name": "Data sources — disconnect",
+			"name": "Data sources â€” disconnect",
 			"event": [
 				{
 					"listen": "test",
@@ -1941,11 +1941,11 @@
 						"{{dataSourceId}}"
 					]
 				},
-				"description": "Removes the source only. The catalogue it brought stays — run the products search above again and it still answers."
+				"description": "Removes the source only. The catalogue it brought stays â€” run the products search above again and it still answers."
 			}
 		},
 		{
-			"name": "Suppliers — Signup a finance seat (for permission checks)",
+			"name": "Suppliers â€” Signup a finance seat (for permission checks)",
 			"event": [
 				{
 					"listen": "prerequest",
@@ -1995,7 +1995,7 @@
 			}
 		},
 		{
-			"name": "Suppliers — Seed the panel (happy path)",
+			"name": "Suppliers â€” Seed the panel (happy path)",
 			"event": [
 				{
 					"listen": "test",
@@ -2028,11 +2028,11 @@
 						"seed"
 					]
 				},
-				"description": "Director only. Idempotent — eight the first time this tenant calls it, zero on every call after. Normally fired by the sample data source connecting; exposed directly so it can be exercised here."
+				"description": "Director only. Idempotent â€” eight the first time this tenant calls it, zero on every call after. Normally fired by the sample data source connecting; exposed directly so it can be exercised here."
 			}
 		},
 		{
-			"name": "Suppliers — 403 seed by a non-director seat",
+			"name": "Suppliers â€” 403 seed by a non-director seat",
 			"event": [
 				{
 					"listen": "test",
@@ -2070,7 +2070,7 @@
 			}
 		},
 		{
-			"name": "Suppliers — Panel ranked by rating",
+			"name": "Suppliers â€” Panel ranked by rating",
 			"event": [
 				{
 					"listen": "test",
@@ -2119,7 +2119,7 @@
 			}
 		},
 		{
-			"name": "Suppliers — Look a supplier up",
+			"name": "Suppliers â€” Look a supplier up",
 			"event": [
 				{
 					"listen": "test",
@@ -2163,11 +2163,11 @@
 					"mode": "raw",
 					"raw": "{\n  \"query\": \"Halden Metals Ltd\",\n  \"country\": \"UK\"\n}"
 				},
-				"description": "Nothing is fetched from the web — the profile, sources and reviews are synthesised deterministically from the name and country, and persisted so \"add\" references what was shown here."
+				"description": "Nothing is fetched from the web â€” the profile, sources and reviews are synthesised deterministically from the name and country, and persisted so \"add\" references what was shown here."
 			}
 		},
 		{
-			"name": "Suppliers — Add the looked-up supplier (happy path)",
+			"name": "Suppliers â€” Add the looked-up supplier (happy path)",
 			"event": [
 				{
 					"listen": "test",
@@ -2217,7 +2217,7 @@
 			}
 		},
 		{
-			"name": "Suppliers — 403 add by a non-buy seat",
+			"name": "Suppliers â€” 403 add by a non-buy seat",
 			"event": [
 				{
 					"listen": "test",
@@ -2262,7 +2262,7 @@
 			}
 		},
 		{
-			"name": "Suppliers — 409 delete a seeded supplier",
+			"name": "Suppliers â€” 409 delete a seeded supplier",
 			"event": [
 				{
 					"listen": "test",
@@ -2300,7 +2300,7 @@
 			}
 		},
 		{
-			"name": "History — rows (paged)",
+			"name": "History â€” rows (paged)",
 			"request": {
 				"method": "GET",
 				"header": [
@@ -2346,7 +2346,7 @@
 			]
 		},
 		{
-			"name": "History — summary (decisions/followed%/gained/lost/net)",
+			"name": "History â€” summary (decisions/followed%/gained/lost/net)",
 			"request": {
 				"method": "GET",
 				"header": [
@@ -2389,7 +2389,7 @@
 			]
 		},
 		{
-			"name": "History — 400 invalid cursor",
+			"name": "History â€” 400 invalid cursor",
 			"request": {
 				"method": "GET",
 				"header": [
@@ -2430,7 +2430,7 @@
 			]
 		},
 		{
-			"name": "Impact — sell + buy summaries by month",
+			"name": "Impact â€” sell + buy summaries by month",
 			"request": {
 				"method": "GET",
 				"header": [
@@ -2470,7 +2470,7 @@
 			]
 		},
 		{
-			"name": "Deals — recorded deals (paged)",
+			"name": "Deals â€” recorded deals (paged)",
 			"request": {
 				"method": "GET",
 				"header": [
@@ -2515,7 +2515,7 @@
 			]
 		},
 		{
-			"name": "Decisions — record a sell decision (happy path)",
+			"name": "Decisions â€” record a sell decision (happy path)",
 			"request": {
 				"method": "POST",
 				"header": [
@@ -2541,7 +2541,7 @@
 				},
 				"body": {
 					"mode": "raw",
-					"raw": "{\n  \"kind\": \"sell\",\n  \"title\": \"Price applied for HRD118902 at Dallas — TX\",\n  \"itemNumber\": \"HRD118902\",\n  \"scope\": \"Dallas — TX\",\n  \"recommended\": 27.4,\n  \"applied\": 27.4,\n  \"expectedImpact\": 1250,\n  \"impactLabel\": \"over 12 months\",\n  \"detail\": \"Optimal tier applied\",\n  \"count\": 1\n}"
+					"raw": "{\n  \"kind\": \"sell\",\n  \"title\": \"Price applied for HRD118902 at Dallas â€” TX\",\n  \"itemNumber\": \"HRD118902\",\n  \"scope\": \"Dallas â€” TX\",\n  \"recommended\": 27.4,\n  \"applied\": 27.4,\n  \"expectedImpact\": 1250,\n  \"impactLabel\": \"over 12 months\",\n  \"detail\": \"Optimal tier applied\",\n  \"count\": 1\n}"
 				},
 				"description": "Not in the wave-2 brief's Group L list - added so the recorder is exercisable over HTTP before sell/buy/bulk exist to call it directly. Mirrors intel/decisions.ts's recordDecision."
 			},
@@ -2561,7 +2561,7 @@
 			]
 		},
 		{
-			"name": "Decisions — list (newest first)",
+			"name": "Decisions â€” list (newest first)",
 			"request": {
 				"method": "GET",
 				"header": [
@@ -2599,7 +2599,7 @@
 			]
 		},
 		{
-			"name": "Decisions — one decision with its deals",
+			"name": "Decisions â€” one decision with its deals",
 			"request": {
 				"method": "GET",
 				"header": [
@@ -2635,7 +2635,7 @@
 			]
 		},
 		{
-			"name": "Decisions — 404 unknown decision id",
+			"name": "Decisions â€” 404 unknown decision id",
 			"request": {
 				"method": "GET",
 				"header": [
@@ -2671,7 +2671,7 @@
 			]
 		},
 		{
-			"name": "Decisions — record a sell-side deal",
+			"name": "Decisions â€” record a sell-side deal",
 			"request": {
 				"method": "POST",
 				"header": [
@@ -2698,7 +2698,7 @@
 				},
 				"body": {
 					"mode": "raw",
-					"raw": "{\n  \"itemNumber\": \"HRD118902\",\n  \"description\": \"1/2 IN COPPER TYPE L HARD TUBE 10FT\",\n  \"storeName\": \"Dallas — TX\",\n  \"customerName\": \"Halloran Mechanical\",\n  \"qty\": 240,\n  \"cost\": 18.2,\n  \"baselinePrice\": 24.5,\n  \"suggestedPrice\": 27.4,\n  \"actualPrice\": 27.9,\n  \"marginFloor\": 24.27,\n  \"date\": \"2026-08-30\"\n}"
+					"raw": "{\n  \"itemNumber\": \"HRD118902\",\n  \"description\": \"1/2 IN COPPER TYPE L HARD TUBE 10FT\",\n  \"storeName\": \"Dallas â€” TX\",\n  \"customerName\": \"Halloran Mechanical\",\n  \"qty\": 240,\n  \"cost\": 18.2,\n  \"baselinePrice\": 24.5,\n  \"suggestedPrice\": 27.4,\n  \"actualPrice\": 27.9,\n  \"marginFloor\": 24.27,\n  \"date\": \"2026-08-30\"\n}"
 				}
 			},
 			"event": [
@@ -2715,7 +2715,7 @@
 			]
 		},
 		{
-			"name": "Decisions — record a buy-side deal (also badges a purchase order)",
+			"name": "Decisions â€” record a buy-side deal (also badges a purchase order)",
 			"request": {
 				"method": "POST",
 				"header": [
@@ -2760,7 +2760,7 @@
 			]
 		},
 		{
-			"name": "Decisions — clear my applied decisions",
+			"name": "Decisions â€” clear my applied decisions",
 			"request": {
 				"method": "DELETE",
 				"header": [
@@ -2796,7 +2796,7 @@
 			]
 		},
 		{
-			"name": "Analytics — full procurement dashboard payload",
+			"name": "Analytics â€” full procurement dashboard payload",
 			"request": {
 				"method": "GET",
 				"header": [
@@ -2844,7 +2844,7 @@
 			]
 		},
 		{
-			"name": "Analytics — spend timeline",
+			"name": "Analytics â€” spend timeline",
 			"request": {
 				"method": "GET",
 				"header": [
@@ -2887,7 +2887,7 @@
 			]
 		},
 		{
-			"name": "Analytics — supplier scorecard with risk",
+			"name": "Analytics â€” supplier scorecard with risk",
 			"request": {
 				"method": "GET",
 				"header": [
@@ -2934,7 +2934,7 @@
 			]
 		},
 		{
-			"name": "Analytics — spend mix by category",
+			"name": "Analytics â€” spend mix by category",
 			"request": {
 				"method": "GET",
 				"header": [
@@ -2981,7 +2981,7 @@
 			]
 		},
 		{
-			"name": "Analytics — 400 invalid mix dimension",
+			"name": "Analytics â€” 400 invalid mix dimension",
 			"request": {
 				"method": "GET",
 				"header": [
@@ -3024,7 +3024,7 @@
 			]
 		},
 		{
-			"name": "Analytics — delivery record and worst misses",
+			"name": "Analytics â€” delivery record and worst misses",
 			"request": {
 				"method": "GET",
 				"header": [
@@ -3071,7 +3071,7 @@
 			]
 		},
 		{
-			"name": "Analytics — opportunities (furthest over target)",
+			"name": "Analytics â€” opportunities (furthest over target)",
 			"request": {
 				"method": "GET",
 				"header": [
@@ -3114,7 +3114,7 @@
 			]
 		},
 		{
-			"name": "Analytics — ledger, searchable and keyset paged",
+			"name": "Analytics â€” ledger, searchable and keyset paged",
 			"request": {
 				"method": "GET",
 				"header": [
@@ -3161,7 +3161,7 @@
 			]
 		},
 		{
-			"name": "Analytics — ledger filtered to open orders",
+			"name": "Analytics â€” ledger filtered to open orders",
 			"request": {
 				"method": "GET",
 				"header": [
@@ -3211,7 +3211,7 @@
 			]
 		},
 		{
-			"name": "Analytics — range presets and the earliest order on file",
+			"name": "Analytics â€” range presets and the earliest order on file",
 			"request": {
 				"method": "GET",
 				"header": [
@@ -3252,7 +3252,7 @@
 			]
 		},
 		{
-			"name": "Analytics — 401 without a token",
+			"name": "Analytics â€” 401 without a token",
 			"request": {
 				"method": "GET",
 				"header": [],
@@ -3281,6 +3281,975 @@
 					}
 				}
 			]
+		},
+		{
+			"name": "Sell â€” Signup a seller seat (for the Sell endpoints)",
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.collectionVariables.set('sellEmail', 'seller-' + Date.now() + '@kestrelsupply.com');"
+						]
+					}
+				},
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('201 Created', () => pm.response.to.have.status(201));",
+							"pm.collectionVariables.set('sellAccessToken', pm.response.json().accessToken);"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/auth/signup",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"auth",
+						"signup"
+					]
+				},
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"fullName\": \"Dana Whitfield\",\n  \"email\": \"{{sellEmail}}\",\n  \"password\": \"{{password}}\",\n  \"company\": \"Kestrel Supply Co.\",\n  \"country\": \"US\",\n  \"role\": \"both\"\n}"
+				},
+				"description": "A seat of its own, run after the top-of-collection director signup â€” this file is shared, and the Sell endpoints below only need a tenant with the sample dataset connected, not any particular persona."
+			}
+		},
+		{
+			"name": "Sell â€” 409 no_catalogue before connecting",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('409 Conflict', () => pm.response.to.have.status(409));",
+							"pm.test('no_catalogue', () => pm.expect(pm.response.json().code).to.eql('no_catalogue'));"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{sellAccessToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/sell/recommendation?item=HRD118902&store=100959",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"sell",
+						"recommendation"
+					],
+					"query": [
+						{
+							"key": "item",
+							"value": "HRD118902"
+						},
+						{
+							"key": "store",
+							"value": "100959"
+						}
+					]
+				},
+				"description": "Every /sell read refuses with 409 no_catalogue until the tenant has a catalogue."
+			}
+		},
+		{
+			"name": "Sell â€” Connect the sample dataset",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('201 Created', () => pm.response.to.have.status(201));"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{sellAccessToken}}"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/data-sources",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"data-sources"
+					]
+				},
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"kind\": \"sample\"\n}"
+				}
+			}
+		},
+		{
+			"name": "Sell â€” GET recommendation (flagship pair: Copper Tube 1/2\" @ Dallas #100959)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('200 OK', () => pm.response.to.have.status(200));",
+							"const body = pm.response.json();",
+							"pm.test('the whole answer, one round trip', () => {",
+							"  pm.expect(body.intel.priceable).to.be.true;",
+							"  pm.expect(body.intel.itemNumber).to.eql('HRD118902');",
+							"  pm.expect(body.decisionScore.total).to.be.a('number');",
+							"  pm.expect(body.speedPricing.tiers).to.have.lengthOf(3);",
+							"  pm.expect(body.holdVsSell.recommendation).to.be.oneOf(['hold', 'sell']);",
+							"  pm.expect(body.opportunityScore.score).to.be.a('number');",
+							"});"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{sellAccessToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/sell/recommendation?item=HRD118902&store=100959",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"sell",
+						"recommendation"
+					],
+					"query": [
+						{
+							"key": "item",
+							"value": "HRD118902"
+						},
+						{
+							"key": "store",
+							"value": "100959"
+						}
+					]
+				},
+				"description": "Guardrail-adjusted price, decision score, chain, timeline, forecast, now-vs-wait, liquidation signal, speed tiers and the opportunity chip â€” everything the Sell screen reads on load."
+			}
+		},
+		{
+			"name": "Sell â€” GET recommendation/derivation (\"why this price\")",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('200 OK', () => pm.response.to.have.status(200));",
+							"const body = pm.response.json();",
+							"pm.test('both tiers, benchmarks, bands, steps, weights', () => {",
+							"  pm.expect(body.optimal.price).to.be.a('number');",
+							"  pm.expect(body.aggressive.price).to.be.a('number');",
+							"  pm.expect(body.steps).to.be.an('array').that.is.not.empty;",
+							"  pm.expect(body.weights).to.be.an('array').that.is.not.empty;",
+							"});"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{sellAccessToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/sell/recommendation/derivation?item=HRD118902&store=100959",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"sell",
+						"recommendation",
+						"derivation"
+					],
+					"query": [
+						{
+							"key": "item",
+							"value": "HRD118902"
+						},
+						{
+							"key": "store",
+							"value": "100959"
+						}
+					]
+				}
+			}
+		},
+		{
+			"name": "Sell â€” GET score (opportunity chip alone)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('200 OK', () => pm.response.to.have.status(200));",
+							"const body = pm.response.json();",
+							"pm.test('score, tier and reasons', () => {",
+							"  pm.expect(body.score).to.be.a('number');",
+							"  pm.expect(body.tier).to.be.oneOf(['strong', 'watch', 'risk']);",
+							"  pm.expect(body.reasons).to.be.an('array').that.is.not.empty;",
+							"});"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{sellAccessToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/sell/score?item=HRD118902&store=100959",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"sell",
+						"score"
+					],
+					"query": [
+						{
+							"key": "item",
+							"value": "HRD118902"
+						},
+						{
+							"key": "store",
+							"value": "100959"
+						}
+					]
+				}
+			}
+		},
+		{
+			"name": "Sell â€” GET forecast (not in WAVE2-BRIEF's endpoint list, ported anyway â€” see report)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('200 OK', () => pm.response.to.have.status(200));",
+							"const body = pm.response.json();",
+							"pm.test('six operational periods', () => {",
+							"  pm.expect(body.priceable).to.be.true;",
+							"  pm.expect(body.points).to.have.lengthOf(6);",
+							"});"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{sellAccessToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/sell/forecast?item=HRD118902&store=100959&horizon=operational",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"sell",
+						"forecast"
+					],
+					"query": [
+						{
+							"key": "item",
+							"value": "HRD118902"
+						},
+						{
+							"key": "store",
+							"value": "100959"
+						},
+						{
+							"key": "horizon",
+							"value": "operational"
+						}
+					]
+				},
+				"description": "platform/forecast.ts is this track's file to port per WAVE2-BRIEF; the endpoint list did not name a route for it, so this one is this track's own addition rather than dead code."
+			}
+		},
+		{
+			"name": "Sell â€” GET elasticity (sell side)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('200 OK', () => pm.response.to.have.status(200));",
+							"const body = pm.response.json();",
+							"pm.test('a coefficient and a response curve', () => {",
+							"  pm.expect(body.coefficient).to.be.a('number');",
+							"  pm.expect(body.curve).to.be.an('array').that.is.not.empty;",
+							"});"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{sellAccessToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/sell/elasticity?item=HRD118902&side=sell&counterparty=100959",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"sell",
+						"elasticity"
+					],
+					"query": [
+						{
+							"key": "item",
+							"value": "HRD118902"
+						},
+						{
+							"key": "side",
+							"value": "sell"
+						},
+						{
+							"key": "counterparty",
+							"value": "100959"
+						}
+					]
+				}
+			}
+		},
+		{
+			"name": "Sell â€” POST scenario (price move, +5%)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('200 OK', () => pm.response.to.have.status(200));",
+							"const body = pm.response.json();",
+							"pm.test('priceMove populated, scenario absent', () => {",
+							"  pm.expect(body.priceMove.price).to.be.a('number');",
+							"  pm.expect(body.scenario == null).to.be.true;",
+							"});"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{sellAccessToken}}"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/sell/scenario",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"sell",
+						"scenario"
+					]
+				},
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"item\": \"HRD118902\",\n  \"store\": \"100959\",\n  \"pct\": 5\n}"
+				}
+			}
+		},
+		{
+			"name": "Sell â€” POST scenario (named what-if, hold 30 days)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('200 OK', () => pm.response.to.have.status(200));",
+							"const body = pm.response.json();",
+							"pm.test('scenario populated', () => pm.expect(body.scenario.title).to.be.a('string').and.not.empty);"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{sellAccessToken}}"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/sell/scenario",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"sell",
+						"scenario"
+					]
+				},
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"item\": \"HRD118902\",\n  \"store\": \"100959\",\n  \"scenario\": \"hold-30\"\n}"
+				}
+			}
+		},
+		{
+			"name": "Sell â€” 400 scenario without pct or scenario",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('400 Bad Request', () => pm.response.to.have.status(400));",
+							"pm.test('validation_failed', () => pm.expect(pm.response.json().code).to.eql('validation_failed'));"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{sellAccessToken}}"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/sell/scenario",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"sell",
+						"scenario"
+					]
+				},
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"item\": \"HRD118902\",\n  \"store\": \"100959\"\n}"
+				}
+			}
+		},
+		{
+			"name": "Sell â€” GET hold-vs-sell (30 days)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('200 OK', () => pm.response.to.have.status(200));",
+							"const body = pm.response.json();",
+							"pm.test('seven lines, either recommendation', () => {",
+							"  pm.expect(body.days).to.eql(30);",
+							"  pm.expect(body.lines).to.have.lengthOf(7);",
+							"  pm.expect(body.recommendation).to.be.oneOf(['hold', 'sell']);",
+							"});"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{sellAccessToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/sell/hold-vs-sell?item=HRD118902&store=100959&days=30",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"sell",
+						"hold-vs-sell"
+					],
+					"query": [
+						{
+							"key": "item",
+							"value": "HRD118902"
+						},
+						{
+							"key": "store",
+							"value": "100959"
+						},
+						{
+							"key": "days",
+							"value": "30"
+						}
+					]
+				}
+			}
+		},
+		{
+			"name": "Sell â€” GET speed-tiers",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('200 OK', () => pm.response.to.have.status(200));",
+							"pm.test('urgent, standard, flexible', () => pm.expect(pm.response.json().tiers).to.have.lengthOf(3));"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{sellAccessToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/sell/speed-tiers?item=HRD118902&store=100959",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"sell",
+						"speed-tiers"
+					],
+					"query": [
+						{
+							"key": "item",
+							"value": "HRD118902"
+						},
+						{
+							"key": "store",
+							"value": "100959"
+						}
+					]
+				}
+			}
+		},
+		{
+			"name": "Sell â€” POST quote (customer c-1, no write)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('200 OK', () => pm.response.to.have.status(200));",
+							"const body = pm.response.json();",
+							"pm.test('breakdown + deal price', () => {",
+							"  pm.expect(body.dealPrice).to.be.a('number');",
+							"  pm.expect(body.quote.qty).to.eql(240);",
+							"  pm.expect(body.customerProfile.label).to.be.a('string').and.not.empty;",
+							"});"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{sellAccessToken}}"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/sell/quote",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"sell",
+						"quote"
+					]
+				},
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"item\": \"HRD118902\",\n  \"store\": \"100959\",\n  \"customerId\": \"c-1\",\n  \"qty\": 240\n}"
+				}
+			}
+		},
+		{
+			"name": "Sell â€” GET atp (available-to-promise)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('200 OK', () => pm.response.to.have.status(200));",
+							"const body = pm.response.json();",
+							"pm.test('three lots, an explanation', () => {",
+							"  pm.expect(body.lots).to.have.lengthOf(3);",
+							"  pm.expect(body.explanation).to.be.a('string').and.not.empty;",
+							"});"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{sellAccessToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/sell/atp?item=HRD118902&store=100959",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"sell",
+						"atp"
+					],
+					"query": [
+						{
+							"key": "item",
+							"value": "HRD118902"
+						},
+						{
+							"key": "store",
+							"value": "100959"
+						}
+					]
+				},
+				"description": "Stand-in lots (see com.aatlas.sell.internal.engine.AtpEngine's doc comment and the report): the incumbent + panel come from this tenant's seeded suppliers, not Track Buy's landed-cost engine, which is not in this worktree."
+			}
+		},
+		{
+			"name": "Sell â€” GET starters (empty-state opportunities)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('200 OK', () => pm.response.to.have.status(200));",
+							"pm.test('an array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{sellAccessToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/sell/starters",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"sell",
+						"starters"
+					]
+				}
+			}
+		},
+		{
+			"name": "Sell â€” POST apply (writes a decision)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('200 OK', () => pm.response.to.have.status(200));",
+							"const body = pm.response.json();",
+							"pm.test('a recorded decision', () => {",
+							"  pm.expect(body.decision.id).to.be.a('string').and.not.empty;",
+							"  pm.expect(body.decision.kind).to.eql('sell');",
+							"});"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{sellAccessToken}}"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/sell/apply",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"sell",
+						"apply"
+					]
+				},
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"item\": \"HRD118902\",\n  \"store\": \"100959\"\n}"
+				},
+				"description": "Writes through com.aatlas.sell.DecisionRecorder, a stand-in for the decisions module (Track D, a different worktree) â€” see its doc comment and the report."
+			}
+		},
+		{
+			"name": "Sell â€” POST quotes (writes a decision, customer c-3)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('200 OK', () => pm.response.to.have.status(200));",
+							"pm.test('a recorded decision', () => pm.expect(pm.response.json().decision.id).to.be.a('string').and.not.empty);"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{sellAccessToken}}"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/sell/quotes",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"sell",
+						"quotes"
+					]
+				},
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"item\": \"HRD118902\",\n  \"store\": \"100959\",\n  \"customerId\": \"c-3\",\n  \"qty\": 120\n}"
+				}
+			}
+		},
+		{
+			"name": "Sell â€” GET outcomes (both decisions above, newest first)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('200 OK', () => pm.response.to.have.status(200));",
+							"const body = pm.response.json();",
+							"pm.test('two decisions on this line', () => {",
+							"  pm.expect(body).to.have.lengthOf(2);",
+							"  pm.expect(body[0].id).to.be.a('string').and.not.empty;",
+							"});"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{sellAccessToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/sell/outcomes?item=HRD118902&store=100959",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"sell",
+						"outcomes"
+					],
+					"query": [
+						{
+							"key": "item",
+							"value": "HRD118902"
+						},
+						{
+							"key": "store",
+							"value": "100959"
+						}
+					]
+				}
+			}
+		},
+		{
+			"name": "Sell â€” 404 not-priceable line (PIM-only item, no sales history)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('404 Not Found', () => pm.response.to.have.status(404));"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{sellAccessToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/sell/speed-tiers?item=HRD900001&store=100959",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"sell",
+						"speed-tiers"
+					],
+					"query": [
+						{
+							"key": "item",
+							"value": "HRD900001"
+						},
+						{
+							"key": "store",
+							"value": "100959"
+						}
+					]
+				}
+			}
 		}
 	]
 }

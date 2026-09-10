@@ -272,6 +272,96 @@ Connecting the sample data source seeds both: 181 historical deals (`seed/deals.
 
 Verified against `golden/history.json` and `golden/procurement-analytics.json` with plain, Spring-free unit tests (`HistoryEngineGoldenTest`, `ProcurementAnalyticsGoldenTest`) — see `docs/decisions.md` for what those pin and the one place (the ledger's first-50-row order) where getting it wrong would be silent otherwise.
 
+## Sell (wave 2, `sell`)
+
+Ports `src/lib/mock/pricing.ts`, `intel/sell.ts`, `intel/sell2.ts`, `intel/score.ts`,
+`platform/forecast.ts`, `platform/elasticity.ts` and (not in WAVE2-BRIEF's file list, but
+needed by `POST /sell/quote`) `platform/deal.ts`'s `quoteForDeal`/`volumeBreakFor`, to
+`com.aatlas.sell`. **Computed on demand, synchronously, in the request thread** — the
+simplification WAVE2-BRIEF asks for everywhere in this wave, not the snapshot-table
+architecture "the one idea worth knowing" above describes. There is no `V9` migration: every
+number here is a pure function of an item, a store and the deterministic
+`com.aatlas.common.seed.Seeded` hash, over catalogue rows already in Postgres from wave 1 —
+nothing this track owns needed a new table (see `docs/decisions.md`).
+
+| Method | Path | Notes |
+|---|---|---|
+| GET | `/api/v1/sell/recommendation` | `?item=&store=`. The whole Sell answer in one round trip: guardrail-adjusted `SellIntel`, the guardrail check, decision score, liquidation signal, speed tiers, hold-vs-sell and the opportunity chip — everything `src/app/app/sell/page.tsx` reads on load. |
+| GET | `/api/v1/sell/recommendation/derivation` | `?item=&store=`. Both tiers, peer/competitor benchmarks, observed-price bands, calc steps, factor weights — the "why this price" disclosure (`buildSellRecommendation`). |
+| GET | `/api/v1/sell/score` | `?item=&store=`. The opportunity chip alone. |
+| GET | `/api/v1/sell/forecast` | `?item=&store=&horizon=`. Not in WAVE2-BRIEF's endpoint list; `platform/forecast.ts` is this track's file to port and the golden file covers it, so it is exposed rather than left unreachable. |
+| GET | `/api/v1/sell/elasticity` | `?item=&side=sell\|buy&counterparty=`. Same rationale as `/forecast`. |
+| POST | `/api/v1/sell/scenario` | `{item,store,pct?,scenario?}`. No write. `pct` runs `runScenario`; `scenario` (one of `price-up-5`, `demand-down-10`, `competitor-cut-5`, `hold-30`) runs `sellWhatIf`; give either or both. |
+| GET | `/api/v1/sell/hold-vs-sell` | `?item=&store=&days=30`. |
+| GET | `/api/v1/sell/speed-tiers` | `?item=&store=`. |
+| POST | `/api/v1/sell/quote` | `{item,store,customerId,qty,currency?}`. No write. `currency` is accepted and ignored — money on the wire is USD; conversion is `money.ts`'s job (API-BRIEF). |
+| GET | `/api/v1/sell/atp` | `?item=&store=`. Available-to-promise allocation. Stand-in stock lots — see below. |
+| GET | `/api/v1/sell/starters` | Top three opportunities for the empty state. |
+| POST | `/api/v1/sell/apply` | `{item,store,price?}`. Writes a decision (stand-in — see below). |
+| POST | `/api/v1/sell/quotes` | `{item,store,customerId,qty,currency?}`. Prices the quote and writes a decision (stand-in). |
+| GET | `/api/v1/sell/outcomes` | `?item=&store=`. Last decisions on this line, read through the same stand-in. |
+
+Every read is `404 not_found` for a non-priceable line (an item with no sales history at the
+store) and `409 no_catalogue` for a tenant with no catalogue yet.
+
+**`OpportunityScores`** (`com.aatlas.sell`, package root) is this module's public reader for
+`score.ts` — `opportunityScore`/`tierLabel` — per WAVE2-BRIEF: this track is its canonical
+owner, and other tracks (Products, Overview) depend on it at merge time.
+
+**Stand-ins, all `TODO(merge)`-flagged at their definition:**
+
+- **`CatalogGateway`** (`sell.internal.catalog`) reads `products`/`stores`/`product_stores`/
+  `customers`/`regions`/`commodities` directly over JDBC — the same tables `catalog`'s own
+  `ReferenceDataRepository` reads, tenant-scoped exactly like every other query in this
+  codebase — because `catalog` does not yet expose a public *reader* for them, only
+  `CatalogSeeding` (a write seam for `ingest`). WAVE2-BRIEF's own text says to depend on
+  such a reader "read-only, its public API"; as merged onto `salman` no such type exists, so
+  this gets the same stand-in treatment as every other cross-track gap this wave, not a
+  `catalog.internal` import (`ModularityTests` would fail the build regardless).
+- **`GuardrailsGateway`** (`sell.internal.policy`), similarly, reads `pricing_guardrails`
+  directly (falling back to `seed/guardrails.json`, exactly like `policy`'s own
+  `GuardrailsService.current()`). WAVE2-BRIEF says a real public reader for this already
+  exists on `policy` and to depend on it directly; it does not — `GuardrailsService`/
+  `GuardrailsView` are package-private in `policy.internal`, and the package root only has
+  `PolicyReader` (seat personas) and `GuardrailsChanged` (a change event, not a query).
+- **`BuySupplierGateway` + `AtpEngine`** (`sell.internal.buy`): `allocateInventory` in
+  `sell2.ts` reads `getBuyIntel(...).incumbent`/`.suppliers` — a landed cost per supplier
+  across freight, duty and commercial terms that Track Buy owns. This reads the tenant's
+  seeded supplier panel directly and works out the incumbent the same way
+  `currentSupplierFor(item)` does (rank by price index, seed-pick half the panel);
+  "next-best" lots are approximated by on-time percent rather than the full effective-cost
+  sort. **`GET /sell/atp`'s numbers are not golden-file verified** for this reason — see
+  `Sell2EngineGoldenTest`'s doc comment.
+- **`com.aatlas.sell.DecisionRecorder`** (package root): `POST /sell/apply` and
+  `POST /sell/quotes` write through an in-memory, per-tenant, process-lifetime recorder
+  standing in for the `decisions` module (Track D / History, a different worktree). Logs and
+  returns a real-shaped id; a restart loses it. `GET /sell/outcomes` reads back through the
+  same interface.
+
+**`ArchitectureRulesTest.noFloatingPointMoney`** forbids any class under `com.aatlas.sell`
+from depending on `java.lang.Double` — not just a field of that type, but *any* bytecode
+reference to the class, including `Double.valueOf`/`toString`/`isInfinite` (autoboxing a
+primitive into `String.format`'s varargs counts). Every engine computes in primitive
+`double`, matching the JavaScript engine's arithmetic bit for bit (`Round.round1`/`round2`
+mirror `Math.round(n*10^k)/10^k` exactly, per `golden/README.md`); every wire DTO converts to
+`BigDecimal` at the boundary (`Wire.bd`), which is also how a "number | null" TypeScript
+field (a competitor price when there are none, a guardrail limit that never bound) is
+represented — `BigDecimal` is nullable, a primitive is not. `Fmt` reproduces `fmtMoney`
+(trading currency fixed at USD for the golden fixtures) and the bare `${n}` template
+interpolations JavaScript's default number-to-string produces, via `DecimalFormat` rather
+than `String.format`/`Double.toString`, for the same reason.
+
+**Golden-file tests** (`com.aatlas.sell.internal.engine.*GoldenTest`, five classes, all pure
+unit tests — no Spring context, no Postgres, following `SupplierEngineGoldenTest`'s pattern)
+pin every engine against its golden fixture: `PricingEngineGoldenTest` (`pricing-model.json`,
+84 rows), `SellEngineGoldenTest` (`sell-intel.json`, 84), `Sell2EngineGoldenTest`
+(`sell-decisions.json`, 840 rows / 7 functions — `allocateInventory` counted, not asserted,
+per above), `ScoreEngineGoldenTest` (`opportunity-score.json`, 84) and
+`ForecastElasticityGoldenTest` (`forecast-elasticity.json`, 26). `FixtureCatalog`/
+`FixtureSuppliers` (`sell.internal.support`, test sources) hold the same 15 products, 9 US
+branches, 4 regions, 7 commodities and 8 suppliers as the TypeScript fixtures, in memory, so
+these tests run in well under ten seconds with no Docker.
+
 ---
 
 ## What comes next
