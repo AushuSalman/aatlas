@@ -4,7 +4,7 @@ Backend for the Aatlas decision-intelligence platform: what to charge, who to bu
 
 A **modular monolith** on Java 21 and Spring Boot — one deployable, sixteen modules whose boundaries are enforced at build time, with the compute-heavy work running out-of-band as workers. This is the scaffold described in `backend-blueprint.html`; the engines and endpoints land on top of it.
 
-> **Status: skeleton.** Infrastructure, configuration, module boundaries and the build are in place and verified. No business endpoints or entities yet — those arrive module by module, following the build order in the blueprint.
+> **Status: skeleton, plus one module.** Infrastructure, configuration, module boundaries and the build are in place and verified. `identity` (signup/login) and `suppliers` (panel, terms, ratings, reviews, risk, lookup — see `docs/decisions.md`) are built; the rest arrive module by module, following the build order in the blueprint.
 
 ---
 
@@ -159,8 +159,10 @@ Flyway owns the schema; Hibernate only validates against it (`ddl-auto: validate
 | `V1__foundations.sql` | Extensions, `app.uuid_generate_v7()`, `app.current_tenant()`, `app.touch_updated_at()`, `app.enable_tenant_rls()`, ShedLock |
 | `V2__spring_batch.sql` | Batch metadata, verbatim from spring-batch-core |
 | `V3__event_publication.sql` | The outbox, verbatim from spring-modulith-events-jdbc |
+| `V4__identity.sql` | `tenants`, `users`, `refresh_tokens` |
+| `V8__suppliers.sql` | `suppliers`, `supplier_terms`, `supplier_ratings`, `supplier_reviews`, `supplier_risk`, `supplier_lookups`, `supplier_performance_months` |
 
-Business tables arrive with the modules that own them, so a table and the code reading it are reviewed together.
+Business tables arrive with the modules that own them, so a table and the code reading it are reviewed together. Migration numbers are reserved per builder and are not contiguous in any one worktree (V5–V7 belong to other in-flight modules).
 
 **Conventions** every business table follows: `id uuid` defaulted from `app.uuid_generate_v7()` (time-ordered, so inserts stay clustered instead of scattering a 24-month import across the whole index), `tenant_id uuid not null` as the first column of every composite index, `created_at` / `updated_at` / `version`, money as `numeric(14,4)` in USD with the currency beside it, and `jsonb` only for payloads rendered verbatim — anything filtered or sorted on is a real column.
 

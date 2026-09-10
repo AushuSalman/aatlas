@@ -1,0 +1,8836 @@
+[
+ {
+  "fn": "fnv1a-constants",
+  "input": {},
+  "output": {
+   "algorithm": "FNV-1a, 32-bit, over UTF-16 code units (String.prototype.charCodeAt)",
+   "offsetBasis": 2166136261,
+   "offsetBasisHex": "0x811c9dc5",
+   "prime": 16777619,
+   "primeHex": "0x01000193",
+   "step": "h ^= charCodeAt(i); h = Math.imul(h, prime)   (32-bit wrapping multiply)",
+   "finalise": "Math.abs(h | 0)   (reinterpret as signed int32, then absolute value)",
+   "rand": "hashString(`${key}::${salt}`) % 100000 / 100000",
+   "randRange": "min + rand(key, salt) * (max - min)",
+   "randInt": "Math.floor(randRange(key, salt, min, max + 0.999))",
+   "pick": "list[Math.floor(rand(key, salt) * list.length) % list.length]",
+   "seeded": "identical to rand (mock/catalog.ts); seededRange identical to randRange",
+   "defaultSalt": ""
+  }
+ },
+ {
+  "fn": "hashString",
+  "input": {
+   "s": ""
+  },
+  "output": 2128831035
+ },
+ {
+  "fn": "hashString",
+  "input": {
+   "s": "a"
+  },
+  "output": 468965076
+ },
+ {
+  "fn": "hashString",
+  "input": {
+   "s": "::"
+  },
+  "output": 1744424715
+ },
+ {
+  "fn": "hashString",
+  "input": {
+   "s": "HRD118902"
+  },
+  "output": 994342018
+ },
+ {
+  "fn": "hashString",
+  "input": {
+   "s": "HRD118902::"
+  },
+  "output": 1775421698
+ },
+ {
+  "fn": "hashString",
+  "input": {
+   "s": "HRD118902::opt"
+  },
+  "output": 833830909
+ },
+ {
+  "fn": "hashString",
+  "input": {
+   "s": "HRD118902|100959::current"
+  },
+  "output": 1779118197
+ },
+ {
+  "fn": "hashString",
+  "input": {
+   "s": "sup-0::otif"
+  },
+  "output": 722360894
+ },
+ {
+  "fn": "hashString",
+  "input": {
+   "s": "po:2026-8:0::followed"
+  },
+  "output": 337999393
+ },
+ {
+  "fn": "hashString",
+  "input": {
+   "s": "Düsseldorf"
+  },
+  "output": 81383349
+ },
+ {
+  "fn": "hashString",
+  "input": {
+   "s": "−"
+  },
+  "output": 390201205
+ },
+ {
+  "fn": "hashString",
+  "input": {
+   "s": "★"
+  },
+  "output": 3903296
+ },
+ {
+  "fn": "hashString",
+  "input": {
+   "s": "日本語"
+  },
+  "output": 1409693518
+ },
+ {
+  "fn": "hashString",
+  "input": {
+   "s": "🇺🇸"
+  },
+  "output": 739968351
+ },
+ {
+  "fn": "hashString",
+  "input": {
+   "s": "Larsen Brass & Bronze"
+  },
+  "output": 1741400083
+ },
+ {
+  "fn": "hashString",
+  "input": {
+   "s": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "output": 500786573
+ },
+ {
+  "fn": "hashString",
+  "input": {
+   "s": "HRD304148"
+  },
+  "output": 30400771
+ },
+ {
+  "fn": "hashString",
+  "input": {
+   "s": "HRD772310"
+  },
+  "output": 2051499493
+ },
+ {
+  "fn": "hashString",
+  "input": {
+   "s": "HRD450871"
+  },
+  "output": 919203734
+ },
+ {
+  "fn": "hashString",
+  "input": {
+   "s": "HRD290145"
+  },
+  "output": 763460416
+ },
+ {
+  "fn": "hashString",
+  "input": {
+   "s": "HRD661204"
+  },
+  "output": 1683159046
+ },
+ {
+  "fn": "hashString",
+  "input": {
+   "s": "HRD983377"
+  },
+  "output": 90160204
+ },
+ {
+  "fn": "hashString",
+  "input": {
+   "s": "HRD512066"
+  },
+  "output": 33814565
+ },
+ {
+  "fn": "hashString",
+  "input": {
+   "s": "HRD874019"
+  },
+  "output": 1561975118
+ },
+ {
+  "fn": "hashString",
+  "input": {
+   "s": "HRD335590"
+  },
+  "output": 1336555864
+ },
+ {
+  "fn": "hashString",
+  "input": {
+   "s": "HRD107744"
+  },
+  "output": 1705045338
+ },
+ {
+  "fn": "hashString",
+  "input": {
+   "s": "HRD248813"
+  },
+  "output": 1522618219
+ },
+ {
+  "fn": "hashString",
+  "input": {
+   "s": "HRD900001"
+  },
+  "output": 713379973
+ },
+ {
+  "fn": "hashString",
+  "input": {
+   "s": "HRD900002"
+  },
+  "output": 696602354
+ },
+ {
+  "fn": "hashString",
+  "input": {
+   "s": "HRD900003"
+  },
+  "output": 679824735
+ },
+ {
+  "fn": "tenantsSellingItem",
+  "input": {
+   "item": "HRD304148"
+  },
+  "output": [
+   "100349",
+   "100117",
+   "100649",
+   "100812",
+   "100205",
+   "100933",
+   "100571",
+   "100959"
+  ]
+ },
+ {
+  "fn": "tenantsSellingItem",
+  "input": {
+   "item": "HRD118902"
+  },
+  "output": [
+   "100349",
+   "100047",
+   "100117",
+   "100649",
+   "100812",
+   "100205",
+   "100933",
+   "100571",
+   "100959"
+  ]
+ },
+ {
+  "fn": "tenantsSellingItem",
+  "input": {
+   "item": "HRD772310"
+  },
+  "output": [
+   "100349",
+   "100117",
+   "100649",
+   "100812",
+   "100205",
+   "100571"
+  ]
+ },
+ {
+  "fn": "tenantsSellingItem",
+  "input": {
+   "item": "HRD450871"
+  },
+  "output": [
+   "100349",
+   "100047",
+   "100649",
+   "100812",
+   "100205",
+   "100933",
+   "100571",
+   "100959"
+  ]
+ },
+ {
+  "fn": "tenantsSellingItem",
+  "input": {
+   "item": "HRD290145"
+  },
+  "output": [
+   "100349",
+   "100047",
+   "100117",
+   "100649",
+   "100812",
+   "100205",
+   "100933"
+  ]
+ },
+ {
+  "fn": "tenantsSellingItem",
+  "input": {
+   "item": "HRD661204"
+  },
+  "output": [
+   "100349",
+   "100047",
+   "100117",
+   "100649",
+   "100812",
+   "100205",
+   "100933",
+   "100571",
+   "100959"
+  ]
+ },
+ {
+  "fn": "tenantsSellingItem",
+  "input": {
+   "item": "HRD983377"
+  },
+  "output": [
+   "100349",
+   "100047",
+   "100117",
+   "100812",
+   "100205",
+   "100933"
+  ]
+ },
+ {
+  "fn": "tenantsSellingItem",
+  "input": {
+   "item": "HRD512066"
+  },
+  "output": [
+   "100349",
+   "100047",
+   "100117",
+   "100933",
+   "100571",
+   "100959"
+  ]
+ },
+ {
+  "fn": "tenantsSellingItem",
+  "input": {
+   "item": "HRD874019"
+  },
+  "output": [
+   "100349",
+   "100047",
+   "100649",
+   "100571",
+   "100959"
+  ]
+ },
+ {
+  "fn": "tenantsSellingItem",
+  "input": {
+   "item": "HRD335590"
+  },
+  "output": [
+   "100349",
+   "100047",
+   "100117",
+   "100649",
+   "100812",
+   "100205",
+   "100933",
+   "100571"
+  ]
+ },
+ {
+  "fn": "tenantsSellingItem",
+  "input": {
+   "item": "HRD107744"
+  },
+  "output": [
+   "100117",
+   "100649",
+   "100812",
+   "100205",
+   "100933"
+  ]
+ },
+ {
+  "fn": "tenantsSellingItem",
+  "input": {
+   "item": "HRD248813"
+  },
+  "output": [
+   "100349",
+   "100117",
+   "100649",
+   "100812",
+   "100205",
+   "100571",
+   "100959"
+  ]
+ },
+ {
+  "fn": "tenantsSellingItem",
+  "input": {
+   "item": "HRD900001"
+  },
+  "output": []
+ },
+ {
+  "fn": "tenantsSellingItem",
+  "input": {
+   "item": "HRD900002"
+  },
+  "output": []
+ },
+ {
+  "fn": "tenantsSellingItem",
+  "input": {
+   "item": "HRD900003"
+  },
+  "output": []
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": ""
+  },
+  "output": 0.0545
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "current-sup"
+  },
+  "output": 0.90726
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "alt-who"
+  },
+  "output": 0.1442
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "branch"
+  },
+  "output": 0.18862
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "ci"
+  },
+  "output": 0.17734
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "credit"
+  },
+  "output": 0.30951
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "cs"
+  },
+  "output": 0.25352
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "ct-credit"
+  },
+  "output": 0.56379
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "ct-epdays"
+  },
+  "output": 0.10382
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "ct-inco"
+  },
+  "output": 0.21025
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "ct-pencap"
+  },
+  "output": 0.39863
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "ct-valid"
+  },
+  "output": 0.11902
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "ct-warr"
+  },
+  "output": 0.68392
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "epdays"
+  },
+  "output": 0.49792
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "inco"
+  },
+  "output": 0.15927
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "item"
+  },
+  "output": 0.14047
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "moq"
+  },
+  "output": 0.60285
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "mult"
+  },
+  "output": 0.48224
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "pencap"
+  },
+  "output": 0.12595
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "valid"
+  },
+  "output": 0.09596
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "warr"
+  },
+  "output": 0.43062
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "sup"
+  },
+  "output": 0.3179
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "cat"
+  },
+  "output": 0.27486
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "city"
+  },
+  "output": 0.01411
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "emp"
+  },
+  "output": 0.03872
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "spike"
+  },
+  "output": 0.79532
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "stkD"
+  },
+  "output": 0.5851
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "cap"
+  },
+  "output": 0.37962
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "followed"
+  },
+  "output": 0.28202
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "inc-tier"
+  },
+  "output": 0.27055
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "alt"
+  },
+  "output": 0.77129
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "ct-epd"
+  },
+  "output": 0.44987
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "ct-pen8"
+  },
+  "output": 0.07919
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "epd"
+  },
+  "output": 0.30231
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "otif"
+  },
+  "output": 0.4415
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "pen"
+  },
+  "output": 0.71789
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "status"
+  },
+  "output": 0.77204
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "break"
+  },
+  "output": 0.60079
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "cold"
+  },
+  "output": 0.0254
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "humangood"
+  },
+  "output": 0.42986
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "intermittent"
+  },
+  "output": 0.32633
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "latency"
+  },
+  "output": 0.37496
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "country"
+  },
+  "output": 0.53584
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "decline"
+  },
+  "output": 0.2164
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "trend"
+  },
+  "output": 0.30717
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "date"
+  },
+  "output": 0.70418
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "years"
+  },
+  "output": 0.34132
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "qty"
+  },
+  "output": 0.25342
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "certn"
+  },
+  "output": 0.59022
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "commit"
+  },
+  "output": 0.55847
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "count"
+  },
+  "output": 0.72609
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "ct-cap"
+  },
+  "output": 0.32392
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "day"
+  },
+  "output": 0.50616
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "dn"
+  },
+  "output": 0.33996
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "early"
+  },
+  "output": 0.05817
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "lead"
+  },
+  "output": 0.99896
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "pos"
+  },
+  "output": 0.43552
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "ppm"
+  },
+  "output": 0.50549
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "qn"
+  },
+  "output": 0.07805
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "rec"
+  },
+  "output": 0.44708
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "resp"
+  },
+  "output": 0.07636
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "since"
+  },
+  "output": 0.02596
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "slip"
+  },
+  "output": 0.69204
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "spend"
+  },
+  "output": 0.43402
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "vc"
+  },
+  "output": 0.50613
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "certs-n"
+  },
+  "output": 0.51806
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "certs-o"
+  },
+  "output": 0.74187
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "need"
+  },
+  "output": 0.57162
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "rating-n"
+  },
+  "output": 0.185
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "u"
+  },
+  "output": 0.65773
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "units"
+  },
+  "output": 0.82189
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "v"
+  },
+  "output": 0.32916
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "years-trading"
+  },
+  "output": 0.28768
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "reviews"
+  },
+  "output": 0.39277
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "q"
+  },
+  "output": 0.55297
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "fx"
+  },
+  "output": 0.36948
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "p"
+  },
+  "output": 0.77678
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "r"
+  },
+  "output": 0.2244
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "noise"
+  },
+  "output": 0.23284
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "a"
+  },
+  "output": 0.13393
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "d"
+  },
+  "output": 0.4625
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "ticket"
+  },
+  "output": 0.9507
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "defect"
+  },
+  "output": 0.67893
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "fulfil"
+  },
+  "output": 0.84356
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "spend-w"
+  },
+  "output": 0.64802
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "bad"
+  },
+  "output": 0.12467
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "down"
+  },
+  "output": 0.94178
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "good"
+  },
+  "output": 0.79699
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "target"
+  },
+  "output": 0.34069
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "up"
+  },
+  "output": 0.17447
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "base"
+  },
+  "output": 0.01351
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "ct-epdv"
+  },
+  "output": 0.65353
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "ct-inv"
+  },
+  "output": 0.28085
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "ct-penv"
+  },
+  "output": 0.06017
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "epdv"
+  },
+  "output": 0.19661
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "idx"
+  },
+  "output": 0.13619
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "inv"
+  },
+  "output": 0.86023
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "move"
+  },
+  "output": 0.38919
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "penv"
+  },
+  "output": 0.70783
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "bandhi"
+  },
+  "output": 0.5983
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "bandlo"
+  },
+  "output": 0.1964
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "bbhi"
+  },
+  "output": 0.31231
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "bblo"
+  },
+  "output": 0.48181
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "bcoef"
+  },
+  "output": 0.68671
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "bt"
+  },
+  "output": 0.55876
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "cc"
+  },
+  "output": 0.83448
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "coef"
+  },
+  "output": 0.85111
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "conf"
+  },
+  "output": 0.55136
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "conv"
+  },
+  "output": 0.9704
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "cover"
+  },
+  "output": 0.40729
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "humangain"
+  },
+  "output": 0.22668
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "humanloss"
+  },
+  "output": 0.07524
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "modelgain"
+  },
+  "output": 0.28992
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "naive"
+  },
+  "output": 0.35629
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "pv"
+  },
+  "output": 0.68328
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "t1"
+  },
+  "output": 0.20591
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "t2"
+  },
+  "output": 0.13848
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "t3"
+  },
+  "output": 0.91467
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "vol"
+  },
+  "output": 0.47895
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "w1"
+  },
+  "output": 0.78658
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "w2"
+  },
+  "output": 0.01039
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "w3"
+  },
+  "output": 0.2342
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "w4"
+  },
+  "output": 0.45801
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "w5"
+  },
+  "output": 0.68182
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "n"
+  },
+  "output": 0.7006
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "rating"
+  },
+  "output": 0.86995
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "var"
+  },
+  "output": 0.90727
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "xd"
+  },
+  "output": 0.43638
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "xd1"
+  },
+  "output": 0.48837
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "xs"
+  },
+  "output": 0.34591
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "cost"
+  },
+  "output": 0.17371
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "comp-count"
+  },
+  "output": 0.54141
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "comp-none"
+  },
+  "output": 0.30302
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "demand-applied"
+  },
+  "output": 0.55951
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "demand-level"
+  },
+  "output": 0.99854
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "msa-mode"
+  },
+  "output": 0.53153
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "fc-noise"
+  },
+  "output": 0.54902
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "companies"
+  },
+  "output": 0.98125
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "peer"
+  },
+  "output": 0.36758
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "agg"
+  },
+  "output": 0.30465
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "current"
+  },
+  "output": 0.18197
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "demand-conf"
+  },
+  "output": 0.05398
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "demand-exp"
+  },
+  "output": 0.25349
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "demand-hist"
+  },
+  "output": 0.21968
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "demand-ratio"
+  },
+  "output": 0.14489
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "omax"
+  },
+  "output": 0.64201
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "omin"
+  },
+  "output": 0.81415
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "opt"
+  },
+  "output": 0.47285
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "txns"
+  },
+  "output": 0.50097
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "rating-comm-78"
+  },
+  "output": 0.90198
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "src-g"
+  },
+  "output": 0.95544
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "src-t"
+  },
+  "output": 0.70305
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "src-d"
+  },
+  "output": 0.28401
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "src-l"
+  },
+  "output": 0.07449
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "src-r"
+  },
+  "output": 0.25543
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "0"
+  },
+  "output": 0.10062
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "1"
+  },
+  "output": 0.87681
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "2"
+  },
+  "output": 0.45176
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "cert0"
+  },
+  "output": 0.16212
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "cert1"
+  },
+  "output": 0.38593
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "cert2"
+  },
+  "output": 0.60974
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "cert3"
+  },
+  "output": 0.83355
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "cert4"
+  },
+  "output": 0.26688
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "cert5"
+  },
+  "output": 0.49069
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "trend0"
+  },
+  "output": 0.30071
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "trend1"
+  },
+  "output": 0.52452
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "trend2"
+  },
+  "output": 0.85309
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "trend3"
+  },
+  "output": 0.0769
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "trend4"
+  },
+  "output": 0.19595
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "trend5"
+  },
+  "output": 0.41976
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "rv-0"
+  },
+  "output": 0.32257
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "rva-0"
+  },
+  "output": 0.04676
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "rvw-0"
+  },
+  "output": 0.54982
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "rv-1"
+  },
+  "output": 0.09876
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "rva-1"
+  },
+  "output": 0.27057
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "rvw-1"
+  },
+  "output": 0.77363
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "rv-2"
+  },
+  "output": 0.77019
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "rva-2"
+  },
+  "output": 0.49438
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "rvw-2"
+  },
+  "output": 0.1022
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "band-3M-0"
+  },
+  "output": 0.51213
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "band-3M-1"
+  },
+  "output": 0.73594
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "band-3M-2"
+  },
+  "output": 0.95975
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "band-3M-3"
+  },
+  "output": 0.18356
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "band-6M-0"
+  },
+  "output": 0.21332
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "band-6M-1"
+  },
+  "output": 0.43713
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "band-6M-2"
+  },
+  "output": 0.66094
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "band-6M-3"
+  },
+  "output": 0.88475
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "band-12M-0"
+  },
+  "output": 0.29653
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "band-12M-1"
+  },
+  "output": 0.07272
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "band-12M-2"
+  },
+  "output": 0.74415
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "band-12M-3"
+  },
+  "output": 0.52034
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "band-ALL-0"
+  },
+  "output": 0.15582
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "band-ALL-1"
+  },
+  "output": 0.37963
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "band-ALL-2"
+  },
+  "output": 0.7082
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "band-ALL-3"
+  },
+  "output": 0.93201
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "comp-northline.example.com"
+  },
+  "output": 0.3697
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "comp-castellan.example.com"
+  },
+  "output": 0.4189
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "comp-redhawk.example.com"
+  },
+  "output": 0.68689
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "comp-vantage.example.com"
+  },
+  "output": 0.68627
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "comp-ironbridge.example.com"
+  },
+  "output": 0.77024
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "comp-cobalt.example.com"
+  },
+  "output": 0.87204
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "comp-fairhaven.example.com"
+  },
+  "output": 0.60957
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "comp-pemberton.example.com"
+  },
+  "output": 0.54053
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "comp-granite.example.com"
+  },
+  "output": 0.36397
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "comp-larkspur.example.com"
+  },
+  "output": 0.81167
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "seg-Contractor"
+  },
+  "output": 0.95551
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "seg-Institutional"
+  },
+  "output": 0.79191
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "seg-Industrial"
+  },
+  "output": 0.83365
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "seg-Walk-in"
+  },
+  "output": 0.53471
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "grow-Contractor"
+  },
+  "output": 0.51785
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "mar-Walk-in"
+  },
+  "output": 0.59964
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "season-30d"
+  },
+  "output": 0.90869
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "season-90d"
+  },
+  "output": 0.72633
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "demand"
+  },
+  "output": 0.52951
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": ""
+  },
+  "output": 0.83334
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "current-sup"
+  },
+  "output": 0.99798
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "alt-who"
+  },
+  "output": 0.9044
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "branch"
+  },
+  "output": 0.47818
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "ci"
+  },
+  "output": 0.49918
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "credit"
+  },
+  "output": 0.28837
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "cs"
+  },
+  "output": 0.26108
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "ct-credit"
+  },
+  "output": 0.50063
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "ct-epdays"
+  },
+  "output": 0.02166
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "ct-inco"
+  },
+  "output": 0.11947
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "ct-pencap"
+  },
+  "output": 0.74733
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "ct-valid"
+  },
+  "output": 0.2343
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "ct-warr"
+  },
+  "output": 0.147
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "epdays"
+  },
+  "output": 0.90324
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "inco"
+  },
+  "output": 0.18787
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "item"
+  },
+  "output": 0.98875
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "moq"
+  },
+  "output": 0.17903
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "mult"
+  },
+  "output": 0.00188
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "pencap"
+  },
+  "output": 0.99743
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "valid"
+  },
+  "output": 0.87752
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "warr"
+  },
+  "output": 0.45814
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "sup"
+  },
+  "output": 0.85478
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "cat"
+  },
+  "output": 0.92074
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "city"
+  },
+  "output": 0.14399
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "emp"
+  },
+  "output": 0.59492
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "spike"
+  },
+  "output": 0.42656
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "stkD"
+  },
+  "output": 0.0309
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "cap"
+  },
+  "output": 0.81598
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "followed"
+  },
+  "output": 0.32526
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "inc-tier"
+  },
+  "output": 0.34429
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "alt"
+  },
+  "output": 0.42067
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "ct-epd"
+  },
+  "output": 0.29609
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "ct-pen8"
+  },
+  "output": 0.93787
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "epd"
+  },
+  "output": 0.48445
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "otif"
+  },
+  "output": 0.60894
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "pen"
+  },
+  "output": 0.86737
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "status"
+  },
+  "output": 0.46984
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "break"
+  },
+  "output": 0.98557
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "cold"
+  },
+  "output": 0.91792
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "humangood"
+  },
+  "output": 0.54966
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "intermittent"
+  },
+  "output": 0.80277
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "latency"
+  },
+  "output": 0.33348
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "country"
+  },
+  "output": 0.06324
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "decline"
+  },
+  "output": 0.20804
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "trend"
+  },
+  "output": 0.92191
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "date"
+  },
+  "output": 0.37198
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "years"
+  },
+  "output": 0.6644
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "qty"
+  },
+  "output": 0.84514
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "certn"
+  },
+  "output": 0.70634
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "commit"
+  },
+  "output": 0.37005
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "count"
+  },
+  "output": 0.60267
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "ct-cap"
+  },
+  "output": 0.27684
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "day"
+  },
+  "output": 0.75148
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "dn"
+  },
+  "output": 0.18344
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "early"
+  },
+  "output": 0.62317
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "lead"
+  },
+  "output": 0.06252
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "pos"
+  },
+  "output": 0.26284
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "ppm"
+  },
+  "output": 0.72545
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "qn"
+  },
+  "output": 0.80799
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "rec"
+  },
+  "output": 0.18968
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "resp"
+  },
+  "output": 0.70056
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "since"
+  },
+  "output": 0.4104
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "slip"
+  },
+  "output": 0.15552
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "spend"
+  },
+  "output": 0.60722
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "vc"
+  },
+  "output": 0.22679
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "certs-n"
+  },
+  "output": 0.78042
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "certs-o"
+  },
+  "output": 0.00423
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "need"
+  },
+  "output": 0.76742
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "rating-n"
+  },
+  "output": 0.46304
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "u"
+  },
+  "output": 0.71945
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "units"
+  },
+  "output": 0.68569
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "v"
+  },
+  "output": 0.39088
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "years-trading"
+  },
+  "output": 0.87636
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "reviews"
+  },
+  "output": 0.24839
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "q"
+  },
+  "output": 0.82421
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "fx"
+  },
+  "output": 0.36344
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "p"
+  },
+  "output": 0.04802
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "r"
+  },
+  "output": 0.49564
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "noise"
+  },
+  "output": 0.36256
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "a"
+  },
+  "output": 0.40517
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "d"
+  },
+  "output": 0.52422
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "ticket"
+  },
+  "output": 0.41826
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "defect"
+  },
+  "output": 0.44751
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "fulfil"
+  },
+  "output": 0.0736
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "spend-w"
+  },
+  "output": 0.63694
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "bad"
+  },
+  "output": 0.35543
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "down"
+  },
+  "output": 0.85618
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "good"
+  },
+  "output": 0.80385
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "target"
+  },
+  "output": 0.16119
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "up"
+  },
+  "output": 0.59013
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "base"
+  },
+  "output": 0.81355
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "ct-epdv"
+  },
+  "output": 0.42957
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "ct-inv"
+  },
+  "output": 0.70649
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "ct-penv"
+  },
+  "output": 0.29067
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "epdv"
+  },
+  "output": 0.48559
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "idx"
+  },
+  "output": 0.54713
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "inv"
+  },
+  "output": 0.48333
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "move"
+  },
+  "output": 0.34547
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "penv"
+  },
+  "output": 0.36741
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "bandhi"
+  },
+  "output": 0.13886
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "bandlo"
+  },
+  "output": 0.99316
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "bbhi"
+  },
+  "output": 0.30275
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "bblo"
+  },
+  "output": 0.23801
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "bcoef"
+  },
+  "output": 0.57955
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "bt"
+  },
+  "output": 0.16536
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "cc"
+  },
+  "output": 0.84204
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "coef"
+  },
+  "output": 0.27531
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "conf"
+  },
+  "output": 0.83124
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "conv"
+  },
+  "output": 0.4122
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "cover"
+  },
+  "output": 0.07269
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "humangain"
+  },
+  "output": 0.25568
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "humanloss"
+  },
+  "output": 0.18168
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "modelgain"
+  },
+  "output": 0.21932
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "naive"
+  },
+  "output": 0.07873
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "pv"
+  },
+  "output": 0.45988
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "t1"
+  },
+  "output": 0.26587
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "t2"
+  },
+  "output": 0.59444
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "t3"
+  },
+  "output": 0.81825
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "vol"
+  },
+  "output": 0.15725
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "w1"
+  },
+  "output": 0.94634
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "w2"
+  },
+  "output": 0.72253
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "w3"
+  },
+  "output": 0.49872
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "w4"
+  },
+  "output": 0.06539
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "w5"
+  },
+  "output": 0.84158
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "n"
+  },
+  "output": 0.18136
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "rating"
+  },
+  "output": 0.17833
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "var"
+  },
+  "output": 0.15677
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "xd"
+  },
+  "output": 0.27014
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "xd1"
+  },
+  "output": 0.21903
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "xs"
+  },
+  "output": 0.57013
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "cost"
+  },
+  "output": 0.56983
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "comp-count"
+  },
+  "output": 0.15769
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "comp-none"
+  },
+  "output": 0.07402
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "demand-applied"
+  },
+  "output": 0.87237
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "demand-level"
+  },
+  "output": 0.3647
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "msa-mode"
+  },
+  "output": 0.94869
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "fc-noise"
+  },
+  "output": 0.89618
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "companies"
+  },
+  "output": 0.02929
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "peer"
+  },
+  "output": 0.46646
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "agg"
+  },
+  "output": 0.91565
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "current"
+  },
+  "output": 0.03743
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "demand-conf"
+  },
+  "output": 0.16714
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "demand-exp"
+  },
+  "output": 0.11105
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "demand-hist"
+  },
+  "output": 0.81764
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "demand-ratio"
+  },
+  "output": 0.01085
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "omax"
+  },
+  "output": 0.34429
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "omin"
+  },
+  "output": 0.30691
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "opt"
+  },
+  "output": 0.81937
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "txns"
+  },
+  "output": 0.50643
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "rating-comm-78"
+  },
+  "output": 0.88818
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "src-g"
+  },
+  "output": 0.7542
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "src-t"
+  },
+  "output": 0.66373
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "src-d"
+  },
+  "output": 0.08277
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "src-l"
+  },
+  "output": 0.29229
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "src-r"
+  },
+  "output": 0.99341
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "0"
+  },
+  "output": 0.94878
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "1"
+  },
+  "output": 0.17259
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "2"
+  },
+  "output": 0.50116
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "cert0"
+  },
+  "output": 0.41744
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "cert1"
+  },
+  "output": 0.64125
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "cert2"
+  },
+  "output": 0.86506
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "cert3"
+  },
+  "output": 0.08887
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "cert4"
+  },
+  "output": 0.31268
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "cert5"
+  },
+  "output": 0.53649
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "trend0"
+  },
+  "output": 0.64605
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "trend1"
+  },
+  "output": 0.42224
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "trend2"
+  },
+  "output": 0.09367
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "trend3"
+  },
+  "output": 0.86986
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "trend4"
+  },
+  "output": 0.54129
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "trend5"
+  },
+  "output": 0.31748
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "rv-0"
+  },
+  "output": 0.09669
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "rva-0"
+  },
+  "output": 0.51856
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "rvw-0"
+  },
+  "output": 0.55078
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "rv-1"
+  },
+  "output": 0.87288
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "rva-1"
+  },
+  "output": 0.29475
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "rvw-1"
+  },
+  "output": 0.32697
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "rv-2"
+  },
+  "output": 0.54431
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "rva-2"
+  },
+  "output": 0.07094
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "rvw-2"
+  },
+  "output": 0.9984
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "band-3M-0"
+  },
+  "output": 0.43001
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "band-3M-1"
+  },
+  "output": 0.65382
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "band-3M-2"
+  },
+  "output": 0.87763
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "band-3M-3"
+  },
+  "output": 0.10144
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "band-6M-0"
+  },
+  "output": 0.59936
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "band-6M-1"
+  },
+  "output": 0.82317
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "band-6M-2"
+  },
+  "output": 0.04698
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "band-6M-3"
+  },
+  "output": 0.27079
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "band-12M-0"
+  },
+  "output": 0.30543
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "band-12M-1"
+  },
+  "output": 0.52924
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "band-12M-2"
+  },
+  "output": 0.85781
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "band-12M-3"
+  },
+  "output": 0.08162
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "band-ALL-0"
+  },
+  "output": 0.99806
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "band-ALL-1"
+  },
+  "output": 0.77425
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "band-ALL-2"
+  },
+  "output": 0.44568
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "band-ALL-3"
+  },
+  "output": 0.22187
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "comp-northline.example.com"
+  },
+  "output": 0.36206
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "comp-castellan.example.com"
+  },
+  "output": 0.5411
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "comp-redhawk.example.com"
+  },
+  "output": 0.88797
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "comp-vantage.example.com"
+  },
+  "output": 0.07833
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "comp-ironbridge.example.com"
+  },
+  "output": 0.91964
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "comp-cobalt.example.com"
+  },
+  "output": 0.9528
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "comp-fairhaven.example.com"
+  },
+  "output": 0.04335
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "comp-pemberton.example.com"
+  },
+  "output": 0.14591
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "comp-granite.example.com"
+  },
+  "output": 0.14431
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "comp-larkspur.example.com"
+  },
+  "output": 0.48453
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "seg-Contractor"
+  },
+  "output": 0.84371
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "seg-Institutional"
+  },
+  "output": 0.88011
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "seg-Industrial"
+  },
+  "output": 0.44511
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "seg-Walk-in"
+  },
+  "output": 0.20019
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "grow-Contractor"
+  },
+  "output": 0.39347
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "mar-Walk-in"
+  },
+  "output": 0.09904
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "season-30d"
+  },
+  "output": 0.11711
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "season-90d"
+  },
+  "output": 0.83299
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "sup-0",
+   "salt": "demand"
+  },
+  "output": 0.25155
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": ""
+  },
+  "output": 0.66091
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "current-sup"
+  },
+  "output": 0.38811
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "alt-who"
+  },
+  "output": 0.22285
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "branch"
+  },
+  "output": 0.91299
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "ci"
+  },
+  "output": 0.52451
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "credit"
+  },
+  "output": 0.85218
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "cs"
+  },
+  "output": 0.86737
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "ct-credit"
+  },
+  "output": 0.18814
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "ct-epdays"
+  },
+  "output": 0.66397
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "ct-inco"
+  },
+  "output": 0.81494
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "ct-pencap"
+  },
+  "output": 0.02946
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "ct-valid"
+  },
+  "output": 0.06295
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "ct-warr"
+  },
+  "output": 0.93839
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "epdays"
+  },
+  "output": 0.32067
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "inco"
+  },
+  "output": 0.98262
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "item"
+  },
+  "output": 0.55956
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "moq"
+  },
+  "output": 0.54526
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "mult"
+  },
+  "output": 0.60691
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "pencap"
+  },
+  "output": 0.6205
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "valid"
+  },
+  "output": 0.05623
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "warr"
+  },
+  "output": 0.53775
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "sup"
+  },
+  "output": 0.94795
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "cat"
+  },
+  "output": 0.78563
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "city"
+  },
+  "output": 0.20316
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "emp"
+  },
+  "output": 0.12495
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "spike"
+  },
+  "output": 0.02871
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "stkD"
+  },
+  "output": 0.63403
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "cap"
+  },
+  "output": 0.89039
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "followed"
+  },
+  "output": 0.99393
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "inc-tier"
+  },
+  "output": 0.14408
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "alt"
+  },
+  "output": 0.53242
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "ct-epd"
+  },
+  "output": 0.61278
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "ct-pen8"
+  },
+  "output": 0.90022
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "epd"
+  },
+  "output": 0.61566
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "otif"
+  },
+  "output": 0.65359
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "pen"
+  },
+  "output": 0.41722
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "status"
+  },
+  "output": 0.25917
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "break"
+  },
+  "output": 0.85186
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "cold"
+  },
+  "output": 0.50701
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "humangood"
+  },
+  "output": 0.00469
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "intermittent"
+  },
+  "output": 0.93246
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "latency"
+  },
+  "output": 0.91293
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "country"
+  },
+  "output": 0.24467
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "decline"
+  },
+  "output": 0.23605
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "trend"
+  },
+  "output": 0.42158
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "date"
+  },
+  "output": 0.26079
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "years"
+  },
+  "output": 0.88503
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "qty"
+  },
+  "output": 0.60747
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "certn"
+  },
+  "output": 0.64099
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "commit"
+  },
+  "output": 0.81634
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "count"
+  },
+  "output": 0.2423
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "ct-cap"
+  },
+  "output": 0.89327
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "day"
+  },
+  "output": 0.40233
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "dn"
+  },
+  "output": 0.28617
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "early"
+  },
+  "output": 0.5651
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "lead"
+  },
+  "output": 0.64939
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "pos"
+  },
+  "output": 0.37605
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "ppm"
+  },
+  "output": 0.90294
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "qn"
+  },
+  "output": 0.86048
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "rec"
+  },
+  "output": 0.55035
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "resp"
+  },
+  "output": 0.47455
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "since"
+  },
+  "output": 0.51723
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "slip"
+  },
+  "output": 0.36605
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "spend"
+  },
+  "output": 0.09491
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "vc"
+  },
+  "output": 0.7762
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "certs-n"
+  },
+  "output": 0.21245
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "certs-o"
+  },
+  "output": 0.43626
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "need"
+  },
+  "output": 0.35953
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "rating-n"
+  },
+  "output": 0.50569
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "u"
+  },
+  "output": 0.25062
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "units"
+  },
+  "output": 0.55786
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "v"
+  },
+  "output": 0.02681
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "years-trading"
+  },
+  "output": 0.21233
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "reviews"
+  },
+  "output": 0.22112
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "q"
+  },
+  "output": 0.35538
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "fx"
+  },
+  "output": 0.58237
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "p"
+  },
+  "output": 0.57919
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "r"
+  },
+  "output": 0.13157
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "noise"
+  },
+  "output": 0.29607
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "a"
+  },
+  "output": 0.77442
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "d"
+  },
+  "output": 0.89347
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "ticket"
+  },
+  "output": 0.53181
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "defect"
+  },
+  "output": 0.6673
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "fulfil"
+  },
+  "output": 0.06445
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "spend-w"
+  },
+  "output": 0.67605
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "bad"
+  },
+  "output": 0.45198
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "down"
+  },
+  "output": 0.89977
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "good"
+  },
+  "output": 0.44198
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "target"
+  },
+  "output": 0.25166
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "up"
+  },
+  "output": 0.0995
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "base"
+  },
+  "output": 0.74922
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "ct-epdv"
+  },
+  "output": 0.3908
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "ct-inv"
+  },
+  "output": 0.57962
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "ct-penv"
+  },
+  "output": 0.22992
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "epdv"
+  },
+  "output": 0.82312
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "idx"
+  },
+  "output": 0.17274
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "inv"
+  },
+  "output": 0.55082
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "move"
+  },
+  "output": 0.02318
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "penv"
+  },
+  "output": 0.84368
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "bandhi"
+  },
+  "output": 0.56657
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "bandlo"
+  },
+  "output": 0.00275
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "bbhi"
+  },
+  "output": 0.42352
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "bblo"
+  },
+  "output": 0.15806
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "bcoef"
+  },
+  "output": 0.03074
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "bt"
+  },
+  "output": 0.77165
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "cc"
+  },
+  "output": 0.28641
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "coef"
+  },
+  "output": 0.71298
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "conf"
+  },
+  "output": 0.32891
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "conv"
+  },
+  "output": 0.09013
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "cover"
+  },
+  "output": 0.82802
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "humangain"
+  },
+  "output": 0.56397
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "humanloss"
+  },
+  "output": 0.75135
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "modelgain"
+  },
+  "output": 0.90411
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "naive"
+  },
+  "output": 0.93576
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "pv"
+  },
+  "output": 0.37237
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "t1"
+  },
+  "output": 0.12756
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "t2"
+  },
+  "output": 0.45613
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "t3"
+  },
+  "output": 0.67994
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "vol"
+  },
+  "output": 0.69476
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "w1"
+  },
+  "output": 0.05665
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "w2"
+  },
+  "output": 0.28046
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "w3"
+  },
+  "output": 0.50427
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "w4"
+  },
+  "output": 0.9376
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "w5"
+  },
+  "output": 0.16141
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "n"
+  },
+  "output": 0.65537
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "rating"
+  },
+  "output": 0.77218
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "var"
+  },
+  "output": 0.8176
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "xd"
+  },
+  "output": 0.02071
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "xd1"
+  },
+  "output": 0.03794
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "xs"
+  },
+  "output": 0.11118
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "cost"
+  },
+  "output": 0.07346
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "comp-count"
+  },
+  "output": 0.39642
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "comp-none"
+  },
+  "output": 0.59841
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "demand-applied"
+  },
+  "output": 0.25592
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "demand-level"
+  },
+  "output": 0.08193
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "msa-mode"
+  },
+  "output": 0.93214
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "fc-noise"
+  },
+  "output": 0.88799
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "companies"
+  },
+  "output": 0.12866
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "peer"
+  },
+  "output": 0.64869
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "agg"
+  },
+  "output": 0.1422
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "current"
+  },
+  "output": 0.16748
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "demand-conf"
+  },
+  "output": 0.72897
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "demand-exp"
+  },
+  "output": 0.9887
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "demand-hist"
+  },
+  "output": 0.57091
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "demand-ratio"
+  },
+  "output": 0.28666
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "omax"
+  },
+  "output": 0.4257
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "omin"
+  },
+  "output": 0.18048
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "opt"
+  },
+  "output": 0.67808
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "txns"
+  },
+  "output": 0.64512
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "rating-comm-78"
+  },
+  "output": 0.86067
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "src-g"
+  },
+  "output": 0.26635
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "src-t"
+  },
+  "output": 0.46158
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "src-d"
+  },
+  "output": 0.04254
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "src-l"
+  },
+  "output": 0.83302
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "src-r"
+  },
+  "output": 0.01396
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "0"
+  },
+  "output": 0.41761
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "1"
+  },
+  "output": 0.64142
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "2"
+  },
+  "output": 0.86523
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "cert0"
+  },
+  "output": 0.76477
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "cert1"
+  },
+  "output": 0.54096
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "cert2"
+  },
+  "output": 0.21239
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "cert3"
+  },
+  "output": 0.98858
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "cert4"
+  },
+  "output": 0.66001
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "cert5"
+  },
+  "output": 0.4362
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "trend0"
+  },
+  "output": 0.74042
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "trend1"
+  },
+  "output": 0.96423
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "trend2"
+  },
+  "output": 0.2928
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "trend3"
+  },
+  "output": 0.51661
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "trend4"
+  },
+  "output": 0.63566
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "trend5"
+  },
+  "output": 0.85947
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "rv-0"
+  },
+  "output": 0.97562
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "rva-0"
+  },
+  "output": 0.18921
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "rvw-0"
+  },
+  "output": 0.50821
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "rv-1"
+  },
+  "output": 0.75181
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "rva-1"
+  },
+  "output": 0.9654
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "rvw-1"
+  },
+  "output": 0.73202
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "rv-2"
+  },
+  "output": 0.42324
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "rva-2"
+  },
+  "output": 0.63683
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "rvw-2"
+  },
+  "output": 0.95583
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "band-3M-0"
+  },
+  "output": 0.34314
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "band-3M-1"
+  },
+  "output": 0.11933
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "band-3M-2"
+  },
+  "output": 0.79076
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "band-3M-3"
+  },
+  "output": 0.56695
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "band-6M-0"
+  },
+  "output": 0.00403
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "band-6M-1"
+  },
+  "output": 0.22784
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "band-6M-2"
+  },
+  "output": 0.55641
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "band-6M-3"
+  },
+  "output": 0.78022
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "band-12M-0"
+  },
+  "output": 0.41122
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "band-12M-1"
+  },
+  "output": 0.63503
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "band-12M-2"
+  },
+  "output": 0.9636
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "band-12M-3"
+  },
+  "output": 0.18741
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "band-ALL-0"
+  },
+  "output": 0.28867
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "band-ALL-1"
+  },
+  "output": 0.51248
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "band-ALL-2"
+  },
+  "output": 0.84105
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "band-ALL-3"
+  },
+  "output": 0.06486
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "comp-northline.example.com"
+  },
+  "output": 0.50499
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "comp-castellan.example.com"
+  },
+  "output": 0.71867
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "comp-redhawk.example.com"
+  },
+  "output": 0.24648
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "comp-vantage.example.com"
+  },
+  "output": 0.4426
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "comp-ironbridge.example.com"
+  },
+  "output": 0.02021
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "comp-cobalt.example.com"
+  },
+  "output": 0.25031
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "comp-fairhaven.example.com"
+  },
+  "output": 0.85396
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "comp-pemberton.example.com"
+  },
+  "output": 0.1083
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "comp-granite.example.com"
+  },
+  "output": 0.84104
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "comp-larkspur.example.com"
+  },
+  "output": 0.71496
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "seg-Contractor"
+  },
+  "output": 0.9676
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "seg-Institutional"
+  },
+  "output": 0.55966
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "seg-Industrial"
+  },
+  "output": 0.39968
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "seg-Walk-in"
+  },
+  "output": 0.5729
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "grow-Contractor"
+  },
+  "output": 0.03576
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "mar-Walk-in"
+  },
+  "output": 0.24185
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "season-30d"
+  },
+  "output": 0.19878
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "season-90d"
+  },
+  "output": 0.9342
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "demand"
+  },
+  "output": 0.29368
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": ""
+  },
+  "output": 0.12771
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "current-sup"
+  },
+  "output": 0.68617
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "alt-who"
+  },
+  "output": 0.07569
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "branch"
+  },
+  "output": 0.40061
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "ci"
+  },
+  "output": 0.28841
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "credit"
+  },
+  "output": 0.92812
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "cs"
+  },
+  "output": 0.52651
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "ct-credit"
+  },
+  "output": 0.50108
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "ct-epdays"
+  },
+  "output": 0.20811
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "ct-inco"
+  },
+  "output": 0.65944
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "ct-pencap"
+  },
+  "output": 0.26232
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "ct-valid"
+  },
+  "output": 0.89999
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "ct-warr"
+  },
+  "output": 0.87659
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "epdays"
+  },
+  "output": 0.56403
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "inco"
+  },
+  "output": 0.36416
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "item"
+  },
+  "output": 0.29186
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "moq"
+  },
+  "output": 0.86476
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "mult"
+  },
+  "output": 0.56391
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "pencap"
+  },
+  "output": 0.17216
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "valid"
+  },
+  "output": 0.75079
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "warr"
+  },
+  "output": 0.77133
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "sup"
+  },
+  "output": 0.32679
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "cat"
+  },
+  "output": 0.61553
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "city"
+  },
+  "output": 0.99066
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "emp"
+  },
+  "output": 0.09949
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "spike"
+  },
+  "output": 0.77437
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "stkD"
+  },
+  "output": 0.54597
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "cap"
+  },
+  "output": 0.72029
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "followed"
+  },
+  "output": 0.18121
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "inc-tier"
+  },
+  "output": 0.06782
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "alt"
+  },
+  "output": 0.74636
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "ct-epd"
+  },
+  "output": 0.72476
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "ct-pen8"
+  },
+  "output": 0.21816
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "epd"
+  },
+  "output": 0.96164
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "otif"
+  },
+  "output": 0.73407
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "pen"
+  },
+  "output": 0.01976
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "status"
+  },
+  "output": 0.70983
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "break"
+  },
+  "output": 0.7
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "cold"
+  },
+  "output": 0.39911
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "humangood"
+  },
+  "output": 0.63941
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "intermittent"
+  },
+  "output": 0.11516
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "latency"
+  },
+  "output": 0.32817
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "country"
+  },
+  "output": 0.09559
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "decline"
+  },
+  "output": 0.65969
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "trend"
+  },
+  "output": 0.754
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "date"
+  },
+  "output": 0.24303
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "years"
+  },
+  "output": 0.51211
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "qty"
+  },
+  "output": 0.68395
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "certn"
+  },
+  "output": 0.90673
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "commit"
+  },
+  "output": 0.3186
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "count"
+  },
+  "output": 0.60252
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "ct-cap"
+  },
+  "output": 0.95717
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "day"
+  },
+  "output": 0.84683
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "dn"
+  },
+  "output": 0.23055
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "early"
+  },
+  "output": 0.23004
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "lead"
+  },
+  "output": 0.31657
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "pos"
+  },
+  "output": 0.70047
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "ppm"
+  },
+  "output": 0.84616
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "qn"
+  },
+  "output": 0.34562
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "rec"
+  },
+  "output": 0.87345
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "resp"
+  },
+  "output": 0.44611
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "since"
+  },
+  "output": 0.60133
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "slip"
+  },
+  "output": 0.73859
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "spend"
+  },
+  "output": 0.65291
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "vc"
+  },
+  "output": 0.48342
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "certs-n"
+  },
+  "output": 0.40077
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "certs-o"
+  },
+  "output": 0.17696
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "need"
+  },
+  "output": 0.49493
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "rating-n"
+  },
+  "output": 0.31933
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "u"
+  },
+  "output": 0.76712
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "units"
+  },
+  "output": 0.19324
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "v"
+  },
+  "output": 0.43855
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "years-trading"
+  },
+  "output": 0.92127
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "reviews"
+  },
+  "output": 0.61074
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "q"
+  },
+  "output": 0.66236
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "fx"
+  },
+  "output": 0.12795
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "p"
+  },
+  "output": 0.88617
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "r"
+  },
+  "output": 0.33379
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "noise"
+  },
+  "output": 0.92375
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "a"
+  },
+  "output": 0.24332
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "d"
+  },
+  "output": 0.57189
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "ticket"
+  },
+  "output": 0.57411
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "defect"
+  },
+  "output": 0.64348
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "fulfil"
+  },
+  "output": 0.23015
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "spend-w"
+  },
+  "output": 0.85183
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "bad"
+  },
+  "output": 0.784
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "down"
+  },
+  "output": 0.25293
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "good"
+  },
+  "output": 0.20432
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "target"
+  },
+  "output": 0.6832
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "up"
+  },
+  "output": 0.742
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "base"
+  },
+  "output": 0.92176
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "ct-epdv"
+  },
+  "output": 0.61442
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "ct-inv"
+  },
+  "output": 0.92552
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "ct-penv"
+  },
+  "output": 0.01038
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "epdv"
+  },
+  "output": 0.00534
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "idx"
+  },
+  "output": 0.2824
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "inv"
+  },
+  "output": 0.69216
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "move"
+  },
+  "output": 0.7918
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "penv"
+  },
+  "output": 0.27194
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "bandhi"
+  },
+  "output": 0.78623
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "bandlo"
+  },
+  "output": 0.98741
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "bbhi"
+  },
+  "output": 0.83182
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "bblo"
+  },
+  "output": 0.40444
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "bcoef"
+  },
+  "output": 0.77784
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "bt"
+  },
+  "output": 0.32603
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "cc"
+  },
+  "output": 0.94555
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "coef"
+  },
+  "output": 0.72744
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "conf"
+  },
+  "output": 0.55887
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "conv"
+  },
+  "output": 0.13983
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "cover"
+  },
+  "output": 0.77416
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "humangain"
+  },
+  "output": 0.57397
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "humanloss"
+  },
+  "output": 0.21317
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "modelgain"
+  },
+  "output": 0.36917
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "naive"
+  },
+  "output": 0.35166
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "pv"
+  },
+  "output": 0.88723
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "t1"
+  },
+  "output": 0.58226
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "t2"
+  },
+  "output": 0.35845
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "t3"
+  },
+  "output": 0.13464
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "vol"
+  },
+  "output": 0.30558
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "w1"
+  },
+  "output": 0.90179
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "w2"
+  },
+  "output": 0.23036
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "w3"
+  },
+  "output": 0.45417
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "w4"
+  },
+  "output": 0.78274
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "w5"
+  },
+  "output": 0.00655
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "n"
+  },
+  "output": 0.22903
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "rating"
+  },
+  "output": 0.36536
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "var"
+  },
+  "output": 0.24794
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "xd"
+  },
+  "output": 0.47841
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "xd1"
+  },
+  "output": 0.63536
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "xs"
+  },
+  "output": 0.83556
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "cost"
+  },
+  "output": 0.87744
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "comp-count"
+  },
+  "output": 0.3194
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "comp-none"
+  },
+  "output": 0.47587
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "demand-applied"
+  },
+  "output": 0.1743
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "demand-level"
+  },
+  "output": 0.65161
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "msa-mode"
+  },
+  "output": 0.58776
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "fc-noise"
+  },
+  "output": 0.30429
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "companies"
+  },
+  "output": 0.58448
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "peer"
+  },
+  "output": 0.33313
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "agg"
+  },
+  "output": 0.19158
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "current"
+  },
+  "output": 0.25202
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "demand-conf"
+  },
+  "output": 0.46437
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "demand-exp"
+  },
+  "output": 0.53956
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "demand-hist"
+  },
+  "output": 0.26783
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "demand-ratio"
+  },
+  "output": 0.39608
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "omax"
+  },
+  "output": 0.75048
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "omin"
+  },
+  "output": 0.62594
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "opt"
+  },
+  "output": 0.4075
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "txns"
+  },
+  "output": 0.60546
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "rating-comm-78"
+  },
+  "output": 0.65531
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "src-g"
+  },
+  "output": 0.16343
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "src-t"
+  },
+  "output": 0.91104
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "src-d"
+  },
+  "output": 0.492
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "src-l"
+  },
+  "output": 0.28248
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "src-r"
+  },
+  "output": 0.2539
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "0"
+  },
+  "output": 0.78999
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "1"
+  },
+  "output": 0.0138
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "2"
+  },
+  "output": 0.34237
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "cert0"
+  },
+  "output": 0.00753
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "cert1"
+  },
+  "output": 0.23134
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "cert2"
+  },
+  "output": 0.45515
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "cert3"
+  },
+  "output": 0.67896
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "cert4"
+  },
+  "output": 0.11229
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "cert5"
+  },
+  "output": 0.3361
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "trend0"
+  },
+  "output": 0.66248
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "trend1"
+  },
+  "output": 0.43867
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "trend2"
+  },
+  "output": 0.21486
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "trend3"
+  },
+  "output": 0.99105
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "trend4"
+  },
+  "output": 0.76724
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "trend5"
+  },
+  "output": 0.54343
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "rv-0"
+  },
+  "output": 0.81836
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "rva-0"
+  },
+  "output": 0.31339
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "rvw-0"
+  },
+  "output": 0.72455
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "rv-1"
+  },
+  "output": 0.59455
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "rva-1"
+  },
+  "output": 0.08958
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "rvw-1"
+  },
+  "output": 0.94836
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "rv-2"
+  },
+  "output": 0.37074
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "rva-2"
+  },
+  "output": 0.86577
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "rvw-2"
+  },
+  "output": 0.27693
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "band-3M-0"
+  },
+  "output": 0.32884
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "band-3M-1"
+  },
+  "output": 0.10503
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "band-3M-2"
+  },
+  "output": 0.88122
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "band-3M-3"
+  },
+  "output": 0.65741
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "band-6M-0"
+  },
+  "output": 0.02379
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "band-6M-1"
+  },
+  "output": 0.79998
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "band-6M-2"
+  },
+  "output": 0.57617
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "band-6M-3"
+  },
+  "output": 0.35236
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "band-12M-0"
+  },
+  "output": 0.65804
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "band-12M-1"
+  },
+  "output": 0.88185
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "band-12M-2"
+  },
+  "output": 0.10566
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "band-12M-3"
+  },
+  "output": 0.32947
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "band-ALL-0"
+  },
+  "output": 0.35045
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "band-ALL-1"
+  },
+  "output": 0.57426
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "band-ALL-2"
+  },
+  "output": 0.79807
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "band-ALL-3"
+  },
+  "output": 0.02188
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "comp-northline.example.com"
+  },
+  "output": 0.98045
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "comp-castellan.example.com"
+  },
+  "output": 0.48609
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "comp-redhawk.example.com"
+  },
+  "output": 0.08166
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "comp-vantage.example.com"
+  },
+  "output": 0.58974
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "comp-ironbridge.example.com"
+  },
+  "output": 0.60185
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "comp-cobalt.example.com"
+  },
+  "output": 0.96647
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "comp-fairhaven.example.com"
+  },
+  "output": 0.59482
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "comp-pemberton.example.com"
+  },
+  "output": 0.75448
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "comp-granite.example.com"
+  },
+  "output": 0.71266
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "comp-larkspur.example.com"
+  },
+  "output": 0.55182
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "seg-Contractor"
+  },
+  "output": 0.4373
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "seg-Institutional"
+  },
+  "output": 0.63428
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "seg-Industrial"
+  },
+  "output": 0.52958
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "seg-Walk-in"
+  },
+  "output": 0.3868
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "grow-Contractor"
+  },
+  "output": 0.9025
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "mar-Walk-in"
+  },
+  "output": 0.85973
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "season-30d"
+  },
+  "output": 0.09408
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "season-90d"
+  },
+  "output": 0.2677
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "demand"
+  },
+  "output": 0.55702
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "bconf:HRD118902:south"
+  },
+  "output": 0.59239
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "bconf:HRD304148:west"
+  },
+  "output": 0.77568
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "spike:sup-1"
+  },
+  "output": 0.60691
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "spike:sup-2"
+  },
+  "output": 0.0672
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "spike:sup-3"
+  },
+  "output": 0.13463
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "spike:sup-4"
+  },
+  "output": 0.97534
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "spike:sup-5"
+  },
+  "output": 0.92207
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "spike:sup-6"
+  },
+  "output": 0.85044
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "spike:sup-7"
+  },
+  "output": 0.49883
+ },
+ {
+  "fn": "rand",
+  "input": {
+   "key": "spike:sup-8"
+  },
+  "output": 0.2905
+ },
+ {
+  "fn": "randRange",
+  "input": {
+   "key": "HRD118902|100959:h:3",
+   "salt": "noise",
+   "min": -0.016,
+   "max": 0.016
+  },
+  "output": 0.007918399999999999
+ },
+ {
+  "fn": "randRange",
+  "input": {
+   "key": "HRD118902|100959:h:11",
+   "salt": "noise",
+   "min": -0.016,
+   "max": 0.016
+  },
+  "output": -0.002400639999999999
+ },
+ {
+  "fn": "randRange",
+  "input": {
+   "key": "inv:HRD118902:100959",
+   "salt": "cover",
+   "min": 2.2,
+   "max": 24
+  },
+  "output": 8.89042
+ },
+ {
+  "fn": "randRange",
+  "input": {
+   "key": "sup-0",
+   "salt": "otif",
+   "min": 74,
+   "max": 98
+  },
+  "output": 88.61456
+ },
+ {
+  "fn": "randRange",
+  "input": {
+   "key": "sup-0",
+   "salt": "idx",
+   "min": 89,
+   "max": 114
+  },
+  "output": 102.67825
+ },
+ {
+  "fn": "randRange",
+  "input": {
+   "key": "sup-0",
+   "salt": "epdv",
+   "min": 1,
+   "max": 2.5
+  },
+  "output": 1.728385
+ },
+ {
+  "fn": "randRange",
+  "input": {
+   "key": "sup-0",
+   "salt": "penv",
+   "min": 0.5,
+   "max": 2
+  },
+  "output": 1.051115
+ },
+ {
+  "fn": "randRange",
+  "input": {
+   "key": "sup-0",
+   "salt": "inv",
+   "min": 88,
+   "max": 99.8
+  },
+  "output": 93.703294
+ },
+ {
+  "fn": "randRange",
+  "input": {
+   "key": "sup-0",
+   "salt": "trend0",
+   "min": -6,
+   "max": 6
+  },
+  "output": 1.7526000000000002
+ },
+ {
+  "fn": "randRange",
+  "input": {
+   "key": "sup-7",
+   "salt": "trend5",
+   "min": -6,
+   "max": 6
+  },
+  "output": 4.988520000000001
+ },
+ {
+  "fn": "randRange",
+  "input": {
+   "key": "sup:sup-1",
+   "salt": "defect",
+   "min": 0.2,
+   "max": 3.4
+  },
+  "output": 2.3955200000000003
+ },
+ {
+  "fn": "randRange",
+  "input": {
+   "key": "sup:sup-1",
+   "salt": "fulfil",
+   "min": 87,
+   "max": 99.4
+  },
+  "output": 88.76762
+ },
+ {
+  "fn": "randRange",
+  "input": {
+   "key": "sup:sup-1",
+   "salt": "ct-epdv",
+   "min": 1,
+   "max": 2.5
+  },
+  "output": 1.2343
+ },
+ {
+  "fn": "randRange",
+  "input": {
+   "key": "sup:sup-1",
+   "salt": "ct-penv",
+   "min": 0.5,
+   "max": 2
+  },
+  "output": 0.51554
+ },
+ {
+  "fn": "randRange",
+  "input": {
+   "key": "sup:sup-1",
+   "salt": "ct-inv",
+   "min": 88,
+   "max": 99.8
+  },
+  "output": 98.891164
+ },
+ {
+  "fn": "randRange",
+  "input": {
+   "key": "sup:sup-1",
+   "salt": "rating-comm-78",
+   "min": 1,
+   "max": 5
+  },
+  "output": 1.48028
+ },
+ {
+  "fn": "randRange",
+  "input": {
+   "key": "sup:sup-1",
+   "salt": "spend-w",
+   "min": 0.7,
+   "max": 1.4
+  },
+  "output": 1.2363749999999998
+ },
+ {
+  "fn": "randRange",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "up",
+   "min": 1,
+   "max": 1.035
+  },
+  "output": 1.02597
+ },
+ {
+  "fn": "randRange",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "down",
+   "min": 0.94,
+   "max": 1.01
+  },
+  "output": 0.9577051
+ },
+ {
+  "fn": "randRange",
+  "input": {
+   "key": "buy:HRD118902:0",
+   "salt": "target",
+   "min": 0.86,
+   "max": 0.97
+  },
+  "output": 0.9086541
+ },
+ {
+  "fn": "randRange",
+  "input": {
+   "key": "buy:HRD118902:0",
+   "salt": "good",
+   "min": 0.985,
+   "max": 1
+  },
+  "output": 0.98688895
+ },
+ {
+  "fn": "randRange",
+  "input": {
+   "key": "buy:HRD118902:0",
+   "salt": "bad",
+   "min": 1.02,
+   "max": 1.11
+  },
+  "output": 1.0867809000000002
+ },
+ {
+  "fn": "randRange",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "base",
+   "min": 1.03,
+   "max": 1.12
+  },
+  "output": 1.0974298
+ },
+ {
+  "fn": "randRange",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "target",
+   "min": 0.87,
+   "max": 0.97
+  },
+  "output": 0.895166
+ },
+ {
+  "fn": "randRange",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "good",
+   "min": 0.975,
+   "max": 1.002
+  },
+  "output": 0.98693346
+ },
+ {
+  "fn": "randRange",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "bad",
+   "min": 1.03,
+   "max": 1.15
+  },
+  "output": 1.0842376
+ },
+ {
+  "fn": "randRange",
+  "input": {
+   "key": "2026-8",
+   "salt": "n",
+   "min": 26,
+   "max": 34
+  },
+  "output": 28.08288
+ },
+ {
+  "fn": "randRange",
+  "input": {
+   "key": "2024-7",
+   "salt": "n",
+   "min": 26,
+   "max": 34
+  },
+  "output": 31.93048
+ },
+ {
+  "fn": "randRange",
+  "input": {
+   "key": "HRD118902:sup-1",
+   "salt": "q",
+   "min": 0.94,
+   "max": 1.05
+  },
+  "output": 0.9540767
+ },
+ {
+  "fn": "randRange",
+  "input": {
+   "key": "HRD118902|sup-2|100959",
+   "salt": "w1",
+   "min": 30,
+   "max": 46
+  },
+  "output": 30.55312
+ },
+ {
+  "fn": "randRange",
+  "input": {
+   "key": "HRD118902|sup-2|100959",
+   "salt": "w2",
+   "min": 18,
+   "max": 30
+  },
+  "output": 21.10056
+ },
+ {
+  "fn": "randRange",
+  "input": {
+   "key": "HRD118902|sup-2|100959",
+   "salt": "w3",
+   "min": 12,
+   "max": 24
+  },
+  "output": 17.786279999999998
+ },
+ {
+  "fn": "randRange",
+  "input": {
+   "key": "fc:HRD118902:100959:sensing",
+   "salt": "base",
+   "min": 6,
+   "max": 65
+  },
+  "output": 8.14819
+ },
+ {
+  "fn": "randRange",
+  "input": {
+   "key": "fc:HRD118902:100959:sensing",
+   "salt": "trend",
+   "min": -9,
+   "max": 15
+  },
+  "output": 10.42344
+ },
+ {
+  "fn": "randRange",
+  "input": {
+   "key": "fc:HRD118902:100959:sensing",
+   "salt": "naive",
+   "min": 24,
+   "max": 41
+  },
+  "output": 27.40323
+ },
+ {
+  "fn": "randRange",
+  "input": {
+   "key": "fc:HRD118902:100959:sensing",
+   "salt": "modelgain",
+   "min": 7,
+   "max": 17
+  },
+  "output": 9.72
+ },
+ {
+  "fn": "randRange",
+  "input": {
+   "key": "fc:HRD118902:100959:sensing",
+   "salt": "humangain",
+   "min": 0.4,
+   "max": 3.6
+  },
+  "output": 1.1827200000000002
+ },
+ {
+  "fn": "randRange",
+  "input": {
+   "key": "el:sell:HRD118902:100959",
+   "salt": "conf",
+   "min": 38,
+   "max": 96
+  },
+  "output": 90.03237999999999
+ },
+ {
+  "fn": "randRange",
+  "input": {
+   "key": "el:sell:HRD118902:100959",
+   "salt": "coef",
+   "min": 0.35,
+   "max": 2.6
+  },
+  "output": 0.4265
+ },
+ {
+  "fn": "randRange",
+  "input": {
+   "key": "el:sell:HRD118902:100959",
+   "salt": "bandlo",
+   "min": 0.1,
+   "max": 0.45
+  },
+  "output": 0.44533449999999997
+ },
+ {
+  "fn": "randRange",
+  "input": {
+   "key": "el:buy:HRD118902:default",
+   "salt": "bcoef",
+   "min": 0.6,
+   "max": 4.2
+  },
+  "output": 2.4225
+ },
+ {
+  "fn": "randRange",
+  "input": {
+   "key": "el:buy:HRD118902:default",
+   "salt": "t1",
+   "min": 0.8,
+   "max": 3.4
+  },
+  "output": 2.6008379999999995
+ },
+ {
+  "fn": "randRange",
+  "input": {
+   "key": "score:HRD118902:100959",
+   "salt": "conv",
+   "min": 44,
+   "max": 93
+  },
+  "output": 77.66398
+ },
+ {
+  "fn": "randRange",
+  "input": {
+   "key": "srisk:sup-1",
+   "salt": "var",
+   "min": 0.06,
+   "max": 0.3
+  },
+  "output": 0.22578719999999997
+ },
+ {
+  "fn": "randRange",
+  "input": {
+   "key": "srisk:sup-1",
+   "salt": "d",
+   "min": 6,
+   "max": 18
+  },
+  "output": 12.53556
+ },
+ {
+  "fn": "randRange",
+  "input": {
+   "key": "srisk:sup-1",
+   "salt": "d",
+   "min": -2,
+   "max": 3
+  },
+  "output": 0.7231499999999995
+ },
+ {
+  "fn": "randRange",
+  "input": {
+   "key": "route:sup-2",
+   "salt": "xd1",
+   "min": 1,
+   "max": 3
+  },
+  "output": 1.23676
+ },
+ {
+  "fn": "randRange",
+  "input": {
+   "key": "route:sup-2",
+   "salt": "xs",
+   "min": 8,
+   "max": 15
+  },
+  "output": 14.58714
+ },
+ {
+  "fn": "randRange",
+  "input": {
+   "key": "route:sup-3",
+   "salt": "xd",
+   "min": 6,
+   "max": 10
+  },
+  "output": 7.03024
+ },
+ {
+  "fn": "randRange",
+  "input": {
+   "key": "route:sup-3",
+   "salt": "xs",
+   "min": 22,
+   "max": 32
+  },
+  "output": 25.852899999999998
+ },
+ {
+  "fn": "randRange",
+  "input": {
+   "key": "bfc:HRD118902:sup-2",
+   "salt": "d",
+   "min": -0.9,
+   "max": 1.4
+  },
+  "output": 0.6303279999999997
+ },
+ {
+  "fn": "randRange",
+  "input": {
+   "key": "adopt:100959",
+   "salt": "a",
+   "min": 58,
+   "max": 84
+  },
+  "output": 58.40144
+ },
+ {
+  "fn": "randRange",
+  "input": {
+   "key": "rev:100959",
+   "salt": "ticket",
+   "min": 96,
+   "max": 240
+  },
+  "output": 202.16832
+ },
+ {
+  "fn": "randRange",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "current",
+   "min": 1.32,
+   "max": 2.15
+  },
+  "output": 1.4710351
+ },
+ {
+  "fn": "randRange",
+  "input": {
+   "key": "HRD118902",
+   "salt": "peer",
+   "min": 1.45,
+   "max": 2.1
+  },
+  "output": 1.566467
+ },
+ {
+  "fn": "randRange",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "opt",
+   "min": 0.95,
+   "max": 1.04
+  },
+  "output": 0.9925565
+ },
+ {
+  "fn": "randRange",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "agg",
+   "min": 1.06,
+   "max": 1.19
+  },
+  "output": 1.0996045
+ },
+ {
+  "fn": "randRange",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "txns",
+   "min": 8,
+   "max": 240
+  },
+  "output": 124.22504
+ },
+ {
+  "fn": "randInt",
+  "input": {
+   "key": "vol:HRD118902:100959",
+   "salt": "u",
+   "min": 700,
+   "max": 4200
+  },
+  "output": 4020
+ },
+ {
+  "fn": "randInt",
+  "input": {
+   "key": "vol:HRD450871:100649",
+   "salt": "u",
+   "min": 4,
+   "max": 38
+  },
+  "output": 35
+ },
+ {
+  "fn": "randInt",
+  "input": {
+   "key": "vol:HRD772310:100117",
+   "salt": "u",
+   "min": 90,
+   "max": 900
+  },
+  "output": 514
+ },
+ {
+  "fn": "randInt",
+  "input": {
+   "key": "avol:HRD118902:south",
+   "salt": "v",
+   "min": 9000,
+   "max": 62000
+  },
+  "output": 41402
+ },
+ {
+  "fn": "randInt",
+  "input": {
+   "key": "avol:HRD450871:south",
+   "salt": "v",
+   "min": 60,
+   "max": 520
+  },
+  "output": 156
+ },
+ {
+  "fn": "randInt",
+  "input": {
+   "key": "avol:HRD772310:west",
+   "salt": "v",
+   "min": 1200,
+   "max": 11000
+  },
+  "output": 2770
+ },
+ {
+  "fn": "randInt",
+  "input": {
+   "key": "sup-0",
+   "salt": "lead",
+   "min": 5,
+   "max": 48
+  },
+  "output": 7
+ },
+ {
+  "fn": "randInt",
+  "input": {
+   "key": "sup-0",
+   "salt": "certn",
+   "min": 1,
+   "max": 3
+  },
+  "output": 3
+ },
+ {
+  "fn": "randInt",
+  "input": {
+   "key": "sup-0",
+   "salt": "vc",
+   "min": 1,
+   "max": 99
+  },
+  "output": 23
+ },
+ {
+  "fn": "randInt",
+  "input": {
+   "key": "sup-0",
+   "salt": "ppm",
+   "min": 120,
+   "max": 9800
+  },
+  "output": 7143
+ },
+ {
+  "fn": "randInt",
+  "input": {
+   "key": "sup-0",
+   "salt": "resp",
+   "min": 3,
+   "max": 96
+  },
+  "output": 68
+ },
+ {
+  "fn": "randInt",
+  "input": {
+   "key": "sup-0",
+   "salt": "cap",
+   "min": 400,
+   "max": 26000
+  },
+  "output": 21289
+ },
+ {
+  "fn": "randInt",
+  "input": {
+   "key": "sup-0",
+   "salt": "spend",
+   "min": 18000,
+   "max": 1450000
+  },
+  "output": 887539
+ },
+ {
+  "fn": "randInt",
+  "input": {
+   "key": "sup-0",
+   "salt": "pos",
+   "min": 4,
+   "max": 260
+  },
+  "output": 71
+ },
+ {
+  "fn": "randInt",
+  "input": {
+   "key": "sup-0",
+   "salt": "since",
+   "min": 200,
+   "max": 4200
+  },
+  "output": 1842
+ },
+ {
+  "fn": "randInt",
+  "input": {
+   "key": "sup:sup-1",
+   "salt": "ct-cap",
+   "min": 400,
+   "max": 26000
+  },
+  "output": 3123
+ },
+ {
+  "fn": "randInt",
+  "input": {
+   "key": "sup:sup-1",
+   "salt": "years",
+   "min": 3,
+   "max": 11
+  },
+  "output": 7
+ },
+ {
+  "fn": "randInt",
+  "input": {
+   "key": "sup:sup-1",
+   "salt": "years",
+   "min": 0,
+   "max": 2
+  },
+  "output": 1
+ },
+ {
+  "fn": "randInt",
+  "input": {
+   "key": "sup:sup-1:HRD118902",
+   "salt": "moq",
+   "min": 200,
+   "max": 2500
+  },
+  "output": 481
+ },
+ {
+  "fn": "randInt",
+  "input": {
+   "key": "sup:sup-1:HRD450871",
+   "salt": "moq",
+   "min": 2,
+   "max": 12
+  },
+  "output": 6
+ },
+ {
+  "fn": "randInt",
+  "input": {
+   "key": "sup:sup-1",
+   "salt": "years-trading",
+   "min": 8,
+   "max": 55
+  },
+  "output": 55
+ },
+ {
+  "fn": "randInt",
+  "input": {
+   "key": "sup:sup-1",
+   "salt": "rating-n",
+   "min": 40,
+   "max": 380
+  },
+  "output": 264
+ },
+ {
+  "fn": "randInt",
+  "input": {
+   "key": "sup:sup-1",
+   "salt": "certs-n",
+   "min": 2,
+   "max": 4
+  },
+  "output": 3
+ },
+ {
+  "fn": "randInt",
+  "input": {
+   "key": "sup:sup-1",
+   "salt": "certs-o",
+   "min": 0,
+   "max": 3
+  },
+  "output": 3
+ },
+ {
+  "fn": "randInt",
+  "input": {
+   "key": "sup:sup-1",
+   "salt": "rvw-0",
+   "min": 0,
+   "max": 1
+  },
+  "output": 0
+ },
+ {
+  "fn": "randInt",
+  "input": {
+   "key": "deal:HRD304148:100349",
+   "salt": "count",
+   "min": 2,
+   "max": 3
+  },
+  "output": 2
+ },
+ {
+  "fn": "randInt",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "qty",
+   "min": 1,
+   "max": 140
+  },
+  "output": 96
+ },
+ {
+  "fn": "randInt",
+  "input": {
+   "key": "deal:HRD304148:100349:1",
+   "salt": "date",
+   "min": 1,
+   "max": 330
+  },
+  "output": 81
+ },
+ {
+  "fn": "randInt",
+  "input": {
+   "key": "buy:HRD118902",
+   "salt": "count",
+   "min": 2,
+   "max": 3
+  },
+  "output": 2
+ },
+ {
+  "fn": "randInt",
+  "input": {
+   "key": "buy:HRD118902:0",
+   "salt": "qty",
+   "min": 20,
+   "max": 900
+  },
+  "output": 294
+ },
+ {
+  "fn": "randInt",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "qty",
+   "min": 120,
+   "max": 1400
+  },
+  "output": 898
+ },
+ {
+  "fn": "randInt",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "qty",
+   "min": 4,
+   "max": 40
+  },
+  "output": 26
+ },
+ {
+  "fn": "randInt",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "day",
+   "min": 1,
+   "max": 31
+  },
+  "output": 13
+ },
+ {
+  "fn": "randInt",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "day",
+   "min": 1,
+   "max": 1
+  },
+  "output": 1
+ },
+ {
+  "fn": "randInt",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "slip",
+   "min": 2,
+   "max": 21
+  },
+  "output": 9
+ },
+ {
+  "fn": "randInt",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "early",
+   "min": 0,
+   "max": 3
+  },
+  "output": 2
+ },
+ {
+  "fn": "randInt",
+  "input": {
+   "key": "HRD118902|sup-2|100959",
+   "salt": "units",
+   "min": 240,
+   "max": 5200
+  },
+  "output": 3252
+ },
+ {
+  "fn": "randInt",
+  "input": {
+   "key": "el:sell:HRD118902:100959:exp:0",
+   "salt": "date",
+   "min": 30,
+   "max": 300
+  },
+  "output": 280
+ },
+ {
+  "fn": "randInt",
+  "input": {
+   "key": "el:buy:HRD118902:default:exp:1",
+   "salt": "date",
+   "min": 40,
+   "max": 310
+  },
+  "output": 252
+ },
+ {
+  "fn": "randInt",
+  "input": {
+   "key": "q|USA",
+   "salt": "lead",
+   "min": 3,
+   "max": 12
+  },
+  "output": 10
+ },
+ {
+  "fn": "randInt",
+  "input": {
+   "key": "q|USA",
+   "salt": "reviews",
+   "min": 12,
+   "max": 640
+  },
+  "output": 268
+ },
+ {
+  "fn": "pick",
+  "input": {
+   "key": "sup-0",
+   "salt": "credit",
+   "list": [
+    30,
+    45,
+    60
+   ]
+  },
+  "output": 30
+ },
+ {
+  "fn": "pick",
+  "input": {
+   "key": "sup-0",
+   "salt": "credit",
+   "list": [
+    0,
+    15,
+    30,
+    45
+   ]
+  },
+  "output": 15
+ },
+ {
+  "fn": "pick",
+  "input": {
+   "key": "sup-0",
+   "salt": "epdays",
+   "list": [
+    7,
+    10,
+    15
+   ]
+  },
+  "output": 15
+ },
+ {
+  "fn": "pick",
+  "input": {
+   "key": "sup-0",
+   "salt": "inco",
+   "list": [
+    "FOB Destination",
+    "FOB Origin",
+    "DAP"
+   ]
+  },
+  "output": "FOB Destination"
+ },
+ {
+  "fn": "pick",
+  "input": {
+   "key": "sup-0",
+   "salt": "inco",
+   "list": [
+    "FOB Origin Port",
+    "CIF",
+    "EXW",
+    "DDP"
+   ]
+  },
+  "output": "FOB Origin Port"
+ },
+ {
+  "fn": "pick",
+  "input": {
+   "key": "sup-0",
+   "salt": "moq",
+   "list": [
+    1,
+    25,
+    50,
+    100,
+    250,
+    500
+   ]
+  },
+  "output": 25
+ },
+ {
+  "fn": "pick",
+  "input": {
+   "key": "sup-0",
+   "salt": "mult",
+   "list": [
+    1,
+    1,
+    5,
+    10,
+    25
+   ]
+  },
+  "output": 1
+ },
+ {
+  "fn": "pick",
+  "input": {
+   "key": "sup-0",
+   "salt": "valid",
+   "list": [
+    14,
+    21,
+    30,
+    45,
+    60
+   ]
+  },
+  "output": 60
+ },
+ {
+  "fn": "pick",
+  "input": {
+   "key": "sup-0",
+   "salt": "pencap",
+   "list": [
+    3,
+    5,
+    5,
+    10
+   ]
+  },
+  "output": 10
+ },
+ {
+  "fn": "pick",
+  "input": {
+   "key": "sup-0",
+   "salt": "warr",
+   "list": [
+    12,
+    12,
+    18,
+    24,
+    36
+   ]
+  },
+  "output": 18
+ },
+ {
+  "fn": "pick",
+  "input": {
+   "key": "sup-0",
+   "salt": "ci",
+   "list": [
+    "A",
+    "C",
+    "D",
+    "E",
+    "H",
+    "J",
+    "K",
+    "L",
+    "M",
+    "N",
+    "P",
+    "R",
+    "S",
+    "T"
+   ]
+  },
+  "output": "K"
+ },
+ {
+  "fn": "pick",
+  "input": {
+   "key": "sup-0",
+   "salt": "cs",
+   "list": [
+    "Aldridge",
+    "Bianchi",
+    "Duarte",
+    "Falk",
+    "Grimaldi",
+    "Haugen",
+    "Iversen",
+    "Kovac",
+    "Lindqvist",
+    "Moreau",
+    "Nakada",
+    "Okafor",
+    "Rasmussen",
+    "Sandoval",
+    "Vogel",
+    "Weber"
+   ]
+  },
+  "output": "Grimaldi"
+ },
+ {
+  "fn": "pick",
+  "input": {
+   "key": "sup:sup-1",
+   "salt": "ct-credit",
+   "list": [
+    30,
+    45,
+    60
+   ]
+  },
+  "output": 30
+ },
+ {
+  "fn": "pick",
+  "input": {
+   "key": "sup:sup-1",
+   "salt": "ct-credit",
+   "list": [
+    0,
+    15,
+    30,
+    45
+   ]
+  },
+  "output": 0
+ },
+ {
+  "fn": "pick",
+  "input": {
+   "key": "sup:sup-1",
+   "salt": "ct-epdays",
+   "list": [
+    7,
+    10,
+    15
+   ]
+  },
+  "output": 7
+ },
+ {
+  "fn": "pick",
+  "input": {
+   "key": "sup:sup-1",
+   "salt": "ct-pencap",
+   "list": [
+    3,
+    5,
+    5,
+    10
+   ]
+  },
+  "output": 5
+ },
+ {
+  "fn": "pick",
+  "input": {
+   "key": "sup:sup-1",
+   "salt": "ct-warr",
+   "list": [
+    12,
+    12,
+    18,
+    24,
+    36
+   ]
+  },
+  "output": 12
+ },
+ {
+  "fn": "pick",
+  "input": {
+   "key": "sup:sup-1",
+   "salt": "ct-valid",
+   "list": [
+    14,
+    21,
+    30,
+    45,
+    60
+   ]
+  },
+  "output": 45
+ },
+ {
+  "fn": "pick",
+  "input": {
+   "key": "sup:sup-1",
+   "salt": "ct-inco",
+   "list": [
+    "FOB Origin Port",
+    "CIF",
+    "EXW",
+    "DDP"
+   ]
+  },
+  "output": "EXW"
+ },
+ {
+  "fn": "pick",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "item",
+   "list": [
+    "HRD304148",
+    "HRD118902",
+    "HRD772310",
+    "HRD450871",
+    "HRD290145",
+    "HRD661204",
+    "HRD983377",
+    "HRD512066",
+    "HRD874019",
+    "HRD335590",
+    "HRD107744",
+    "HRD248813"
+   ]
+  },
+  "output": "HRD983377"
+ },
+ {
+  "fn": "pick",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "branch",
+   "list": [
+    "100349",
+    "100047",
+    "100117",
+    "100649",
+    "100812",
+    "100205",
+    "100933",
+    "100571",
+    "100959"
+   ]
+  },
+  "output": "100959"
+ },
+ {
+  "fn": "pick",
+  "input": {
+   "key": "po:2026-8:0",
+   "salt": "alt-who",
+   "list": [
+    "sup-1",
+    "sup-2",
+    "sup-3",
+    "sup-4",
+    "sup-5",
+    "sup-6",
+    "sup-7",
+    "sup-8"
+   ]
+  },
+  "output": "sup-2"
+ },
+ {
+  "fn": "pick",
+  "input": {
+   "key": "HRD118902",
+   "salt": "current-sup",
+   "list": [
+    "sup-4",
+    "sup-3",
+    "sup-5",
+    "sup-8"
+   ]
+  },
+  "output": "sup-5"
+ },
+ {
+  "fn": "pick",
+  "input": {
+   "key": "HRD450871",
+   "salt": "current-sup",
+   "list": [
+    "sup-4",
+    "sup-3",
+    "sup-5",
+    "sup-8"
+   ]
+  },
+  "output": "sup-8"
+ },
+ {
+  "fn": "pick",
+  "input": {
+   "key": "el:buy:HRD118902:default",
+   "salt": "sup",
+   "list": [
+    "sup-1",
+    "sup-2",
+    "sup-3",
+    "sup-4",
+    "sup-5",
+    "sup-6",
+    "sup-7",
+    "sup-8"
+   ]
+  },
+  "output": "sup-7"
+ },
+ {
+  "fn": "pick",
+  "input": {
+   "key": "el:sell:HRD118902:100959:cross",
+   "salt": "0",
+   "list": [
+    "HRD304148",
+    "HRD772310",
+    "HRD450871",
+    "HRD290145",
+    "HRD661204",
+    "HRD983377",
+    "HRD512066",
+    "HRD874019",
+    "HRD335590",
+    "HRD107744",
+    "HRD248813"
+   ]
+  },
+  "output": "HRD450871"
+ },
+ {
+  "fn": "pick",
+  "input": {
+   "key": "q|USA",
+   "salt": "cat",
+   "list": [
+    "Copper & brass",
+    "Valves",
+    "Polymers",
+    "Steel",
+    "Tooling",
+    "Fittings"
+   ]
+  },
+  "output": "Polymers"
+ },
+ {
+  "fn": "seeded",
+  "input": {
+   "key": "HRD118902",
+   "salt": "cost"
+  },
+  "output": 0.57885
+ },
+ {
+  "fn": "seeded",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "demand-applied"
+  },
+  "output": 0.55951
+ },
+ {
+  "fn": "seeded",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "msa-mode"
+  },
+  "output": 0.53153
+ },
+ {
+  "fn": "seededRange",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "current",
+   "min": 1.32,
+   "max": 2.15
+  },
+  "output": 1.4710351
+ },
+ {
+  "fn": "seededRange",
+  "input": {
+   "key": "HRD118902",
+   "salt": "peer",
+   "min": 1.45,
+   "max": 2.1
+  },
+  "output": 1.566467
+ },
+ {
+  "fn": "seededRange",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "band-12M-2",
+   "min": 0.7,
+   "max": 1.3
+  },
+  "output": 1.14649
+ },
+ {
+  "fn": "seededRange",
+  "input": {
+   "key": "HRD118902|100959",
+   "salt": "comp-northline.example.com",
+   "min": 0.82,
+   "max": 1.24
+  },
+  "output": 0.975274
+ }
+]

@@ -1,0 +1,3320 @@
+{
+ "rand": [
+  {
+   "key": "sup:sup-2",
+   "salt": "ct-pen8",
+   "value": 0.81267,
+   "hash": 752181267
+  },
+  {
+   "key": "sup:sup-2",
+   "salt": "ct-credit",
+   "value": 0.47721,
+   "hash": 1783047721
+  },
+  {
+   "key": "a",
+   "salt": "",
+   "value": 0.66616,
+   "hash": 524466616
+  },
+  {
+   "key": "route:sup-1",
+   "salt": "stkD",
+   "value": 0.70166,
+   "hash": 312970166
+  },
+  {
+   "key": "srisk:sup-4",
+   "salt": "cap",
+   "value": 0.23798,
+   "hash": 1914223798
+  },
+  {
+   "key": "halden metals ltd|UK",
+   "salt": "rating",
+   "value": 0.67516,
+   "hash": 899767516
+  },
+  {
+   "key": "ünïcode ✓",
+   "salt": "x",
+   "value": 0.55704,
+   "hash": 1599655704
+  },
+  {
+   "key": "",
+   "salt": "",
+   "value": 0.24715,
+   "hash": 1744424715
+  },
+  {
+   "key": "custom:cus-f26j4f",
+   "salt": "vc",
+   "value": 0.44655,
+   "hash": 652644655
+  }
+ ],
+ "randInt": [
+  {
+   "key": "sup:sup-2",
+   "salt": "ct-cap",
+   "min": 400,
+   "max": 26000,
+   "value": 5431
+  },
+  {
+   "key": "sup:sup-2",
+   "salt": "years-trading",
+   "min": 8,
+   "max": 55,
+   "value": 9
+  },
+  {
+   "key": "x",
+   "salt": "y",
+   "min": 0,
+   "max": 1,
+   "value": 0
+  }
+ ],
+ "panel": [
+  {
+   "id": "sup-1",
+   "name": "Nordflow Valve Works",
+   "country": "Germany",
+   "city": "Düsseldorf",
+   "website": "nordflow-valve.de",
+   "category": "Valves",
+   "yearsTrading": 55,
+   "certifications": [
+    "ISO 9001",
+    "API 607",
+    "CE PED"
+   ],
+   "rating": 2.9,
+   "reviewCount": 264,
+   "ratingSource": "Verified buyers",
+   "ratingBreakdown": {
+    "quality": 3.6,
+    "delivery": 3.3,
+    "communication": 1.5,
+    "pricing": 3.9
+   },
+   "reviews": [
+    {
+     "author": "Supply chain manager, facilities group",
+     "when": "2 weeks ago",
+     "stars": 4,
+     "text": "Straightforward to deal with. Quotes are itemised, freight is quoted up front, no surprises on the invoice."
+    },
+    {
+     "author": "Category buyer, plumbing distributor",
+     "when": "6 weeks ago",
+     "stars": 3,
+     "text": "Decent value. Packaging could be better - two dented cartons on the last pallet."
+    },
+    {
+     "author": "Owner, plumbing contractor",
+     "when": "3 months ago",
+     "stars": 2,
+     "text": "Two of the last five deliveries were a week late with no notice. Had to source elsewhere for a contract job."
+    }
+   ],
+   "spendShare12m": 0.038,
+   "leadTimeDays": 7,
+   "otifPct": 88.61,
+   "priceIndex": 102.68,
+   "defectPct": 2.4,
+   "holdsStock": false,
+   "isCustom": false,
+   "label": "Weak",
+   "recommendation": "Do not rely on alone: 2.9 ★, communication is the weak point; confirm every order in writing.",
+   "recommendationPreview": "Do not rely on alone: 2.9 ★, communication is the weak point; confirm every order in writing.",
+   "terms": {
+    "creditDays": 0,
+    "termsLabel": "Proforma",
+    "earlyPayDiscountPct": 1.2,
+    "earlyPayDays": 7,
+    "latePenaltyPctPerWeek": 0,
+    "latePenaltyCapPct": 0,
+    "warrantyMonths": 12,
+    "quoteValidityDays": 45,
+    "incoterm": "EXW",
+    "invoiceAccuracyPct": 98.89,
+    "capacityUnitsMonth": 3123
+   },
+   "risk": {
+    "score": 61,
+    "level": "High",
+    "capacity": "Low",
+    "leadVarianceDays": 1.6,
+    "consistency": "Low",
+    "trend": "Worsening",
+    "recentDelayPct": 12.5,
+    "factors": [
+     {
+      "label": "On-time fulfilment",
+      "value": "88.6%",
+      "good": false
+     },
+     {
+      "label": "Historical delay",
+      "value": "11.4%",
+      "good": false
+     },
+     {
+      "label": "Capacity",
+      "value": "Low",
+      "good": false
+     },
+     {
+      "label": "Lead-time consistency",
+      "value": "Low (±2d)",
+      "good": false
+     },
+     {
+      "label": "Recent performance",
+      "value": "Worsening (↑ 13% delays)",
+      "good": false
+     },
+     {
+      "label": "Buyer rating",
+      "value": "2.9 ★ (264 reviews)",
+      "good": false
+     }
+    ]
+   }
+  },
+  {
+   "id": "sup-2",
+   "name": "Cascade Copper Mills",
+   "country": "USA",
+   "city": "Spokane, WA",
+   "website": "cascadecopper.com",
+   "category": "Copper & brass",
+   "yearsTrading": 9,
+   "certifications": [
+    "ISO 9001",
+    "UL",
+    "ASTM B88",
+    "NSF/ANSI 61"
+   ],
+   "rating": 4.5,
+   "reviewCount": 360,
+   "ratingSource": "Verified buyers",
+   "ratingBreakdown": {
+    "quality": 3.7,
+    "delivery": 4.7,
+    "communication": 5,
+    "pricing": 3.6
+   },
+   "reviews": [
+    {
+     "author": "Procurement lead, industrial MRO",
+     "when": "1 month ago",
+     "stars": 5,
+     "text": "Lead times quoted are lead times delivered. That alone is worth a few points on price."
+    },
+    {
+     "author": "Category buyer, plumbing distributor",
+     "when": "2 months ago",
+     "stars": 5,
+     "text": "Straightforward to deal with. Quotes are itemised, freight is quoted up front, no surprises on the invoice."
+    },
+    {
+     "author": "Supply chain manager, facilities group",
+     "when": "3 months ago",
+     "stars": 3,
+     "text": "Pricing is sharp but the lead time slipped twice this year. Fine for stock replenishment, not for a job with a date."
+    }
+   ],
+   "spendShare12m": 0.137,
+   "leadTimeDays": 17,
+   "otifPct": 92.72,
+   "priceIndex": 106.55,
+   "defectPct": 2.3,
+   "holdsStock": true,
+   "isCustom": false,
+   "label": "Excellent",
+   "recommendation": "Core supplier: 4.5 ★ from 360 buyers, strong on communication, priced 7% over market.",
+   "recommendationPreview": "Add to the panel: 4.5 ★ from 360 buyers, strong on communication, priced 7% over market.",
+   "terms": {
+    "creditDays": 45,
+    "termsLabel": "2/10 net 45",
+    "earlyPayDiscountPct": 2,
+    "earlyPayDays": 10,
+    "latePenaltyPctPerWeek": 1.03,
+    "latePenaltyCapPct": 5,
+    "warrantyMonths": 36,
+    "quoteValidityDays": 30,
+    "incoterm": "DAP",
+    "invoiceAccuracyPct": 90.65,
+    "capacityUnitsMonth": 5431
+   },
+   "risk": {
+    "score": 38,
+    "level": "Medium",
+    "capacity": "Medium",
+    "leadVarianceDays": 4.4,
+    "consistency": "Low",
+    "trend": "Stable",
+    "recentDelayPct": 0.8,
+    "factors": [
+     {
+      "label": "On-time fulfilment",
+      "value": "92.7%",
+      "good": true
+     },
+     {
+      "label": "Historical delay",
+      "value": "7.3%",
+      "good": true
+     },
+     {
+      "label": "Capacity",
+      "value": "Medium",
+      "good": true
+     },
+     {
+      "label": "Lead-time consistency",
+      "value": "Low (±4d)",
+      "good": false
+     },
+     {
+      "label": "Recent performance",
+      "value": "Stable",
+      "good": true
+     },
+     {
+      "label": "Buyer rating",
+      "value": "4.5 ★ (360 reviews)",
+      "good": true
+     }
+    ]
+   }
+  },
+  {
+   "id": "sup-3",
+   "name": "Anhui Precision Fittings",
+   "country": "China",
+   "city": "Hefei",
+   "website": "anhuiprecision.cn",
+   "category": "Fittings",
+   "yearsTrading": 41,
+   "certifications": [
+    "ISO 9001",
+    "UL",
+    "ISO 14001"
+   ],
+   "rating": 3.3,
+   "reviewCount": 100,
+   "ratingSource": "Verified buyers",
+   "ratingBreakdown": {
+    "quality": 4.6,
+    "delivery": 1.7,
+    "communication": 3.9,
+    "pricing": 5
+   },
+   "reviews": [
+    {
+     "author": "Branch manager, HVAC wholesaler",
+     "when": "2 weeks ago",
+     "stars": 4,
+     "text": "Took a spec change mid-order without drama or a re-quote. Rare."
+    },
+    {
+     "author": "Purchasing manager, mechanical contractor",
+     "when": "2 months ago",
+     "stars": 3,
+     "text": "Delivered what we ordered, though communication went quiet for a week mid-order."
+    },
+    {
+     "author": "Operations director, building services",
+     "when": "5 months ago",
+     "stars": 2,
+     "text": "Cheap for a reason. Invoices did not match the quote and nobody picked up the phone."
+    }
+   ],
+   "spendShare12m": 0.083,
+   "leadTimeDays": 19,
+   "otifPct": 76.13,
+   "priceIndex": 89.37,
+   "defectPct": 0.9,
+   "holdsStock": false,
+   "isCustom": false,
+   "label": "Fair",
+   "recommendation": "Use with care: 3.3 ★, delivery is the weak point; fine for standard orders, not urgent ones.",
+   "recommendationPreview": "Add as a backup only: 3.3 ★, delivery is the weak point; fine for standard orders, not urgent ones.",
+   "terms": {
+    "creditDays": 30,
+    "termsLabel": "1/7 net 30",
+    "earlyPayDiscountPct": 1,
+    "earlyPayDays": 7,
+    "latePenaltyPctPerWeek": 1.09,
+    "latePenaltyCapPct": 10,
+    "warrantyMonths": 36,
+    "quoteValidityDays": 45,
+    "incoterm": "FOB Origin Port",
+    "invoiceAccuracyPct": 99.1,
+    "capacityUnitsMonth": 1103
+   },
+   "risk": {
+    "score": 78,
+    "level": "High",
+    "capacity": "Low",
+    "leadVarianceDays": 4.3,
+    "consistency": "Low",
+    "trend": "Worsening",
+    "recentDelayPct": 11.2,
+    "factors": [
+     {
+      "label": "On-time fulfilment",
+      "value": "76.1%",
+      "good": false
+     },
+     {
+      "label": "Historical delay",
+      "value": "23.9%",
+      "good": false
+     },
+     {
+      "label": "Capacity",
+      "value": "Low",
+      "good": false
+     },
+     {
+      "label": "Lead-time consistency",
+      "value": "Low (±4d)",
+      "good": false
+     },
+     {
+      "label": "Recent performance",
+      "value": "Worsening (↑ 11% delays)",
+      "good": false
+     },
+     {
+      "label": "Buyer rating",
+      "value": "3.3 ★ (100 reviews)",
+      "good": false
+     }
+    ]
+   }
+  },
+  {
+   "id": "sup-4",
+   "name": "Gulf States Polymer",
+   "country": "USA",
+   "city": "Baton Rouge, LA",
+   "website": "gulfstatespolymer.com",
+   "category": "Polymers",
+   "yearsTrading": 42,
+   "certifications": [
+    "ISO 9001",
+    "UL",
+    "NSF/ANSI 14",
+    "ASTM F876"
+   ],
+   "rating": 3,
+   "reviewCount": 162,
+   "ratingSource": "Verified buyers",
+   "ratingBreakdown": {
+    "quality": 4.3,
+    "delivery": 2.8,
+    "communication": 1.5,
+    "pricing": 5
+   },
+   "reviews": [
+    {
+     "author": "Operations director, building services",
+     "when": "2 weeks ago",
+     "stars": 4,
+     "text": "Lead times quoted are lead times delivered. That alone is worth a few points on price."
+    },
+    {
+     "author": "Owner, plumbing contractor",
+     "when": "6 weeks ago",
+     "stars": 3,
+     "text": "Good product, slow paperwork. Expect to chase the certificate of analysis and the packing list."
+    },
+    {
+     "author": "Branch manager, HVAC wholesaler",
+     "when": "5 months ago",
+     "stars": 2,
+     "text": "Quality has drifted. Rejected a lot for out-of-spec dimensions and it took a month to get the credit."
+    }
+   ],
+   "spendShare12m": 0.218,
+   "leadTimeDays": 43,
+   "otifPct": 92.13,
+   "priceIndex": 89.27,
+   "defectPct": 1.3,
+   "holdsStock": false,
+   "isCustom": false,
+   "label": "Weak",
+   "recommendation": "Do not rely on alone: 3.0 ★, communication is the weak point; confirm every order in writing.",
+   "recommendationPreview": "Do not rely on alone: 3.0 ★, communication is the weak point; confirm every order in writing.",
+   "terms": {
+    "creditDays": 60,
+    "termsLabel": "Net 60",
+    "earlyPayDiscountPct": 0,
+    "earlyPayDays": 0,
+    "latePenaltyPctPerWeek": 0,
+    "latePenaltyCapPct": 0,
+    "warrantyMonths": 36,
+    "quoteValidityDays": 60,
+    "incoterm": "FOB Destination",
+    "invoiceAccuracyPct": 98.15,
+    "capacityUnitsMonth": 10118
+   },
+   "risk": {
+    "score": 29,
+    "level": "Low",
+    "capacity": "Medium",
+    "leadVarianceDays": 6.1,
+    "consistency": "Medium",
+    "trend": "Stable",
+    "recentDelayPct": 2.9,
+    "factors": [
+     {
+      "label": "On-time fulfilment",
+      "value": "92.1%",
+      "good": true
+     },
+     {
+      "label": "Historical delay",
+      "value": "7.9%",
+      "good": true
+     },
+     {
+      "label": "Capacity",
+      "value": "Medium",
+      "good": true
+     },
+     {
+      "label": "Lead-time consistency",
+      "value": "Medium (±6d)",
+      "good": true
+     },
+     {
+      "label": "Recent performance",
+      "value": "Stable",
+      "good": true
+     },
+     {
+      "label": "Buyer rating",
+      "value": "3.0 ★ (162 reviews)",
+      "good": false
+     }
+    ]
+   }
+  },
+  {
+   "id": "sup-5",
+   "name": "Thermaline Systems",
+   "country": "Mexico",
+   "city": "Monterrey",
+   "website": "thermaline.mx",
+   "category": "Fittings",
+   "yearsTrading": 48,
+   "certifications": [
+    "ISO 9001",
+    "UL",
+    "ISO 14001"
+   ],
+   "rating": 3.5,
+   "reviewCount": 211,
+   "ratingSource": "Verified buyers",
+   "ratingBreakdown": {
+    "quality": 3.8,
+    "delivery": 2.6,
+    "communication": 4,
+    "pricing": 4.9
+   },
+   "reviews": [
+    {
+     "author": "Procurement lead, industrial MRO",
+     "when": "1 month ago",
+     "stars": 4,
+     "text": "Took a spec change mid-order without drama or a re-quote. Rare."
+    },
+    {
+     "author": "Category buyer, plumbing distributor",
+     "when": "2 months ago",
+     "stars": 4,
+     "text": "Certs come with every lot without asking. Pricing moved with the index, never above it."
+    },
+    {
+     "author": "Supply chain manager, facilities group",
+     "when": "3 months ago",
+     "stars": 2,
+     "text": "Cheap for a reason. Invoices did not match the quote and nobody picked up the phone."
+    }
+   ],
+   "spendShare12m": 0.154,
+   "leadTimeDays": 33,
+   "otifPct": 86.52,
+   "priceIndex": 90.47,
+   "defectPct": 2.2,
+   "holdsStock": false,
+   "isCustom": false,
+   "label": "Fair",
+   "recommendation": "Use with care: 3.5 ★, delivery is the weak point; fine for standard orders, not urgent ones.",
+   "recommendationPreview": "Add as a backup only: 3.5 ★, delivery is the weak point; fine for standard orders, not urgent ones.",
+   "terms": {
+    "creditDays": 30,
+    "termsLabel": "1.9/10 net 30",
+    "earlyPayDiscountPct": 1.9,
+    "earlyPayDays": 10,
+    "latePenaltyPctPerWeek": 0.88,
+    "latePenaltyCapPct": 5,
+    "warrantyMonths": 24,
+    "quoteValidityDays": 14,
+    "incoterm": "DDP",
+    "invoiceAccuracyPct": 88.56,
+    "capacityUnitsMonth": 4312
+   },
+   "risk": {
+    "score": 51,
+    "level": "Medium",
+    "capacity": "Low",
+    "leadVarianceDays": 6,
+    "consistency": "Medium",
+    "trend": "Stable",
+    "recentDelayPct": -1.5,
+    "factors": [
+     {
+      "label": "On-time fulfilment",
+      "value": "86.5%",
+      "good": false
+     },
+     {
+      "label": "Historical delay",
+      "value": "13.5%",
+      "good": false
+     },
+     {
+      "label": "Capacity",
+      "value": "Low",
+      "good": false
+     },
+     {
+      "label": "Lead-time consistency",
+      "value": "Medium (±6d)",
+      "good": true
+     },
+     {
+      "label": "Recent performance",
+      "value": "Stable",
+      "good": true
+     },
+     {
+      "label": "Buyer rating",
+      "value": "3.5 ★ (211 reviews)",
+      "good": false
+     }
+    ]
+   }
+  },
+  {
+   "id": "sup-6",
+   "name": "Kotara Steel Products",
+   "country": "India",
+   "city": "Pune",
+   "website": "kotarasteel.in",
+   "category": "Steel",
+   "yearsTrading": 11,
+   "certifications": [
+    "ISO 9001",
+    "API 5L"
+   ],
+   "rating": 4,
+   "reviewCount": 372,
+   "ratingSource": "Verified buyers",
+   "ratingBreakdown": {
+    "quality": 3.9,
+    "delivery": 3.7,
+    "communication": 4.5,
+    "pricing": 4
+   },
+   "reviews": [
+    {
+     "author": "Purchasing manager, mechanical contractor",
+     "when": "2 weeks ago",
+     "stars": 5,
+     "text": "Handled a rush order over a holiday weekend. Not the cheapest quote we had, but the one that showed up."
+    },
+    {
+     "author": "Branch manager, HVAC wholesaler",
+     "when": "6 weeks ago",
+     "stars": 4,
+     "text": "Two years in and not a single short shipment. Their account manager answers the same day."
+    },
+    {
+     "author": "Owner, plumbing contractor",
+     "when": "5 months ago",
+     "stars": 3,
+     "text": "Delivered what we ordered, though communication went quiet for a week mid-order."
+    }
+   ],
+   "spendShare12m": 0.098,
+   "leadTimeDays": 35,
+   "otifPct": 84.13,
+   "priceIndex": 101.72,
+   "defectPct": 1.9,
+   "holdsStock": true,
+   "isCustom": false,
+   "label": "Good",
+   "recommendation": "Reliable choice: 4.0 ★ from 372 buyers, priced 2% over market; delivery is the only soft spot.",
+   "recommendationPreview": "Add to the panel: 4.0 ★ from 372 buyers, priced 2% over market; delivery is the only soft spot.",
+   "terms": {
+    "creditDays": 45,
+    "termsLabel": "Net 45",
+    "earlyPayDiscountPct": 0,
+    "earlyPayDays": 0,
+    "latePenaltyPctPerWeek": 1.19,
+    "latePenaltyCapPct": 5,
+    "warrantyMonths": 12,
+    "quoteValidityDays": 21,
+    "incoterm": "CIF",
+    "invoiceAccuracyPct": 89.5,
+    "capacityUnitsMonth": 19537
+   },
+   "risk": {
+    "score": 62,
+    "level": "High",
+    "capacity": "Medium",
+    "leadVarianceDays": 9.6,
+    "consistency": "Low",
+    "trend": "Worsening",
+    "recentDelayPct": 6.7,
+    "factors": [
+     {
+      "label": "On-time fulfilment",
+      "value": "84.1%",
+      "good": false
+     },
+     {
+      "label": "Historical delay",
+      "value": "15.9%",
+      "good": false
+     },
+     {
+      "label": "Capacity",
+      "value": "Medium",
+      "good": true
+     },
+     {
+      "label": "Lead-time consistency",
+      "value": "Low (±10d)",
+      "good": false
+     },
+     {
+      "label": "Recent performance",
+      "value": "Worsening (↑ 7% delays)",
+      "good": false
+     },
+     {
+      "label": "Buyer rating",
+      "value": "4.0 ★ (372 reviews)",
+      "good": true
+     }
+    ]
+   }
+  },
+  {
+   "id": "sup-7",
+   "name": "Larsen Brass & Bronze",
+   "country": "USA",
+   "city": "Erie, PA",
+   "website": "larsenbrass.com",
+   "category": "Copper & brass",
+   "yearsTrading": 34,
+   "certifications": [
+    "ISO 9001",
+    "NSF/ANSI 61",
+    "ISO 14001"
+   ],
+   "rating": 3.9,
+   "reviewCount": 212,
+   "ratingSource": "Verified buyers",
+   "ratingBreakdown": {
+    "quality": 4.1,
+    "delivery": 3.9,
+    "communication": 3.5,
+    "pricing": 4.2
+   },
+   "reviews": [
+    {
+     "author": "Operations director, building services",
+     "when": "1 month ago",
+     "stars": 5,
+     "text": "Lead times quoted are lead times delivered. That alone is worth a few points on price."
+    },
+    {
+     "author": "Owner, plumbing contractor",
+     "when": "2 months ago",
+     "stars": 4,
+     "text": "Consistent quality across three plants. We stopped incoming inspection on their lines last year."
+    },
+    {
+     "author": "Branch manager, HVAC wholesaler",
+     "when": "3 months ago",
+     "stars": 3,
+     "text": "Pricing is sharp but the lead time slipped twice this year. Fine for stock replenishment, not for a job with a date."
+    }
+   ],
+   "spendShare12m": 0.038,
+   "leadTimeDays": 19,
+   "otifPct": 81.9,
+   "priceIndex": 98.58,
+   "defectPct": 1.7,
+   "holdsStock": true,
+   "isCustom": false,
+   "label": "Fair",
+   "recommendation": "Use with care: 3.9 ★, communication is the weak point; fine for standard orders, not urgent ones.",
+   "recommendationPreview": "Add as a backup only: 3.9 ★, communication is the weak point; fine for standard orders, not urgent ones.",
+   "terms": {
+    "creditDays": 30,
+    "termsLabel": "Net 30",
+    "earlyPayDiscountPct": 0,
+    "earlyPayDays": 0,
+    "latePenaltyPctPerWeek": 0,
+    "latePenaltyCapPct": 0,
+    "warrantyMonths": 24,
+    "quoteValidityDays": 60,
+    "incoterm": "DAP",
+    "invoiceAccuracyPct": 98.05,
+    "capacityUnitsMonth": 8129
+   },
+   "risk": {
+    "score": 43,
+    "level": "Medium",
+    "capacity": "Medium",
+    "leadVarianceDays": 2.4,
+    "consistency": "Medium",
+    "trend": "Improving",
+    "recentDelayPct": -2.3,
+    "factors": [
+     {
+      "label": "On-time fulfilment",
+      "value": "81.9%",
+      "good": false
+     },
+     {
+      "label": "Historical delay",
+      "value": "18.1%",
+      "good": false
+     },
+     {
+      "label": "Capacity",
+      "value": "Medium",
+      "good": true
+     },
+     {
+      "label": "Lead-time consistency",
+      "value": "Medium (±2d)",
+      "good": true
+     },
+     {
+      "label": "Recent performance",
+      "value": "Improving (↓ 2% delays)",
+      "good": true
+     },
+     {
+      "label": "Buyer rating",
+      "value": "3.9 ★ (212 reviews)",
+      "good": false
+     }
+    ]
+   }
+  },
+  {
+   "id": "sup-8",
+   "name": "Pacific Rim Tooling",
+   "country": "Vietnam",
+   "city": "Hai Phong",
+   "website": "pacificrimtooling.vn",
+   "category": "Tooling",
+   "yearsTrading": 48,
+   "certifications": [
+    "ISO 9001",
+    "CE",
+    "UL",
+    "ANSI B107"
+   ],
+   "rating": 3.9,
+   "reviewCount": 168,
+   "ratingSource": "Verified buyers",
+   "ratingBreakdown": {
+    "quality": 4.5,
+    "delivery": 3.6,
+    "communication": 3.7,
+    "pricing": 4.8
+   },
+   "reviews": [
+    {
+     "author": "Category buyer, plumbing distributor",
+     "when": "2 weeks ago",
+     "stars": 5,
+     "text": "Certs come with every lot without asking. Pricing moved with the index, never above it."
+    },
+    {
+     "author": "Buyer, regional distributor",
+     "when": "6 weeks ago",
+     "stars": 4,
+     "text": "Consistent quality across three plants. We stopped incoming inspection on their lines last year."
+    },
+    {
+     "author": "Buyer, regional distributor",
+     "when": "3 months ago",
+     "stars": 3,
+     "text": "Delivered what we ordered, though communication went quiet for a week mid-order."
+    }
+   ],
+   "spendShare12m": 0.234,
+   "leadTimeDays": 7,
+   "otifPct": 82.8,
+   "priceIndex": 91.86,
+   "defectPct": 1,
+   "holdsStock": true,
+   "isCustom": false,
+   "label": "Fair",
+   "recommendation": "Use with care: 3.9 ★, delivery is the weak point; fine for standard orders, not urgent ones.",
+   "recommendationPreview": "Add as a backup only: 3.9 ★, delivery is the weak point; fine for standard orders, not urgent ones.",
+   "terms": {
+    "creditDays": 30,
+    "termsLabel": "2.1/7 net 30",
+    "earlyPayDiscountPct": 2.1,
+    "earlyPayDays": 7,
+    "latePenaltyPctPerWeek": 0,
+    "latePenaltyCapPct": 0,
+    "warrantyMonths": 36,
+    "quoteValidityDays": 60,
+    "incoterm": "CIF",
+    "invoiceAccuracyPct": 89.16,
+    "capacityUnitsMonth": 23632
+   },
+   "risk": {
+    "score": 56,
+    "level": "Medium",
+    "capacity": "High",
+    "leadVarianceDays": 1.7,
+    "consistency": "Low",
+    "trend": "Worsening",
+    "recentDelayPct": 17.1,
+    "factors": [
+     {
+      "label": "On-time fulfilment",
+      "value": "82.8%",
+      "good": false
+     },
+     {
+      "label": "Historical delay",
+      "value": "17.2%",
+      "good": false
+     },
+     {
+      "label": "Capacity",
+      "value": "High",
+      "good": true
+     },
+     {
+      "label": "Lead-time consistency",
+      "value": "Low (±2d)",
+      "good": false
+     },
+     {
+      "label": "Recent performance",
+      "value": "Worsening (↑ 17% delays)",
+      "good": false
+     },
+     {
+      "label": "Buyer rating",
+      "value": "3.9 ★ (168 reviews)",
+      "good": false
+     }
+    ]
+   }
+  }
+ ],
+ "summary": {
+  "size": 8,
+  "added": 0,
+  "avgRating": 3.6,
+  "spendRated4Pct": 24,
+  "weak": 2,
+  "avgOtifPct": 85.6
+ },
+ "termsValues": [
+  {
+   "id": "sup-1",
+   "unitCost": 12.5,
+   "creditValue": 0,
+   "earlyPayNet": 0.15,
+   "penaltyCap": 0
+  },
+  {
+   "id": "sup-1",
+   "unitCost": 100,
+   "creditValue": 0,
+   "earlyPayNet": 1.2,
+   "penaltyCap": 0
+  },
+  {
+   "id": "sup-1",
+   "unitCost": 0.37,
+   "creditValue": 0,
+   "earlyPayNet": 0,
+   "penaltyCap": 0
+  },
+  {
+   "id": "sup-1",
+   "labels": {
+    "latePenalty": "No late-delivery clause",
+    "credit": "None, pay up front",
+    "earlyPay": "1.2% if paid in 7 days"
+   },
+   "watchOuts100": [
+    "Wants payment up front.",
+    "No late-delivery clause: a missed date costs them nothing."
+   ],
+   "watchOuts30000": [
+    "Wants payment up front.",
+    "No late-delivery clause: a missed date costs them nothing.",
+    "This order is above their 3,123 units a month capacity."
+   ]
+  },
+  {
+   "id": "sup-2",
+   "unitCost": 12.5,
+   "creditValue": 0.12,
+   "earlyPayNet": 0.15,
+   "penaltyCap": 0.19
+  },
+  {
+   "id": "sup-2",
+   "unitCost": 100,
+   "creditValue": 0.99,
+   "earlyPayNet": 1.23,
+   "penaltyCap": 1.55
+  },
+  {
+   "id": "sup-2",
+   "unitCost": 0.37,
+   "creditValue": 0,
+   "earlyPayNet": 0.01,
+   "penaltyCap": 0.01
+  },
+  {
+   "id": "sup-2",
+   "labels": {
+    "latePenalty": "1.03% a week late, capped at 5%",
+    "credit": "45 days",
+    "earlyPay": "2% if paid in 10 days"
+   },
+   "watchOuts100": [],
+   "watchOuts30000": [
+    "This order is above their 5,431 units a month capacity."
+   ]
+  },
+  {
+   "id": "sup-3",
+   "unitCost": 12.5,
+   "creditValue": 0.08,
+   "earlyPayNet": 0.07,
+   "penaltyCap": 0.2
+  },
+  {
+   "id": "sup-3",
+   "unitCost": 100,
+   "creditValue": 0.66,
+   "earlyPayNet": 0.5,
+   "penaltyCap": 1.64
+  },
+  {
+   "id": "sup-3",
+   "unitCost": 0.37,
+   "creditValue": 0,
+   "earlyPayNet": 0,
+   "penaltyCap": 0.01
+  },
+  {
+   "id": "sup-3",
+   "labels": {
+    "latePenalty": "1.09% a week late, capped at 10%",
+    "credit": "30 days",
+    "earlyPay": "1% if paid in 7 days"
+   },
+   "watchOuts100": [],
+   "watchOuts30000": [
+    "This order is above their 1,103 units a month capacity."
+   ]
+  },
+  {
+   "id": "sup-4",
+   "unitCost": 12.5,
+   "creditValue": 0.16,
+   "earlyPayNet": 0,
+   "penaltyCap": 0
+  },
+  {
+   "id": "sup-4",
+   "unitCost": 100,
+   "creditValue": 1.32,
+   "earlyPayNet": 0,
+   "penaltyCap": 0
+  },
+  {
+   "id": "sup-4",
+   "unitCost": 0.37,
+   "creditValue": 0,
+   "earlyPayNet": 0,
+   "penaltyCap": 0
+  },
+  {
+   "id": "sup-4",
+   "labels": {
+    "latePenalty": "No late-delivery clause",
+    "credit": "60 days",
+    "earlyPay": "None"
+   },
+   "watchOuts100": [
+    "No late-delivery clause: a missed date costs them nothing."
+   ],
+   "watchOuts30000": [
+    "No late-delivery clause: a missed date costs them nothing.",
+    "This order is above their 10,118 units a month capacity."
+   ]
+  },
+  {
+   "id": "sup-5",
+   "unitCost": 12.5,
+   "creditValue": 0.08,
+   "earlyPayNet": 0.19,
+   "penaltyCap": 0.17
+  },
+  {
+   "id": "sup-5",
+   "unitCost": 100,
+   "creditValue": 0.66,
+   "earlyPayNet": 1.46,
+   "penaltyCap": 1.32
+  },
+  {
+   "id": "sup-5",
+   "unitCost": 0.37,
+   "creditValue": 0,
+   "earlyPayNet": 0.01,
+   "penaltyCap": 0
+  },
+  {
+   "id": "sup-5",
+   "labels": {
+    "latePenalty": "0.88% a week late, capped at 5%",
+    "credit": "30 days",
+    "earlyPay": "1.9% if paid in 10 days"
+   },
+   "watchOuts100": [
+    "Invoices are right 88.6% of the time."
+   ],
+   "watchOuts30000": [
+    "This order is above their 4,312 units a month capacity.",
+    "Invoices are right 88.6% of the time."
+   ]
+  },
+  {
+   "id": "sup-6",
+   "unitCost": 12.5,
+   "creditValue": 0.12,
+   "earlyPayNet": 0,
+   "penaltyCap": 0.22
+  },
+  {
+   "id": "sup-6",
+   "unitCost": 100,
+   "creditValue": 0.99,
+   "earlyPayNet": 0,
+   "penaltyCap": 1.79
+  },
+  {
+   "id": "sup-6",
+   "unitCost": 0.37,
+   "creditValue": 0,
+   "earlyPayNet": 0,
+   "penaltyCap": 0.01
+  },
+  {
+   "id": "sup-6",
+   "labels": {
+    "latePenalty": "1.19% a week late, capped at 5%",
+    "credit": "45 days",
+    "earlyPay": "None"
+   },
+   "watchOuts100": [
+    "Invoices are right 89.5% of the time."
+   ],
+   "watchOuts30000": [
+    "This order is above their 19,537 units a month capacity.",
+    "Invoices are right 89.5% of the time."
+   ]
+  },
+  {
+   "id": "sup-7",
+   "unitCost": 12.5,
+   "creditValue": 0.08,
+   "earlyPayNet": 0,
+   "penaltyCap": 0
+  },
+  {
+   "id": "sup-7",
+   "unitCost": 100,
+   "creditValue": 0.66,
+   "earlyPayNet": 0,
+   "penaltyCap": 0
+  },
+  {
+   "id": "sup-7",
+   "unitCost": 0.37,
+   "creditValue": 0,
+   "earlyPayNet": 0,
+   "penaltyCap": 0
+  },
+  {
+   "id": "sup-7",
+   "labels": {
+    "latePenalty": "No late-delivery clause",
+    "credit": "30 days",
+    "earlyPay": "None"
+   },
+   "watchOuts100": [
+    "No late-delivery clause: a missed date costs them nothing."
+   ],
+   "watchOuts30000": [
+    "No late-delivery clause: a missed date costs them nothing.",
+    "This order is above their 8,129 units a month capacity."
+   ]
+  },
+  {
+   "id": "sup-8",
+   "unitCost": 12.5,
+   "creditValue": 0.08,
+   "earlyPayNet": 0.2,
+   "penaltyCap": 0
+  },
+  {
+   "id": "sup-8",
+   "unitCost": 100,
+   "creditValue": 0.66,
+   "earlyPayNet": 1.6,
+   "penaltyCap": 0
+  },
+  {
+   "id": "sup-8",
+   "unitCost": 0.37,
+   "creditValue": 0,
+   "earlyPayNet": 0.01,
+   "penaltyCap": 0
+  },
+  {
+   "id": "sup-8",
+   "labels": {
+    "latePenalty": "No late-delivery clause",
+    "credit": "30 days",
+    "earlyPay": "2.1% if paid in 7 days"
+   },
+   "watchOuts100": [
+    "No late-delivery clause: a missed date costs them nothing.",
+    "Invoices are right 89.2% of the time."
+   ],
+   "watchOuts30000": [
+    "No late-delivery clause: a missed date costs them nothing.",
+    "This order is above their 23,632 units a month capacity.",
+    "Invoices are right 89.2% of the time."
+   ]
+  }
+ ],
+ "lookups": [
+  {
+   "query": "Halden Metals Ltd",
+   "country": null,
+   "result": {
+    "query": "Halden Metals Ltd",
+    "profile": {
+     "id": "cus-f26j4f",
+     "name": "Halden Metals Ltd",
+     "country": "UK",
+     "city": "Birmingham",
+     "website": "haldenmetalsltd.co.uk",
+     "category": "Steel",
+     "yearsTrading": 49,
+     "certifications": [
+      "ISO 9001",
+      "ISO 14001"
+     ],
+     "rating": 4,
+     "reviewCount": 389,
+     "ratingSource": "Google Business Profile · Thomasnet · Dun & Bradstreet",
+     "ratingBreakdown": {
+      "quality": 3.8,
+      "delivery": 3.7,
+      "communication": 4.4,
+      "pricing": 4.2
+     },
+     "reviews": [
+      {
+       "author": "Operations director, building services",
+       "when": "1 month ago",
+       "stars": 5,
+       "text": "Lead times quoted are lead times delivered. That alone is worth a few points on price."
+      },
+      {
+       "author": "Purchasing manager, mechanical contractor",
+       "when": "6 weeks ago",
+       "stars": 4,
+       "text": "Straightforward to deal with. Quotes are itemised, freight is quoted up front, no surprises on the invoice."
+      },
+      {
+       "author": "Branch manager, HVAC wholesaler",
+       "when": "3 months ago",
+       "stars": 3,
+       "text": "Pricing is sharp but the lead time slipped twice this year. Fine for stock replenishment, not for a job with a date."
+      }
+     ],
+     "spendShare12m": 0,
+     "leadTimeDays": 14,
+     "otifPct": 97,
+     "priceIndex": 99,
+     "defectPct": 2.1,
+     "holdsStock": false,
+     "isCustom": true,
+     "sources": [
+      {
+       "source": "Google Business Profile",
+       "found": true,
+       "detail": "4.0 ★ · 389 reviews"
+      },
+      {
+       "source": "Thomasnet",
+       "found": true,
+       "detail": "Listed · Steel · 2 certifications"
+      },
+      {
+       "source": "Dun & Bradstreet",
+       "found": true,
+       "detail": "D-U-N-S on file · 49 years trading · 51–200 employees"
+      },
+      {
+       "source": "LinkedIn",
+       "found": true,
+       "detail": "51–200 employees · Birmingham"
+      },
+      {
+       "source": "Companies House",
+       "found": true,
+       "detail": "Active · incorporated 1977"
+      }
+     ],
+     "watchOuts": []
+    },
+    "sources": [
+     {
+      "source": "Google Business Profile",
+      "found": true,
+      "detail": "4.0 ★ · 389 reviews"
+     },
+     {
+      "source": "Thomasnet",
+      "found": true,
+      "detail": "Listed · Steel · 2 certifications"
+     },
+     {
+      "source": "Dun & Bradstreet",
+      "found": true,
+      "detail": "D-U-N-S on file · 49 years trading · 51–200 employees"
+     },
+     {
+      "source": "LinkedIn",
+      "found": true,
+      "detail": "51–200 employees · Birmingham"
+     },
+     {
+      "source": "Companies House",
+      "found": true,
+      "detail": "Active · incorporated 1977"
+     }
+    ],
+    "watchOuts": [],
+    "recommendation": "Add to the panel: 4.0 ★ from 389 buyers, priced 1% under market; delivery is the only soft spot."
+   },
+   "record": {
+    "id": "cus-f26j4f",
+    "name": "Halden Metals Ltd",
+    "country": "UK",
+    "leadTimeDays": 14,
+    "otifPct": 97,
+    "priceIndex": 99,
+    "vendorCode": "V-10498",
+    "contactName": "E. Kovac",
+    "email": "sales@halden-metals-ltd.example.com",
+    "currency": "USD",
+    "creditDays": 15,
+    "earlyPayDiscountPct": 1.9,
+    "earlyPayDays": 7,
+    "incoterm": "EXW",
+    "moq": 1,
+    "orderMultiple": 10,
+    "quoteValidityDays": 45,
+    "latePenaltyPctPerWeek": 1.52,
+    "latePenaltyCapPct": 5,
+    "warrantyMonths": 12,
+    "qualityPpm": 2673,
+    "responseHours": 40,
+    "invoiceAccuracyPct": 98.72,
+    "capacityUnitsMonth": 13878,
+    "certifications": [
+     "ISO 9001",
+     "ISO 14001"
+    ],
+    "spendYtd": 0,
+    "poCount12m": 0,
+    "since": "2026-09-01",
+    "otifTrend": [
+     96.81,
+     99.5,
+     91.44,
+     94.12,
+     98.07,
+     99.5
+    ]
+   },
+   "terms": {
+    "creditDays": 45,
+    "termsLabel": "Net 45",
+    "earlyPayDiscountPct": 0,
+    "earlyPayDays": 0,
+    "latePenaltyPctPerWeek": 0,
+    "latePenaltyCapPct": 0,
+    "warrantyMonths": 18,
+    "quoteValidityDays": 60,
+    "incoterm": "DDP",
+    "invoiceAccuracyPct": 93.96,
+    "capacityUnitsMonth": 11792
+   },
+   "risk": {
+    "score": 37,
+    "level": "Medium",
+    "capacity": "Medium",
+    "leadVarianceDays": 2.9,
+    "consistency": "Low",
+    "trend": "Worsening",
+    "recentDelayPct": 14.1,
+    "factors": [
+     {
+      "label": "On-time fulfilment",
+      "value": "97.0%",
+      "good": true
+     },
+     {
+      "label": "Historical delay",
+      "value": "3.0%",
+      "good": true
+     },
+     {
+      "label": "Capacity",
+      "value": "Medium",
+      "good": true
+     },
+     {
+      "label": "Lead-time consistency",
+      "value": "Low (±3d)",
+      "good": false
+     },
+     {
+      "label": "Recent performance",
+      "value": "Worsening (↑ 14% delays)",
+      "good": false
+     }
+    ]
+   }
+  },
+  {
+   "query": "https://www.acme-valves.de/products",
+   "country": null,
+   "result": {
+    "query": "https://www.acme-valves.de/products",
+    "profile": {
+     "id": "cus-rlbbja",
+     "name": "Acme Valves",
+     "country": "Germany",
+     "city": "Nuremberg",
+     "website": "acme-valves.de",
+     "category": "Valves",
+     "yearsTrading": 5,
+     "certifications": [
+      "ISO 9001",
+      "ISO 14001"
+     ],
+     "rating": 3.5,
+     "reviewCount": 261,
+     "ratingSource": "Google Business Profile · LinkedIn · Handelsregister",
+     "ratingBreakdown": {
+      "quality": 4.5,
+      "delivery": 3.4,
+      "communication": 3.5,
+      "pricing": 3
+     },
+     "reviews": [
+      {
+       "author": "Supply chain manager, facilities group",
+       "when": "2 weeks ago",
+       "stars": 4,
+       "text": "Took a spec change mid-order without drama or a re-quote. Rare."
+      },
+      {
+       "author": "Operations director, building services",
+       "when": "6 weeks ago",
+       "stars": 4,
+       "text": "Two years in and not a single short shipment. Their account manager answers the same day."
+      },
+      {
+       "author": "Owner, plumbing contractor",
+       "when": "5 months ago",
+       "stars": 2,
+       "text": "Cheap for a reason. Invoices did not match the quote and nobody picked up the phone."
+      }
+     ],
+     "spendShare12m": 0,
+     "leadTimeDays": 13,
+     "otifPct": 94.53,
+     "priceIndex": 114,
+     "defectPct": 1,
+     "holdsStock": false,
+     "isCustom": true,
+     "sources": [
+      {
+       "source": "Google Business Profile",
+       "found": true,
+       "detail": "3.5 ★ · 261 reviews"
+      },
+      {
+       "source": "Thomasnet",
+       "found": false,
+       "detail": "Not listed"
+      },
+      {
+       "source": "Dun & Bradstreet",
+       "found": false,
+       "detail": "No record"
+      },
+      {
+       "source": "LinkedIn",
+       "found": true,
+       "detail": "201–500 employees · Nuremberg"
+      },
+      {
+       "source": "Handelsregister",
+       "found": true,
+       "detail": "HRB entry · Amtsgericht Nuremberg"
+      }
+     ],
+     "watchOuts": [
+      "Priced above the market index; treat the first quote as an opening position."
+     ]
+    },
+    "sources": [
+     {
+      "source": "Google Business Profile",
+      "found": true,
+      "detail": "3.5 ★ · 261 reviews"
+     },
+     {
+      "source": "Thomasnet",
+      "found": false,
+      "detail": "Not listed"
+     },
+     {
+      "source": "Dun & Bradstreet",
+      "found": false,
+      "detail": "No record"
+     },
+     {
+      "source": "LinkedIn",
+      "found": true,
+      "detail": "201–500 employees · Nuremberg"
+     },
+     {
+      "source": "Handelsregister",
+      "found": true,
+      "detail": "HRB entry · Amtsgericht Nuremberg"
+     }
+    ],
+    "watchOuts": [
+     "Priced above the market index; treat the first quote as an opening position."
+    ],
+    "recommendation": "Add as a backup only: 3.5 ★, pricing is the weak point; fine for standard orders, not urgent ones."
+   },
+   "record": {
+    "id": "cus-rlbbja",
+    "name": "Acme Valves",
+    "country": "Germany",
+    "leadTimeDays": 13,
+    "otifPct": 94.53,
+    "priceIndex": 114,
+    "vendorCode": "V-13396",
+    "contactName": "P. Iversen",
+    "email": "sales@acme-valves.example.com",
+    "currency": "EUR",
+    "creditDays": 45,
+    "earlyPayDiscountPct": 0,
+    "earlyPayDays": 0,
+    "incoterm": "FOB Origin Port",
+    "moq": 25,
+    "orderMultiple": 5,
+    "quoteValidityDays": 60,
+    "latePenaltyPctPerWeek": 1.39,
+    "latePenaltyCapPct": 5,
+    "warrantyMonths": 18,
+    "qualityPpm": 1253,
+    "responseHours": 84,
+    "invoiceAccuracyPct": 97.52,
+    "capacityUnitsMonth": 22401,
+    "certifications": [
+     "ISO 9001",
+     "ISO 14001"
+    ],
+    "spendYtd": 0,
+    "poCount12m": 0,
+    "since": "2026-09-01",
+    "otifTrend": [
+     88.78,
+     91.47,
+     95.41,
+     98.1,
+     90.04,
+     92.72
+    ]
+   },
+   "terms": {
+    "creditDays": 45,
+    "termsLabel": "2/10 net 45",
+    "earlyPayDiscountPct": 2,
+    "earlyPayDays": 10,
+    "latePenaltyPctPerWeek": 0,
+    "latePenaltyCapPct": 0,
+    "warrantyMonths": 18,
+    "quoteValidityDays": 30,
+    "incoterm": "DDP",
+    "invoiceAccuracyPct": 93.14,
+    "capacityUnitsMonth": 20989
+   },
+   "risk": {
+    "score": 30,
+    "level": "Low",
+    "capacity": "Low",
+    "leadVarianceDays": 1.4,
+    "consistency": "High",
+    "trend": "Stable",
+    "recentDelayPct": 0.8,
+    "factors": [
+     {
+      "label": "On-time fulfilment",
+      "value": "94.5%",
+      "good": true
+     },
+     {
+      "label": "Historical delay",
+      "value": "5.5%",
+      "good": true
+     },
+     {
+      "label": "Capacity",
+      "value": "Low",
+      "good": false
+     },
+     {
+      "label": "Lead-time consistency",
+      "value": "High (±1d)",
+      "good": true
+     },
+     {
+      "label": "Recent performance",
+      "value": "Stable",
+      "good": true
+     }
+    ]
+   }
+  },
+  {
+   "query": "Copperline Tube Co",
+   "country": "Canada",
+   "result": {
+    "query": "Copperline Tube Co",
+    "profile": {
+     "id": "cus-39fqcc",
+     "name": "Copperline Tube Co",
+     "country": "Canada",
+     "city": "Montréal, QC",
+     "website": "copperlinetubeco.ca",
+     "category": "Copper & brass",
+     "yearsTrading": 56,
+     "certifications": [
+      "ISO 9001",
+      "UL",
+      "ASTM B88"
+     ],
+     "rating": 3.8,
+     "reviewCount": 115,
+     "ratingSource": "Google Business Profile · Thomasnet · Dun & Bradstreet",
+     "ratingBreakdown": {
+      "quality": 3.4,
+      "delivery": 3.8,
+      "communication": 4.1,
+      "pricing": 3.3
+     },
+     "reviews": [
+      {
+       "author": "Buyer, regional distributor",
+       "when": "2 weeks ago",
+       "stars": 4,
+       "text": "Consistent quality across three plants. We stopped incoming inspection on their lines last year."
+      },
+      {
+       "author": "Owner, plumbing contractor",
+       "when": "2 months ago",
+       "stars": 4,
+       "text": "Lead times quoted are lead times delivered. That alone is worth a few points on price."
+      },
+      {
+       "author": "Category buyer, plumbing distributor",
+       "when": "5 months ago",
+       "stars": 3,
+       "text": "Decent value. Packaging could be better - two dented cartons on the last pallet."
+      }
+     ],
+     "spendShare12m": 0,
+     "leadTimeDays": 5,
+     "otifPct": 81.96,
+     "priceIndex": 110.25,
+     "defectPct": 2.8,
+     "holdsStock": false,
+     "isCustom": true,
+     "sources": [
+      {
+       "source": "Google Business Profile",
+       "found": true,
+       "detail": "3.8 ★ · 115 reviews"
+      },
+      {
+       "source": "Thomasnet",
+       "found": true,
+       "detail": "Listed · Copper & brass · 3 certifications"
+      },
+      {
+       "source": "Dun & Bradstreet",
+       "found": true,
+       "detail": "D-U-N-S on file · 56 years trading · 11–50 employees"
+      },
+      {
+       "source": "LinkedIn",
+       "found": true,
+       "detail": "11–50 employees · Montréal, QC"
+      },
+      {
+       "source": "Corporations Canada",
+       "found": true,
+       "detail": "Active · incorporated 1970"
+      }
+     ],
+     "watchOuts": []
+    },
+    "sources": [
+     {
+      "source": "Google Business Profile",
+      "found": true,
+      "detail": "3.8 ★ · 115 reviews"
+     },
+     {
+      "source": "Thomasnet",
+      "found": true,
+      "detail": "Listed · Copper & brass · 3 certifications"
+     },
+     {
+      "source": "Dun & Bradstreet",
+      "found": true,
+      "detail": "D-U-N-S on file · 56 years trading · 11–50 employees"
+     },
+     {
+      "source": "LinkedIn",
+      "found": true,
+      "detail": "11–50 employees · Montréal, QC"
+     },
+     {
+      "source": "Corporations Canada",
+      "found": true,
+      "detail": "Active · incorporated 1970"
+     }
+    ],
+    "watchOuts": [],
+    "recommendation": "Add as a backup only: 3.8 ★, pricing is the weak point; fine for standard orders, not urgent ones."
+   },
+   "record": {
+    "id": "cus-39fqcc",
+    "name": "Copperline Tube Co",
+    "country": "Canada",
+    "leadTimeDays": 5,
+    "otifPct": 81.96,
+    "priceIndex": 110.25,
+    "vendorCode": "V-12989",
+    "contactName": "P. Lindqvist",
+    "email": "sales@copperline-tube-co.example.com",
+    "currency": "USD",
+    "creditDays": 15,
+    "earlyPayDiscountPct": 0,
+    "earlyPayDays": 0,
+    "incoterm": "CIF",
+    "moq": 100,
+    "orderMultiple": 1,
+    "quoteValidityDays": 30,
+    "latePenaltyPctPerWeek": 0,
+    "latePenaltyCapPct": 5,
+    "warrantyMonths": 18,
+    "qualityPpm": 5532,
+    "responseHours": 37,
+    "invoiceAccuracyPct": 92.59,
+    "capacityUnitsMonth": 23148,
+    "certifications": [
+     "ISO 9001",
+     "UL",
+     "ASTM B88"
+    ],
+    "spendYtd": 0,
+    "poCount12m": 0,
+    "since": "2026-09-01",
+    "otifTrend": [
+     86.96,
+     77.65,
+     81.59,
+     84.27,
+     85.7,
+     76.39
+    ]
+   },
+   "terms": {
+    "creditDays": 45,
+    "termsLabel": "2.1/7 net 45",
+    "earlyPayDiscountPct": 2.1,
+    "earlyPayDays": 7,
+    "latePenaltyPctPerWeek": 1.81,
+    "latePenaltyCapPct": 5,
+    "warrantyMonths": 36,
+    "quoteValidityDays": 45,
+    "incoterm": "FOB Origin Port",
+    "invoiceAccuracyPct": 99.15,
+    "capacityUnitsMonth": 1956
+   },
+   "risk": {
+    "score": 62,
+    "level": "High",
+    "capacity": "Low",
+    "leadVarianceDays": 1,
+    "consistency": "Low",
+    "trend": "Stable",
+    "recentDelayPct": 2.5,
+    "factors": [
+     {
+      "label": "On-time fulfilment",
+      "value": "82.0%",
+      "good": false
+     },
+     {
+      "label": "Historical delay",
+      "value": "18.0%",
+      "good": false
+     },
+     {
+      "label": "Capacity",
+      "value": "Low",
+      "good": false
+     },
+     {
+      "label": "Lead-time consistency",
+      "value": "Low (±1d)",
+      "good": false
+     },
+     {
+      "label": "Recent performance",
+      "value": "Stable",
+      "good": true
+     }
+    ]
+   }
+  },
+  {
+   "query": "Bright Fittings",
+   "country": null,
+   "result": {
+    "query": "Bright Fittings",
+    "profile": {
+     "id": "cus-1nztv6",
+     "name": "Bright Fittings",
+     "country": "Germany",
+     "city": "Hamburg",
+     "website": "brightfittings.de",
+     "category": "Fittings",
+     "yearsTrading": 31,
+     "certifications": [
+      "ISO 9001",
+      "UL"
+     ],
+     "rating": 3.4,
+     "reviewCount": 364,
+     "ratingSource": "Dun & Bradstreet · LinkedIn · Handelsregister",
+     "ratingBreakdown": {
+      "quality": 3.9,
+      "delivery": 3.4,
+      "communication": 3.3,
+      "pricing": 3
+     },
+     "reviews": [
+      {
+       "author": "Branch manager, HVAC wholesaler",
+       "when": "2 weeks ago",
+       "stars": 4,
+       "text": "Lead times quoted are lead times delivered. That alone is worth a few points on price."
+      },
+      {
+       "author": "Purchasing manager, mechanical contractor",
+       "when": "6 weeks ago",
+       "stars": 3,
+       "text": "Decent value. Packaging could be better - two dented cartons on the last pallet."
+      },
+      {
+       "author": "Supply chain manager, facilities group",
+       "when": "5 months ago",
+       "stars": 2,
+       "text": "Quality has drifted. Rejected a lot for out-of-spec dimensions and it took a month to get the credit."
+      }
+     ],
+     "spendShare12m": 0,
+     "leadTimeDays": 13,
+     "otifPct": 80.52,
+     "priceIndex": 114,
+     "defectPct": 1.9,
+     "holdsStock": true,
+     "isCustom": true,
+     "sources": [
+      {
+       "source": "Google Business Profile",
+       "found": false,
+       "detail": "No listing found"
+      },
+      {
+       "source": "Thomasnet",
+       "found": false,
+       "detail": "Not listed"
+      },
+      {
+       "source": "Dun & Bradstreet",
+       "found": true,
+       "detail": "D-U-N-S on file · 31 years trading · 201–500 employees"
+      },
+      {
+       "source": "LinkedIn",
+       "found": true,
+       "detail": "201–500 employees · Hamburg"
+      },
+      {
+       "source": "Handelsregister",
+       "found": true,
+       "detail": "HRB entry · Amtsgericht Hamburg"
+      }
+     ],
+     "watchOuts": [
+      "Priced above the market index; treat the first quote as an opening position.",
+      "Slow to answer quotes and paperwork, according to recent reviews."
+     ]
+    },
+    "sources": [
+     {
+      "source": "Google Business Profile",
+      "found": false,
+      "detail": "No listing found"
+     },
+     {
+      "source": "Thomasnet",
+      "found": false,
+      "detail": "Not listed"
+     },
+     {
+      "source": "Dun & Bradstreet",
+      "found": true,
+      "detail": "D-U-N-S on file · 31 years trading · 201–500 employees"
+     },
+     {
+      "source": "LinkedIn",
+      "found": true,
+      "detail": "201–500 employees · Hamburg"
+     },
+     {
+      "source": "Handelsregister",
+      "found": true,
+      "detail": "HRB entry · Amtsgericht Hamburg"
+     }
+    ],
+    "watchOuts": [
+     "Priced above the market index; treat the first quote as an opening position.",
+     "Slow to answer quotes and paperwork, according to recent reviews."
+    ],
+    "recommendation": "Add as a backup only: 3.4 ★, pricing is the weak point; fine for standard orders, not urgent ones."
+   },
+   "record": {
+    "id": "cus-1nztv6",
+    "name": "Bright Fittings",
+    "country": "Germany",
+    "leadTimeDays": 13,
+    "otifPct": 80.52,
+    "priceIndex": 114,
+    "vendorCode": "V-9110",
+    "contactName": "E. Bianchi",
+    "email": "sales@bright-fittings.example.com",
+    "currency": "EUR",
+    "creditDays": 45,
+    "earlyPayDiscountPct": 0,
+    "earlyPayDays": 0,
+    "incoterm": "DDP",
+    "moq": 100,
+    "orderMultiple": 5,
+    "quoteValidityDays": 14,
+    "latePenaltyPctPerWeek": 0,
+    "latePenaltyCapPct": 10,
+    "warrantyMonths": 24,
+    "qualityPpm": 7527,
+    "responseHours": 80,
+    "invoiceAccuracyPct": 99.77,
+    "capacityUnitsMonth": 24451,
+    "certifications": [
+     "ISO 9001",
+     "UL"
+    ],
+    "spendYtd": 0,
+    "poCount12m": 0,
+    "since": "2026-09-01",
+    "otifTrend": [
+     82.2,
+     84.89,
+     75.57,
+     78.26,
+     80.94,
+     83.63
+    ]
+   },
+   "terms": {
+    "creditDays": 15,
+    "termsLabel": "Net 15",
+    "earlyPayDiscountPct": 0,
+    "earlyPayDays": 0,
+    "latePenaltyPctPerWeek": 1.96,
+    "latePenaltyCapPct": 10,
+    "warrantyMonths": 12,
+    "quoteValidityDays": 30,
+    "incoterm": "EXW",
+    "invoiceAccuracyPct": 96.02,
+    "capacityUnitsMonth": 2433
+   },
+   "risk": {
+    "score": 58,
+    "level": "Medium",
+    "capacity": "Medium",
+    "leadVarianceDays": 3.6,
+    "consistency": "Low",
+    "trend": "Stable",
+    "recentDelayPct": -1.4,
+    "factors": [
+     {
+      "label": "On-time fulfilment",
+      "value": "80.5%",
+      "good": false
+     },
+     {
+      "label": "Historical delay",
+      "value": "19.5%",
+      "good": false
+     },
+     {
+      "label": "Capacity",
+      "value": "Medium",
+      "good": true
+     },
+     {
+      "label": "Lead-time consistency",
+      "value": "Low (±4d)",
+      "good": false
+     },
+     {
+      "label": "Recent performance",
+      "value": "Stable",
+      "good": true
+     }
+    ]
+   }
+  },
+  {
+   "query": "shenzhen polymer resin",
+   "country": null,
+   "result": {
+    "query": "shenzhen polymer resin",
+    "profile": {
+     "id": "cus-e1m378",
+     "name": "shenzhen polymer resin",
+     "country": "China",
+     "city": "Tianjin",
+     "website": "shenzhenpolymerresin.cn",
+     "category": "Polymers",
+     "yearsTrading": 23,
+     "certifications": [
+      "ISO 9001",
+      "NSF/ANSI 14",
+      "ASTM F876"
+     ],
+     "rating": 3.1,
+     "reviewCount": 112,
+     "ratingSource": "Google Business Profile · Thomasnet · Dun & Bradstreet",
+     "ratingBreakdown": {
+      "quality": 4.9,
+      "delivery": 2.6,
+      "communication": 2.9,
+      "pricing": 3.1
+     },
+     "reviews": [
+      {
+       "author": "Supply chain manager, facilities group",
+       "when": "1 month ago",
+       "stars": 4,
+       "text": "Consistent quality across three plants. We stopped incoming inspection on their lines last year."
+      },
+      {
+       "author": "Purchasing manager, mechanical contractor",
+       "when": "6 weeks ago",
+       "stars": 3,
+       "text": "Pricing is sharp but the lead time slipped twice this year. Fine for stock replenishment, not for a job with a date."
+      },
+      {
+       "author": "Procurement lead, industrial MRO",
+       "when": "3 months ago",
+       "stars": 2,
+       "text": "Two of the last five deliveries were a week late with no notice. Had to source elsewhere for a contract job."
+      }
+     ],
+     "spendShare12m": 0,
+     "leadTimeDays": 40,
+     "otifPct": 69.61,
+     "priceIndex": 112.75,
+     "defectPct": 0.3,
+     "holdsStock": true,
+     "isCustom": true,
+     "sources": [
+      {
+       "source": "Google Business Profile",
+       "found": true,
+       "detail": "3.1 ★ · 112 reviews"
+      },
+      {
+       "source": "Thomasnet",
+       "found": true,
+       "detail": "Listed · Polymers · 3 certifications"
+      },
+      {
+       "source": "Dun & Bradstreet",
+       "found": true,
+       "detail": "D-U-N-S on file · 23 years trading · 51–200 employees"
+      },
+      {
+       "source": "LinkedIn",
+       "found": true,
+       "detail": "51–200 employees · Tianjin"
+      },
+      {
+       "source": "NECIPS",
+       "found": true,
+       "detail": "Business licence verified"
+      }
+     ],
+     "watchOuts": [
+      "Several reviews mention late deliveries in the last two quarters.",
+      "Slow to answer quotes and paperwork, according to recent reviews."
+     ]
+    },
+    "sources": [
+     {
+      "source": "Google Business Profile",
+      "found": true,
+      "detail": "3.1 ★ · 112 reviews"
+     },
+     {
+      "source": "Thomasnet",
+      "found": true,
+      "detail": "Listed · Polymers · 3 certifications"
+     },
+     {
+      "source": "Dun & Bradstreet",
+      "found": true,
+      "detail": "D-U-N-S on file · 23 years trading · 51–200 employees"
+     },
+     {
+      "source": "LinkedIn",
+      "found": true,
+      "detail": "51–200 employees · Tianjin"
+     },
+     {
+      "source": "NECIPS",
+      "found": true,
+      "detail": "Business licence verified"
+     }
+    ],
+    "watchOuts": [
+     "Several reviews mention late deliveries in the last two quarters.",
+     "Slow to answer quotes and paperwork, according to recent reviews."
+    ],
+    "recommendation": "Do not rely on alone: 3.1 ★, delivery is the weak point; use for non-urgent orders only."
+   },
+   "record": {
+    "id": "cus-e1m378",
+    "name": "shenzhen polymer resin",
+    "country": "China",
+    "leadTimeDays": 40,
+    "otifPct": 69.61,
+    "priceIndex": 112.75,
+    "vendorCode": "V-4661",
+    "contactName": "T. Moreau",
+    "email": "sales@shenzhen-polymer-resin.example.com",
+    "currency": "CNY",
+    "creditDays": 0,
+    "earlyPayDiscountPct": 1.6,
+    "earlyPayDays": 7,
+    "incoterm": "CIF",
+    "moq": 100,
+    "orderMultiple": 1,
+    "quoteValidityDays": 21,
+    "latePenaltyPctPerWeek": 1.16,
+    "latePenaltyCapPct": 10,
+    "warrantyMonths": 24,
+    "qualityPpm": 1965,
+    "responseHours": 30,
+    "invoiceAccuracyPct": 88.85,
+    "capacityUnitsMonth": 11848,
+    "certifications": [
+     "ISO 9001",
+     "NSF/ANSI 14",
+     "ASTM F876"
+    ],
+    "spendYtd": 0,
+    "poCount12m": 0,
+    "since": "2026-09-01",
+    "otifTrend": [
+     67.44,
+     70.13,
+     72.82,
+     75.5,
+     68.7,
+     71.39
+    ]
+   },
+   "terms": {
+    "creditDays": 45,
+    "termsLabel": "Net 45",
+    "earlyPayDiscountPct": 0,
+    "earlyPayDays": 0,
+    "latePenaltyPctPerWeek": 0.94,
+    "latePenaltyCapPct": 10,
+    "warrantyMonths": 12,
+    "quoteValidityDays": 60,
+    "incoterm": "FOB Origin Port",
+    "invoiceAccuracyPct": 91.79,
+    "capacityUnitsMonth": 23703
+   },
+   "risk": {
+    "score": 58,
+    "level": "Medium",
+    "capacity": "High",
+    "leadVarianceDays": 6.5,
+    "consistency": "Medium",
+    "trend": "Improving",
+    "recentDelayPct": -4.2,
+    "factors": [
+     {
+      "label": "On-time fulfilment",
+      "value": "69.6%",
+      "good": false
+     },
+     {
+      "label": "Historical delay",
+      "value": "30.4%",
+      "good": false
+     },
+     {
+      "label": "Capacity",
+      "value": "High",
+      "good": true
+     },
+     {
+      "label": "Lead-time consistency",
+      "value": "Medium (±7d)",
+      "good": true
+     },
+     {
+      "label": "Recent performance",
+      "value": "Improving (↓ 4% delays)",
+      "good": true
+     }
+    ]
+   }
+  },
+  {
+   "query": "  Nova   Tooling GmbH ",
+   "country": null,
+   "result": {
+    "query": "Nova Tooling GmbH",
+    "profile": {
+     "id": "cus-3mt6qg",
+     "name": "Nova Tooling GmbH",
+     "country": "Germany",
+     "city": "Stuttgart",
+     "website": "novatoolinggmbh.de",
+     "category": "Tooling",
+     "yearsTrading": 23,
+     "certifications": [
+      "ISO 9001",
+      "ANSI B107",
+      "ISO 14001",
+      "CE"
+     ],
+     "rating": 3.6,
+     "reviewCount": 347,
+     "ratingSource": "Google Business Profile · Thomasnet · Dun & Bradstreet",
+     "ratingBreakdown": {
+      "quality": 3.6,
+      "delivery": 3.3,
+      "communication": 3.8,
+      "pricing": 4
+     },
+     "reviews": [
+      {
+       "author": "Purchasing manager, mechanical contractor",
+       "when": "1 month ago",
+       "stars": 4,
+       "text": "Took a spec change mid-order without drama or a re-quote. Rare."
+      },
+      {
+       "author": "Supply chain manager, facilities group",
+       "when": "6 weeks ago",
+       "stars": 4,
+       "text": "Certs come with every lot without asking. Pricing moved with the index, never above it."
+      },
+      {
+       "author": "Owner, plumbing contractor",
+       "when": "3 months ago",
+       "stars": 3,
+       "text": "Pricing is sharp but the lead time slipped twice this year. Fine for stock replenishment, not for a job with a date."
+      }
+     ],
+     "spendShare12m": 0,
+     "leadTimeDays": 16,
+     "otifPct": 79.18,
+     "priceIndex": 101.5,
+     "defectPct": 2.4,
+     "holdsStock": true,
+     "isCustom": true,
+     "sources": [
+      {
+       "source": "Google Business Profile",
+       "found": true,
+       "detail": "3.6 ★ · 347 reviews"
+      },
+      {
+       "source": "Thomasnet",
+       "found": true,
+       "detail": "Listed · Tooling · 4 certifications"
+      },
+      {
+       "source": "Dun & Bradstreet",
+       "found": true,
+       "detail": "D-U-N-S on file · 23 years trading · 501–1,000 employees"
+      },
+      {
+       "source": "LinkedIn",
+       "found": true,
+       "detail": "501–1,000 employees · Stuttgart"
+      },
+      {
+       "source": "Handelsregister",
+       "found": false,
+       "detail": "No entry found"
+      }
+     ],
+     "watchOuts": []
+    },
+    "sources": [
+     {
+      "source": "Google Business Profile",
+      "found": true,
+      "detail": "3.6 ★ · 347 reviews"
+     },
+     {
+      "source": "Thomasnet",
+      "found": true,
+      "detail": "Listed · Tooling · 4 certifications"
+     },
+     {
+      "source": "Dun & Bradstreet",
+      "found": true,
+      "detail": "D-U-N-S on file · 23 years trading · 501–1,000 employees"
+     },
+     {
+      "source": "LinkedIn",
+      "found": true,
+      "detail": "501–1,000 employees · Stuttgart"
+     },
+     {
+      "source": "Handelsregister",
+      "found": false,
+      "detail": "No entry found"
+     }
+    ],
+    "watchOuts": [],
+    "recommendation": "Add as a backup only: 3.6 ★, delivery is the weak point; fine for standard orders, not urgent ones."
+   },
+   "record": {
+    "id": "cus-3mt6qg",
+    "name": "Nova Tooling GmbH",
+    "country": "Germany",
+    "leadTimeDays": 16,
+    "otifPct": 79.18,
+    "priceIndex": 101.5,
+    "vendorCode": "V-12801",
+    "contactName": "P. Aldridge",
+    "email": "sales@nova-tooling-gmbh.example.com",
+    "currency": "EUR",
+    "creditDays": 0,
+    "earlyPayDiscountPct": 0,
+    "earlyPayDays": 0,
+    "incoterm": "DDP",
+    "moq": 1,
+    "orderMultiple": 5,
+    "quoteValidityDays": 45,
+    "latePenaltyPctPerWeek": 1.38,
+    "latePenaltyCapPct": 3,
+    "warrantyMonths": 12,
+    "qualityPpm": 2806,
+    "responseHours": 9,
+    "invoiceAccuracyPct": 94.73,
+    "capacityUnitsMonth": 14369,
+    "certifications": [
+     "ISO 9001",
+     "ANSI B107",
+     "ISO 14001"
+    ],
+    "spendYtd": 0,
+    "poCount12m": 0,
+    "since": "2026-09-01",
+    "otifTrend": [
+     84.67,
+     81.98,
+     78.04,
+     75.35,
+     73.93,
+     83.24
+    ]
+   },
+   "terms": {
+    "creditDays": 30,
+    "termsLabel": "Net 30",
+    "earlyPayDiscountPct": 0,
+    "earlyPayDays": 0,
+    "latePenaltyPctPerWeek": 0,
+    "latePenaltyCapPct": 0,
+    "warrantyMonths": 24,
+    "quoteValidityDays": 21,
+    "incoterm": "EXW",
+    "invoiceAccuracyPct": 99.43,
+    "capacityUnitsMonth": 6156
+   },
+   "risk": {
+    "score": 55,
+    "level": "Medium",
+    "capacity": "High",
+    "leadVarianceDays": 3.5,
+    "consistency": "Low",
+    "trend": "Stable",
+    "recentDelayPct": 0.2,
+    "factors": [
+     {
+      "label": "On-time fulfilment",
+      "value": "79.2%",
+      "good": false
+     },
+     {
+      "label": "Historical delay",
+      "value": "20.8%",
+      "good": false
+     },
+     {
+      "label": "Capacity",
+      "value": "High",
+      "good": true
+     },
+     {
+      "label": "Lead-time consistency",
+      "value": "Low (±4d)",
+      "good": false
+     },
+     {
+      "label": "Recent performance",
+      "value": "Stable",
+      "good": true
+     }
+    ]
+   }
+  },
+  {
+   "query": "www.pexline.co.uk",
+   "country": "USA",
+   "result": {
+    "query": "www.pexline.co.uk",
+    "profile": {
+     "id": "cus-hts3kk",
+     "name": "Pexline",
+     "country": "USA",
+     "city": "Phoenix, AZ",
+     "website": "pexline.co.uk",
+     "category": "Polymers",
+     "yearsTrading": 58,
+     "certifications": [
+      "ISO 9001",
+      "NSF/ANSI 14",
+      "ASTM F876"
+     ],
+     "rating": 3.3,
+     "reviewCount": 333,
+     "ratingSource": "Google Business Profile · Thomasnet · Dun & Bradstreet",
+     "ratingBreakdown": {
+      "quality": 3.3,
+      "delivery": 3.2,
+      "communication": 3.4,
+      "pricing": 3.5
+     },
+     "reviews": [
+      {
+       "author": "Purchasing manager, mechanical contractor",
+       "when": "2 weeks ago",
+       "stars": 4,
+       "text": "Straightforward to deal with. Quotes are itemised, freight is quoted up front, no surprises on the invoice."
+      },
+      {
+       "author": "Branch manager, HVAC wholesaler",
+       "when": "6 weeks ago",
+       "stars": 3,
+       "text": "Solid on standard items; anything non-standard takes weeks to quote."
+      },
+      {
+       "author": "Owner, plumbing contractor",
+       "when": "5 months ago",
+       "stars": 2,
+       "text": "Quality has drifted. Rejected a lot for out-of-spec dimensions and it took a month to get the credit."
+      }
+     ],
+     "spendShare12m": 0,
+     "leadTimeDays": 3,
+     "otifPct": 72.7,
+     "priceIndex": 107.75,
+     "defectPct": 2.9,
+     "holdsStock": false,
+     "isCustom": true,
+     "sources": [
+      {
+       "source": "Google Business Profile",
+       "found": true,
+       "detail": "3.3 ★ · 333 reviews"
+      },
+      {
+       "source": "Thomasnet",
+       "found": true,
+       "detail": "Listed · Polymers · 3 certifications"
+      },
+      {
+       "source": "Dun & Bradstreet",
+       "found": true,
+       "detail": "D-U-N-S on file · 58 years trading · 201–500 employees"
+      },
+      {
+       "source": "LinkedIn",
+       "found": true,
+       "detail": "201–500 employees · Phoenix, AZ"
+      },
+      {
+       "source": "SAM.gov",
+       "found": false,
+       "detail": "Not registered as a federal vendor"
+      }
+     ],
+     "watchOuts": [
+      "Several reviews mention late deliveries in the last two quarters.",
+      "Two reviews report lots rejected on inspection; ask for a certificate of analysis with the first order."
+     ]
+    },
+    "sources": [
+     {
+      "source": "Google Business Profile",
+      "found": true,
+      "detail": "3.3 ★ · 333 reviews"
+     },
+     {
+      "source": "Thomasnet",
+      "found": true,
+      "detail": "Listed · Polymers · 3 certifications"
+     },
+     {
+      "source": "Dun & Bradstreet",
+      "found": true,
+      "detail": "D-U-N-S on file · 58 years trading · 201–500 employees"
+     },
+     {
+      "source": "LinkedIn",
+      "found": true,
+      "detail": "201–500 employees · Phoenix, AZ"
+     },
+     {
+      "source": "SAM.gov",
+      "found": false,
+      "detail": "Not registered as a federal vendor"
+     }
+    ],
+    "watchOuts": [
+     "Several reviews mention late deliveries in the last two quarters.",
+     "Two reviews report lots rejected on inspection; ask for a certificate of analysis with the first order."
+    ],
+    "recommendation": "Add as a backup only: 3.3 ★, delivery is the weak point; fine for standard orders, not urgent ones."
+   },
+   "record": {
+    "id": "cus-hts3kk",
+    "name": "Pexline",
+    "country": "USA",
+    "leadTimeDays": 3,
+    "otifPct": 72.7,
+    "priceIndex": 107.75,
+    "vendorCode": "V-8543",
+    "contactName": "S. Weber",
+    "email": "sales@pexline.example.com",
+    "currency": "USD",
+    "creditDays": 60,
+    "earlyPayDiscountPct": 2.2,
+    "earlyPayDays": 15,
+    "incoterm": "FOB Destination",
+    "moq": 100,
+    "orderMultiple": 5,
+    "quoteValidityDays": 21,
+    "latePenaltyPctPerWeek": 1.96,
+    "latePenaltyCapPct": 3,
+    "warrantyMonths": 36,
+    "qualityPpm": 7864,
+    "responseHours": 12,
+    "invoiceAccuracyPct": 89.18,
+    "capacityUnitsMonth": 14335,
+    "certifications": [
+     "ISO 9001",
+     "NSF/ANSI 14",
+     "ASTM F876"
+    ],
+    "spendYtd": 0,
+    "poCount12m": 0,
+    "since": "2026-09-01",
+    "otifTrend": [
+     73.68,
+     70.48,
+     73.17,
+     75.85,
+     78.54,
+     69.22
+    ]
+   },
+   "terms": {
+    "creditDays": 60,
+    "termsLabel": "1.3/7 net 60",
+    "earlyPayDiscountPct": 1.3,
+    "earlyPayDays": 7,
+    "latePenaltyPctPerWeek": 1.94,
+    "latePenaltyCapPct": 5,
+    "warrantyMonths": 12,
+    "quoteValidityDays": 14,
+    "incoterm": "FOB Origin",
+    "invoiceAccuracyPct": 93.26,
+    "capacityUnitsMonth": 13169
+   },
+   "risk": {
+    "score": 86,
+    "level": "High",
+    "capacity": "Medium",
+    "leadVarianceDays": 0.9,
+    "consistency": "Low",
+    "trend": "Worsening",
+    "recentDelayPct": 13.5,
+    "factors": [
+     {
+      "label": "On-time fulfilment",
+      "value": "72.7%",
+      "good": false
+     },
+     {
+      "label": "Historical delay",
+      "value": "27.3%",
+      "good": false
+     },
+     {
+      "label": "Capacity",
+      "value": "Medium",
+      "good": true
+     },
+     {
+      "label": "Lead-time consistency",
+      "value": "Low (±1d)",
+      "good": false
+     },
+     {
+      "label": "Recent performance",
+      "value": "Worsening (↑ 14% delays)",
+      "good": false
+     }
+    ]
+   }
+  },
+  {
+   "query": "Rio Grande Fittings S.A. de C.V.",
+   "country": null,
+   "result": {
+    "query": "Rio Grande Fittings S.A. de C.V.",
+    "profile": {
+     "id": "cus-jh05th",
+     "name": "Rio Grande Fittings S.A. de C.V.",
+     "country": "Mexico",
+     "city": "Guadalajara",
+     "website": "riograndefittingssadecv.mx",
+     "category": "Fittings",
+     "yearsTrading": 46,
+     "certifications": [
+      "ISO 9001",
+      "ISO 14001"
+     ],
+     "rating": 2.9,
+     "reviewCount": 132,
+     "ratingSource": "Google Business Profile · Thomasnet · Dun & Bradstreet",
+     "ratingBreakdown": {
+      "quality": 3.6,
+      "delivery": 2.6,
+      "communication": 2.9,
+      "pricing": 3
+     },
+     "reviews": [
+      {
+       "author": "Buyer, regional distributor",
+       "when": "1 month ago",
+       "stars": 4,
+       "text": "Lead times quoted are lead times delivered. That alone is worth a few points on price."
+      },
+      {
+       "author": "Supply chain manager, facilities group",
+       "when": "2 months ago",
+       "stars": 3,
+       "text": "Solid on standard items; anything non-standard takes weeks to quote."
+      },
+      {
+       "author": "Branch manager, HVAC wholesaler",
+       "when": "3 months ago",
+       "stars": 2,
+       "text": "Quality has drifted. Rejected a lot for out-of-spec dimensions and it took a month to get the credit."
+      }
+     ],
+     "spendShare12m": 0,
+     "leadTimeDays": 7,
+     "otifPct": 67,
+     "priceIndex": 114,
+     "defectPct": 2.5,
+     "holdsStock": true,
+     "isCustom": true,
+     "sources": [
+      {
+       "source": "Google Business Profile",
+       "found": true,
+       "detail": "2.9 ★ · 132 reviews"
+      },
+      {
+       "source": "Thomasnet",
+       "found": true,
+       "detail": "Listed · Fittings · 2 certifications"
+      },
+      {
+       "source": "Dun & Bradstreet",
+       "found": true,
+       "detail": "D-U-N-S on file · 46 years trading · 11–50 employees"
+      },
+      {
+       "source": "LinkedIn",
+       "found": true,
+       "detail": "11–50 employees · Guadalajara"
+      },
+      {
+       "source": "SAT (RFC)",
+       "found": true,
+       "detail": "RFC on file · active taxpayer"
+      }
+     ],
+     "watchOuts": [
+      "Several reviews mention late deliveries in the last two quarters.",
+      "Slow to answer quotes and paperwork, according to recent reviews."
+     ]
+    },
+    "sources": [
+     {
+      "source": "Google Business Profile",
+      "found": true,
+      "detail": "2.9 ★ · 132 reviews"
+     },
+     {
+      "source": "Thomasnet",
+      "found": true,
+      "detail": "Listed · Fittings · 2 certifications"
+     },
+     {
+      "source": "Dun & Bradstreet",
+      "found": true,
+      "detail": "D-U-N-S on file · 46 years trading · 11–50 employees"
+     },
+     {
+      "source": "LinkedIn",
+      "found": true,
+      "detail": "11–50 employees · Guadalajara"
+     },
+     {
+      "source": "SAT (RFC)",
+      "found": true,
+      "detail": "RFC on file · active taxpayer"
+     }
+    ],
+    "watchOuts": [
+     "Several reviews mention late deliveries in the last two quarters.",
+     "Slow to answer quotes and paperwork, according to recent reviews."
+    ],
+    "recommendation": "Do not rely on alone: 2.9 ★, delivery is the weak point; use for non-urgent orders only."
+   },
+   "record": {
+    "id": "cus-jh05th",
+    "name": "Rio Grande Fittings S.A. de C.V.",
+    "country": "Mexico",
+    "leadTimeDays": 7,
+    "otifPct": 67,
+    "priceIndex": 114,
+    "vendorCode": "V-11155",
+    "contactName": "C. Rasmussen",
+    "email": "sales@rio-grande-fittings-s-a-de-c-v.example.com",
+    "currency": "MXN",
+    "creditDays": 15,
+    "earlyPayDiscountPct": 0,
+    "earlyPayDays": 0,
+    "incoterm": "EXW",
+    "moq": 250,
+    "orderMultiple": 1,
+    "quoteValidityDays": 30,
+    "latePenaltyPctPerWeek": 0,
+    "latePenaltyCapPct": 10,
+    "warrantyMonths": 18,
+    "qualityPpm": 6971,
+    "responseHours": 48,
+    "invoiceAccuracyPct": 92.21,
+    "capacityUnitsMonth": 4573,
+    "certifications": [
+     "ISO 9001",
+     "ISO 14001"
+    ],
+    "spendYtd": 0,
+    "poCount12m": 0,
+    "since": "2026-09-01",
+    "otifTrend": [
+     62,
+     64.31,
+     67,
+     69.69,
+     62.89,
+     65.57
+    ]
+   },
+   "terms": {
+    "creditDays": 45,
+    "termsLabel": "1.8/15 net 45",
+    "earlyPayDiscountPct": 1.8,
+    "earlyPayDays": 15,
+    "latePenaltyPctPerWeek": 1.96,
+    "latePenaltyCapPct": 5,
+    "warrantyMonths": 18,
+    "quoteValidityDays": 60,
+    "incoterm": "CIF",
+    "invoiceAccuracyPct": 89.71,
+    "capacityUnitsMonth": 13443
+   },
+   "risk": {
+    "score": 75,
+    "level": "High",
+    "capacity": "High",
+    "leadVarianceDays": 1.9,
+    "consistency": "Low",
+    "trend": "Improving",
+    "recentDelayPct": -3.3,
+    "factors": [
+     {
+      "label": "On-time fulfilment",
+      "value": "67.0%",
+      "good": false
+     },
+     {
+      "label": "Historical delay",
+      "value": "33.0%",
+      "good": false
+     },
+     {
+      "label": "Capacity",
+      "value": "High",
+      "good": true
+     },
+     {
+      "label": "Lead-time consistency",
+      "value": "Low (±2d)",
+      "good": false
+     },
+     {
+      "label": "Recent performance",
+      "value": "Improving (↓ 3% delays)",
+      "good": true
+     }
+    ]
+   }
+  },
+  {
+   "query": "Maple Pipe & Steel",
+   "country": "Canada",
+   "result": {
+    "query": "Maple Pipe & Steel",
+    "profile": {
+     "id": "cus-mddrxx",
+     "name": "Maple Pipe & Steel",
+     "country": "Canada",
+     "city": "Montréal, QC",
+     "website": "maplepipeandsteel.ca",
+     "category": "Steel",
+     "yearsTrading": 25,
+     "certifications": [
+      "ISO 9001",
+      "EN 10204 3.1",
+      "ISO 14001",
+      "API 5L"
+     ],
+     "rating": 4.2,
+     "reviewCount": 285,
+     "ratingSource": "Google Business Profile · Thomasnet · LinkedIn",
+     "ratingBreakdown": {
+      "quality": 4.7,
+      "delivery": 3.9,
+      "communication": 4.4,
+      "pricing": 4.4
+     },
+     "reviews": [
+      {
+       "author": "Branch manager, HVAC wholesaler",
+       "when": "1 month ago",
+       "stars": 5,
+       "text": "Took a spec change mid-order without drama or a re-quote. Rare."
+      },
+      {
+       "author": "Purchasing manager, mechanical contractor",
+       "when": "2 months ago",
+       "stars": 4,
+       "text": "Straightforward to deal with. Quotes are itemised, freight is quoted up front, no surprises on the invoice."
+      },
+      {
+       "author": "Operations director, building services",
+       "when": "3 months ago",
+       "stars": 3,
+       "text": "Pricing is sharp but the lead time slipped twice this year. Fine for stock replenishment, not for a job with a date."
+      }
+     ],
+     "spendShare12m": 0,
+     "leadTimeDays": 5,
+     "otifPct": 82.42,
+     "priceIndex": 96.5,
+     "defectPct": 0.7,
+     "holdsStock": false,
+     "isCustom": true,
+     "sources": [
+      {
+       "source": "Google Business Profile",
+       "found": true,
+       "detail": "4.2 ★ · 285 reviews"
+      },
+      {
+       "source": "Thomasnet",
+       "found": true,
+       "detail": "Listed · Steel · 4 certifications"
+      },
+      {
+       "source": "Dun & Bradstreet",
+       "found": false,
+       "detail": "No record"
+      },
+      {
+       "source": "LinkedIn",
+       "found": true,
+       "detail": "51–200 employees · Montréal, QC"
+      },
+      {
+       "source": "Corporations Canada",
+       "found": true,
+       "detail": "Active · incorporated 2001"
+      }
+     ],
+     "watchOuts": []
+    },
+    "sources": [
+     {
+      "source": "Google Business Profile",
+      "found": true,
+      "detail": "4.2 ★ · 285 reviews"
+     },
+     {
+      "source": "Thomasnet",
+      "found": true,
+      "detail": "Listed · Steel · 4 certifications"
+     },
+     {
+      "source": "Dun & Bradstreet",
+      "found": false,
+      "detail": "No record"
+     },
+     {
+      "source": "LinkedIn",
+      "found": true,
+      "detail": "51–200 employees · Montréal, QC"
+     },
+     {
+      "source": "Corporations Canada",
+      "found": true,
+      "detail": "Active · incorporated 2001"
+     }
+    ],
+    "watchOuts": [],
+    "recommendation": "Add to the panel: 4.2 ★ from 285 buyers, priced 4% under market; delivery is the only soft spot."
+   },
+   "record": {
+    "id": "cus-mddrxx",
+    "name": "Maple Pipe & Steel",
+    "country": "Canada",
+    "leadTimeDays": 5,
+    "otifPct": 82.42,
+    "priceIndex": 96.5,
+    "vendorCode": "V-5433",
+    "contactName": "P. Nakada",
+    "email": "sales@maple-pipe-and-steel.example.com",
+    "currency": "USD",
+    "creditDays": 45,
+    "earlyPayDiscountPct": 1.6,
+    "earlyPayDays": 7,
+    "incoterm": "DDP",
+    "moq": 25,
+    "orderMultiple": 5,
+    "quoteValidityDays": 45,
+    "latePenaltyPctPerWeek": 1.36,
+    "latePenaltyCapPct": 5,
+    "warrantyMonths": 36,
+    "qualityPpm": 8857,
+    "responseHours": 78,
+    "invoiceAccuracyPct": 91.92,
+    "capacityUnitsMonth": 16672,
+    "certifications": [
+     "ISO 9001",
+     "EN 10204 3.1",
+     "ISO 14001"
+    ],
+    "spendYtd": 0,
+    "poCount12m": 0,
+    "since": "2026-09-01",
+    "otifTrend": [
+     84.95,
+     87.64,
+     79.58,
+     82.27,
+     83.7,
+     86.38
+    ]
+   },
+   "terms": {
+    "creditDays": 15,
+    "termsLabel": "Net 15",
+    "earlyPayDiscountPct": 0,
+    "earlyPayDays": 0,
+    "latePenaltyPctPerWeek": 0.73,
+    "latePenaltyCapPct": 5,
+    "warrantyMonths": 36,
+    "quoteValidityDays": 30,
+    "incoterm": "FOB Origin Port",
+    "invoiceAccuracyPct": 96.26,
+    "capacityUnitsMonth": 4527
+   },
+   "risk": {
+    "score": 42,
+    "level": "Medium",
+    "capacity": "High",
+    "leadVarianceDays": 0.9,
+    "consistency": "Medium",
+    "trend": "Stable",
+    "recentDelayPct": -1.8,
+    "factors": [
+     {
+      "label": "On-time fulfilment",
+      "value": "82.4%",
+      "good": false
+     },
+     {
+      "label": "Historical delay",
+      "value": "17.6%",
+      "good": false
+     },
+     {
+      "label": "Capacity",
+      "value": "High",
+      "good": true
+     },
+     {
+      "label": "Lead-time consistency",
+      "value": "Medium (±1d)",
+      "good": true
+     },
+     {
+      "label": "Recent performance",
+      "value": "Stable",
+      "good": true
+     }
+    ]
+   }
+  },
+  {
+   "query": "???",
+   "country": null,
+   "result": {
+    "query": "???",
+    "profile": {
+     "id": "cus-12kfqk",
+     "name": "???",
+     "country": "UK",
+     "city": "Birmingham",
+     "website": "supplier.co.uk",
+     "category": "Valves",
+     "yearsTrading": 21,
+     "certifications": [
+      "ISO 9001",
+      "CE PED",
+      "ISO 14001",
+      "UL"
+     ],
+     "rating": 3.7,
+     "reviewCount": 127,
+     "ratingSource": "Google Business Profile · Dun & Bradstreet · Companies House",
+     "ratingBreakdown": {
+      "quality": 4.8,
+      "delivery": 3.5,
+      "communication": 3.7,
+      "pricing": 3.4
+     },
+     "reviews": [
+      {
+       "author": "Category buyer, plumbing distributor",
+       "when": "1 month ago",
+       "stars": 4,
+       "text": "Took a spec change mid-order without drama or a re-quote. Rare."
+      },
+      {
+       "author": "Purchasing manager, mechanical contractor",
+       "when": "6 weeks ago",
+       "stars": 4,
+       "text": "Certs come with every lot without asking. Pricing moved with the index, never above it."
+      },
+      {
+       "author": "Buyer, regional distributor",
+       "when": "3 months ago",
+       "stars": 3,
+       "text": "Solid on standard items; anything non-standard takes weeks to quote."
+      }
+     ],
+     "spendShare12m": 0,
+     "leadTimeDays": 18,
+     "otifPct": 97,
+     "priceIndex": 109,
+     "defectPct": 0.5,
+     "holdsStock": false,
+     "isCustom": true,
+     "sources": [
+      {
+       "source": "Google Business Profile",
+       "found": true,
+       "detail": "3.7 ★ · 127 reviews"
+      },
+      {
+       "source": "Thomasnet",
+       "found": false,
+       "detail": "Not listed"
+      },
+      {
+       "source": "Dun & Bradstreet",
+       "found": true,
+       "detail": "D-U-N-S on file · 21 years trading · 11–50 employees"
+      },
+      {
+       "source": "LinkedIn",
+       "found": false,
+       "detail": "No company page"
+      },
+      {
+       "source": "Companies House",
+       "found": true,
+       "detail": "Active · incorporated 2005"
+      }
+     ],
+     "watchOuts": []
+    },
+    "sources": [
+     {
+      "source": "Google Business Profile",
+      "found": true,
+      "detail": "3.7 ★ · 127 reviews"
+     },
+     {
+      "source": "Thomasnet",
+      "found": false,
+      "detail": "Not listed"
+     },
+     {
+      "source": "Dun & Bradstreet",
+      "found": true,
+      "detail": "D-U-N-S on file · 21 years trading · 11–50 employees"
+     },
+     {
+      "source": "LinkedIn",
+      "found": false,
+      "detail": "No company page"
+     },
+     {
+      "source": "Companies House",
+      "found": true,
+      "detail": "Active · incorporated 2005"
+     }
+    ],
+    "watchOuts": [],
+    "recommendation": "Add as a backup only: 3.7 ★, pricing is the weak point; fine for standard orders, not urgent ones."
+   },
+   "record": {
+    "id": "cus-12kfqk",
+    "name": "???",
+    "country": "UK",
+    "leadTimeDays": 18,
+    "otifPct": 97,
+    "priceIndex": 109,
+    "vendorCode": "V-6344",
+    "contactName": "K. Aldridge",
+    "email": "sales@.example.com",
+    "currency": "USD",
+    "creditDays": 30,
+    "earlyPayDiscountPct": 2,
+    "earlyPayDays": 15,
+    "incoterm": "EXW",
+    "moq": 25,
+    "orderMultiple": 25,
+    "quoteValidityDays": 21,
+    "latePenaltyPctPerWeek": 1.09,
+    "latePenaltyCapPct": 5,
+    "warrantyMonths": 18,
+    "qualityPpm": 5923,
+    "responseHours": 66,
+    "invoiceAccuracyPct": 90.88,
+    "capacityUnitsMonth": 5285,
+    "certifications": [
+     "ISO 9001",
+     "CE PED",
+     "ISO 14001"
+    ],
+    "spendYtd": 0,
+    "poCount12m": 0,
+    "since": "2026-09-01",
+    "otifTrend": [
+     92.76,
+     95.44,
+     99.39,
+     99.5,
+     94.02,
+     96.7
+    ]
+   },
+   "terms": {
+    "creditDays": 30,
+    "termsLabel": "1.6/7 net 30",
+    "earlyPayDiscountPct": 1.6,
+    "earlyPayDays": 7,
+    "latePenaltyPctPerWeek": 0,
+    "latePenaltyCapPct": 0,
+    "warrantyMonths": 24,
+    "quoteValidityDays": 30,
+    "incoterm": "EXW",
+    "invoiceAccuracyPct": 98.72,
+    "capacityUnitsMonth": 14735
+   },
+   "risk": {
+    "score": 33,
+    "level": "Low",
+    "capacity": "Low",
+    "leadVarianceDays": 4.3,
+    "consistency": "Low",
+    "trend": "Stable",
+    "recentDelayPct": -1.8,
+    "factors": [
+     {
+      "label": "On-time fulfilment",
+      "value": "97.0%",
+      "good": true
+     },
+     {
+      "label": "Historical delay",
+      "value": "3.0%",
+      "good": true
+     },
+     {
+      "label": "Capacity",
+      "value": "Low",
+      "good": false
+     },
+     {
+      "label": "Lead-time consistency",
+      "value": "Low (±4d)",
+      "good": false
+     },
+     {
+      "label": "Recent performance",
+      "value": "Stable",
+      "good": true
+     }
+    ]
+   }
+  }
+ ],
+ "summaryWithCustom": {
+  "size": 9,
+  "added": 1,
+  "avgRating": 3.7,
+  "spendRated4Pct": 24,
+  "weak": 2,
+  "avgOtifPct": 86.9
+ }
+}
