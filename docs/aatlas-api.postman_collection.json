@@ -5483,6 +5483,699 @@
 			}
 		},
 		{
+			"name": "Overview — GET /overview",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{accessToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/overview",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"overview"
+					]
+				},
+				"description": "The full Overview payload. Two KPIs (\"savings\", \"adoption\") and adoptionPct read low: they depend on the buy module’s procurement ledger, stood in as zero pending merge — see docs/decisions.md."
+			},
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('200 OK', () => pm.response.to.have.status(200));",
+							"const body = pm.response.json();",
+							"pm.test('six KPIs, led by revenue', () => {",
+							"  pm.expect(body.kpis).to.have.lengthOf(6);",
+							"  pm.expect(body.kpis[0].key).to.eql('revenue');",
+							"});",
+							"pm.test('every region and every branch is present', () => {",
+							"  pm.expect(body.regions).to.have.lengthOf(4);",
+							"  pm.expect(body.stores).to.have.lengthOf(9);",
+							"});",
+							"pm.test('decisions is empty — stood in pending the decisions module (see docs/decisions.md)', () =>",
+							"  pm.expect(body.decisions).to.eql([]));"
+						]
+					}
+				}
+			]
+		},
+		{
+			"name": "Overview — GET /overview/changes (paged)",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{accessToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/overview/changes",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"overview",
+						"changes"
+					]
+				}
+			},
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('200 OK, a page of changes', () => {",
+							"  pm.response.to.have.status(200);",
+							"  pm.expect(pm.response.json().items).to.be.an('array');",
+							"});"
+						]
+					}
+				}
+			]
+		},
+		{
+			"name": "Overview — GET /overview/opportunities (ranked by money)",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{accessToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/overview/opportunities",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"overview",
+						"opportunities"
+					]
+				}
+			},
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('200 OK, led by the raise-prices opportunity', () => {",
+							"  const body = pm.response.json();",
+							"  pm.response.to.have.status(200);",
+							"  pm.expect(body.some((o) => o.id === 'raise')).to.be.true;",
+							"});"
+						]
+					}
+				}
+			]
+		},
+		{
+			"name": "Overview — GET /overview/risks",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{accessToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/overview/risks",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"overview",
+						"risks"
+					]
+				}
+			},
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('200 OK', () => pm.response.to.have.status(200));"
+						]
+					}
+				}
+			]
+		},
+		{
+			"name": "Insights — GET /insights/regions",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{accessToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/insights/regions",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"insights",
+						"regions"
+					]
+				}
+			},
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('the four market regions', () => {",
+							"  pm.response.to.have.status(200);",
+							"  pm.expect(pm.response.json()).to.have.lengthOf(4);",
+							"});"
+						]
+					}
+				}
+			]
+		},
+		{
+			"name": "Insights — GET /insights/regions/south (Dallas is in it)",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{accessToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/insights/regions/south",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"insights",
+						"regions",
+						"south"
+					]
+				}
+			},
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('south, with Dallas #100959 and a High demand headline', () => {",
+							"  const body = pm.response.json();",
+							"  pm.response.to.have.status(200);",
+							"  pm.expect(body.key).to.eql('south');",
+							"  pm.expect(body.storeIds).to.include('100959');",
+							"  pm.expect(body.headline).to.eql('High demand');",
+							"});"
+						]
+					}
+				}
+			]
+		},
+		{
+			"name": "Insights — 404 unknown region key",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{accessToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/insights/regions/nowhere",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"insights",
+						"regions",
+						"nowhere"
+					]
+				}
+			},
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('404 not_found', () => {",
+							"  pm.response.to.have.status(404);",
+							"  pm.expect(pm.response.json().code).to.eql('not_found');",
+							"});"
+						]
+					}
+				}
+			]
+		},
+		{
+			"name": "Stores — GET /insights/stores",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{accessToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/insights/stores",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"insights",
+						"stores"
+					]
+				}
+			},
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('every branch', () => {",
+							"  pm.response.to.have.status(200);",
+							"  pm.expect(pm.response.json()).to.have.lengthOf(9);",
+							"});"
+						]
+					}
+				}
+			]
+		},
+		{
+			"name": "Stores — GET /insights/stores/100959 (the flagship branch)",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{accessToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/insights/stores/100959",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"insights",
+						"stores",
+						"100959"
+					]
+				}
+			},
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('Dallas #100959, with opportunities and priced products', () => {",
+							"  const body = pm.response.json();",
+							"  pm.response.to.have.status(200);",
+							"  pm.expect(body.label).to.eql('Dallas #100959');",
+							"  pm.expect(body.regionKey).to.eql('south');",
+							"  pm.expect(body.opportunities).to.be.an('array');",
+							"  pm.expect(body.products).to.be.an('array');",
+							"});"
+						]
+					}
+				}
+			]
+		},
+		{
+			"name": "Stores — 404 unknown branch",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{accessToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/insights/stores/999999",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"insights",
+						"stores",
+						"999999"
+					]
+				}
+			},
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('404 not_found', () => {",
+							"  pm.response.to.have.status(404);",
+							"  pm.expect(pm.response.json().code).to.eql('not_found');",
+							"});"
+						]
+					}
+				}
+			]
+		},
+		{
+			"name": "Insights — GET /insights/demographics (default filter)",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{accessToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/insights/demographics",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"insights",
+						"demographics"
+					]
+				}
+			},
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('all regions, four segments, four categories', () => {",
+							"  const body = pm.response.json();",
+							"  pm.response.to.have.status(200);",
+							"  pm.expect(body.scopeLabel).to.eql('All regions');",
+							"  pm.expect(body.segments.length).to.be.greaterThan(0);",
+							"  pm.expect(body.categories.length).to.be.greaterThan(0);",
+							"});"
+						]
+					}
+				}
+			]
+		},
+		{
+			"name": "Insights — GET /insights/demographics?region=south",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{accessToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/insights/demographics",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"insights",
+						"demographics"
+					],
+					"query": [
+						{
+							"key": "region",
+							"value": "south"
+						}
+					]
+				}
+			},
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('scoped to the South, Dallas among its places', () => {",
+							"  const body = pm.response.json();",
+							"  pm.response.to.have.status(200);",
+							"  pm.expect(body.places.some((p) => p.storeId === '100959')).to.be.true;",
+							"});"
+						]
+					}
+				}
+			]
+		},
+		{
+			"name": "Insights — GET /insights/price-moves?region=south",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{accessToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/insights/price-moves",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"insights",
+						"price-moves"
+					],
+					"query": [
+						{
+							"key": "region",
+							"value": "south"
+						}
+					]
+				},
+				"description": "A small forecast stand-in (platform/forecast.ts’s formula, reused directly) rather than Sell’s own forecast screen — see docs/decisions.md."
+			},
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('200 OK, an array of moves', () => {",
+							"  pm.response.to.have.status(200);",
+							"  pm.expect(pm.response.json()).to.be.an('array');",
+							"});"
+						]
+					}
+				}
+			]
+		},
+		{
+			"name": "Products — GET /products/scores",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{accessToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/products/scores",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"products",
+						"scores"
+					]
+				}
+			},
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('one row per priceable item-branch pair, with reasons', () => {",
+							"  const body = pm.response.json();",
+							"  pm.response.to.have.status(200);",
+							"  pm.expect(body.length).to.be.greaterThan(0);",
+							"  pm.expect(body[0]).to.have.property('reasons');",
+							"  pm.expect(body[0]).to.have.property('name');",
+							"});"
+						]
+					}
+				}
+			]
+		},
+		{
+			"name": "Products — GET /products/scores?filter=strong",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{accessToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/products/scores",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"products",
+						"scores"
+					],
+					"query": [
+						{
+							"key": "filter",
+							"value": "strong"
+						}
+					]
+				}
+			},
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('every row is tier strong', () => {",
+							"  const body = pm.response.json();",
+							"  pm.response.to.have.status(200);",
+							"  pm.expect(body.every((r) => r.tier === 'strong')).to.be.true;",
+							"});"
+						]
+					}
+				}
+			]
+		},
+		{
+			"name": "Products — GET /products/HRD118902/scores (flagship copper tube)",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{accessToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/products/HRD118902/scores",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"products",
+						"HRD118902",
+						"scores"
+					]
+				}
+			},
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('scored at Dallas #100959 among its branches', () => {",
+							"  const body = pm.response.json();",
+							"  pm.response.to.have.status(200);",
+							"  pm.expect(body.some((r) => r.storeId === '100959')).to.be.true;",
+							"});"
+						]
+					}
+				}
+			]
+		},
+		{
+			"name": "Products — 404 unknown item number",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{accessToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/products/NOPE-000/scores",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"products",
+						"NOPE-000",
+						"scores"
+					]
+				}
+			},
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('404 not_found', () => {",
+							"  pm.response.to.have.status(404);",
+							"  pm.expect(pm.response.json().code).to.eql('not_found');",
+							"});"
+						]
+					}
+				}
+			]
+		},
+		{
 			"name": "Data sources — disconnect",
 			"event": [
 				{
