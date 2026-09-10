@@ -19,7 +19,8 @@ import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
 import org.springframework.stereotype.Service;
 
 /**
- * Mints the pair of credentials a signed-in client holds.
+ * Mints the pair of credentials a signed-in client holds, and the one-time token a
+ * password reset mails out.
  *
  * <p>The access token is a short-lived RS256 JWT the API verifies with a public key and
  * no database round trip - that is what keeps an authenticated request cheap. The price of
@@ -30,13 +31,14 @@ import org.springframework.stereotype.Service;
  * 256 bits from {@link SecureRandom} and never written to the database in the clear - only
  * its SHA-256 is. A plain digest is correct here and would be wrong for a password:
  * the input is full-entropy random, so there is nothing to brute-force and nothing for
- * BCrypt's work factor to buy.
+ * BCrypt's work factor to buy. A password-reset token is the same thing with a shorter
+ * life.
  */
 @Service
 class TokenService {
 
     /** 256 bits. Long enough that guessing is not a threat model. */
-    private static final int REFRESH_TOKEN_BYTES = 32;
+    private static final int OPAQUE_TOKEN_BYTES = 32;
 
     /** The claim names {@code TenantContextFilter} and {@code SecurityConfig} already read. */
     private static final String CLAIM_TENANT = "tid";
@@ -59,10 +61,10 @@ class TokenService {
     }
 
     /**
-     * A refresh token: the secret the client keeps, and the digest the database keeps.
+     * An opaque token: the secret the client keeps, and the digest the database keeps.
      * The two never travel together beyond this record.
      */
-    record RefreshToken(String value, byte[] hash, Instant expiresAt) {
+    record OpaqueToken(String value, byte[] hash, Instant expiresAt) {
     }
 
     AccessToken issueAccessToken(UUID tenantId, UUID userId, String email, SeatRole seatRole) {
@@ -91,16 +93,21 @@ class TokenService {
         return new AccessToken(value, expiresAt, ttl);
     }
 
-    RefreshToken issueRefreshToken() {
-        byte[] secret = new byte[REFRESH_TOKEN_BYTES];
+    /** Thirty days by default, from {@code aatlas.jwt.refresh-token-ttl}. */
+    OpaqueToken issueRefreshToken() {
+        return issueOpaqueToken(properties.jwt().refreshTokenTtl());
+    }
+
+    OpaqueToken issueOpaqueToken(Duration ttl) {
+        byte[] secret = new byte[OPAQUE_TOKEN_BYTES];
         random.nextBytes(secret);
         // URL-safe and unpadded so the value survives a query string, a header and a
         // cookie without re-encoding.
         String value = Base64.getUrlEncoder().withoutPadding().encodeToString(secret);
-        return new RefreshToken(value, sha256(value), clock.now().plus(properties.jwt().refreshTokenTtl()));
+        return new OpaqueToken(value, sha256(value), clock.now().plus(ttl));
     }
 
-    /** The digest stored in {@code refresh_tokens.token_hash}. */
+    /** The digest stored in {@code refresh_tokens.token_hash} and {@code password_reset_tokens.token_hash}. */
     static byte[] sha256(String value) {
         try {
             return MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8));

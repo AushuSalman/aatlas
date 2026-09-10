@@ -4,16 +4,14 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 import jakarta.persistence.AttributeConverter;
 import jakarta.persistence.Converter;
-import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
- * A seat: which workspaces open, and how much this person may commit alone.
+ * A seat: the closed set of eight keys a user can hold.
  *
  * <p>The wire values are kebab-case and match the frontend's {@code Role} union in
  * {@code src/lib/platform/types.ts} character for character. They are also the values
@@ -21,98 +19,35 @@ import java.util.stream.Collectors;
  * one is a migration and a frontend change together - which is the point. A seat name
  * that drifts between the two halves is a permission bug waiting to happen.
  *
- * <p>The approval limit lives here rather than in a config file because it is the same
- * number the buy side checks before committing an order, and a limit nobody can find is a
- * limit nobody reviews. The blueprint moves these to a {@code role_policy} table when
- * customers need their own; until then the personas are the product's, not the tenant's.
+ * <p>Deliberately nothing else. What a seat may open, whether it works in bulk, whether it
+ * may move the guardrails and how much it may approve alone are rows in
+ * {@code role_policy}, read at request time through {@code PolicyReader} in the
+ * {@code policy} module - so a tenant can change a limit without a deploy, and so there
+ * is exactly one place that answers "may this seat do that".
  */
 public enum SeatRole {
 
-    SALES_REP("sales-rep", "Sales rep", Side.SELL, Level.REP, false, false, null),
-    SELLER("seller", "Sales manager", Side.SELL, Level.MANAGER, true, false, null),
-    SALES_HEAD("sales-head", "Head of sales", Side.SELL, Level.HEAD, true, true, null),
-    PURCHASE_MANAGER(
-            "purchase-manager", "Purchase manager", Side.BUY, Level.MANAGER, false, false, new BigDecimal("50000")),
-    BUYER("buyer", "Category buyer", Side.BUY, Level.MANAGER, true, false, new BigDecimal("150000")),
-    PURCHASE_HEAD("purchase-head", "Head of purchasing", Side.BUY, Level.HEAD, true, true, null),
-    FINANCE("finance", "Finance", Side.NONE, Level.EXEC, false, true, null),
-    BOTH("both", "Commercial director", Side.BOTH, Level.EXEC, true, true, null);
-
-    /** Which half of the business a seat lives on. Decides what the home screen shows. */
-    public enum Side {
-        SELL,
-        BUY,
-        BOTH,
-        NONE
-    }
-
-    /** Seniority, which is what bulk actions and guardrail edits key off. */
-    public enum Level {
-        REP,
-        MANAGER,
-        HEAD,
-        EXEC
-    }
+    SALES_REP("sales-rep"),
+    SELLER("seller"),
+    SALES_HEAD("sales-head"),
+    PURCHASE_MANAGER("purchase-manager"),
+    BUYER("buyer"),
+    PURCHASE_HEAD("purchase-head"),
+    FINANCE("finance"),
+    BOTH("both");
 
     private static final Map<String, SeatRole> BY_WIRE_VALUE = Arrays.stream(values())
             .collect(Collectors.toUnmodifiableMap(SeatRole::wireValue, Function.identity()));
 
     private final String wireValue;
-    private final String title;
-    private final Side side;
-    private final Level level;
-    private final boolean bulk;
-    private final boolean guardrails;
-    private final BigDecimal approvalLimit;
 
-    SeatRole(
-            String wireValue,
-            String title,
-            Side side,
-            Level level,
-            boolean bulk,
-            boolean guardrails,
-            BigDecimal approvalLimit) {
+    SeatRole(String wireValue) {
         this.wireValue = wireValue;
-        this.title = title;
-        this.side = side;
-        this.level = level;
-        this.bulk = bulk;
-        this.guardrails = guardrails;
-        this.approvalLimit = approvalLimit;
     }
 
     @JsonValue
     public String wireValue() {
         return wireValue;
-    }
-
-    /** The job title shown beside the name. Signup takes it from here, never from input. */
-    public String title() {
-        return title;
-    }
-
-    public Side side() {
-        return side;
-    }
-
-    public Level level() {
-        return level;
-    }
-
-    /** Bulk repricing and basket awards: managers and above. */
-    public boolean canBulk() {
-        return bulk;
-    }
-
-    /** Change the margin guardrails the team prices inside: heads, finance, the director. */
-    public boolean canEditGuardrails() {
-        return guardrails;
-    }
-
-    /** Largest single order this seat commits alone. Empty means no ceiling. */
-    public Optional<BigDecimal> approvalLimit() {
-        return Optional.ofNullable(approvalLimit);
     }
 
     /**

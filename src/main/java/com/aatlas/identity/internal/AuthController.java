@@ -6,11 +6,13 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.util.UriComponentsBuilder;
 
@@ -26,20 +28,24 @@ import org.springframework.web.util.UriComponentsBuilder;
  */
 @RestController
 @RequestMapping(path = "/api/v1/auth", produces = MediaType.APPLICATION_JSON_VALUE)
-@Tag(name = "Authentication", description = "Signup and sign-in. No token required.")
+@Tag(name = "Authentication", description = "Signup, sign-in, refresh, sign-out and password reset. No token required.")
 class AuthController {
 
     private final SignupService signupService;
+    private final SessionService sessionService;
+    private final PasswordResetService passwordResetService;
 
-    AuthController(SignupService signupService) {
+    AuthController(SignupService signupService, SessionService sessionService, PasswordResetService passwordResetService) {
         this.signupService = signupService;
+        this.sessionService = sessionService;
+        this.passwordResetService = passwordResetService;
     }
 
     @Operation(
             summary = "Create a company and its first user",
             description =
                     """
-                    Creates the tenant, its owner, and a signed-in session, in one transaction.
+                    Creates the tenant, its settings, its owner, and a signed-in session, in one transaction.
 
                     The returned `session` matches the frontend's `Session` type, so the client
                     can render immediately without decoding the access token. `session.dataSource`
@@ -62,6 +68,56 @@ class AuthController {
                         UriComponentsBuilder.fromPath("/api/v1/users/{id}")
                                 .build(response.session().user().id()))
                 .body(response);
+    }
+
+    @Operation(summary = "Sign in with email and password",
+            description = "Same response as signup. A wrong email and a wrong password are the same 401.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Signed in."),
+        @ApiResponse(responseCode = "401", description = "invalid_credentials, or account_locked after ten failures."),
+        @ApiResponse(responseCode = "429", description = "Too many attempts from this connection.")
+    })
+    @PostMapping(path = "/login", consumes = MediaType.APPLICATION_JSON_VALUE)
+    AuthResponse login(@Valid @RequestBody LoginRequest request, HttpServletRequest http) {
+        return sessionService.login(request, clientIpOf(http), userAgentOf(http));
+    }
+
+    @Operation(summary = "Exchange a refresh token for a new pair",
+            description = "The presented token is spent. Presenting it again revokes every session for the account.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "New access and refresh tokens."),
+        @ApiResponse(responseCode = "401", description = "invalid_refresh_token, refresh_expired or refresh_reused.")
+    })
+    @PostMapping(path = "/refresh", consumes = MediaType.APPLICATION_JSON_VALUE)
+    AuthResponse refresh(@Valid @RequestBody RefreshRequest request, HttpServletRequest http) {
+        return sessionService.refresh(request.refreshToken(), clientIpOf(http), userAgentOf(http));
+    }
+
+    @Operation(summary = "Sign out", description = "Revokes the refresh token. Always 204; sign-out is idempotent.")
+    @PostMapping(path = "/logout", consumes = MediaType.APPLICATION_JSON_VALUE)
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    void logout(@Valid @RequestBody RefreshRequest request) {
+        sessionService.logout(request.refreshToken());
+    }
+
+    @Operation(summary = "Send a password reset link",
+            description = "Always 202, whether or not the address has an account. The mail is the only answer.")
+    @PostMapping(path = "/password/forgot", consumes = MediaType.APPLICATION_JSON_VALUE)
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    void forgotPassword(@Valid @RequestBody ForgotPasswordRequest request, HttpServletRequest http) {
+        passwordResetService.forgot(request.email(), clientIpOf(http));
+    }
+
+    @Operation(summary = "Set a new password from a reset token",
+            description = "Single use, one hour. Signs the account out everywhere.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "204", description = "Password changed."),
+        @ApiResponse(responseCode = "400", description = "invalid_reset_token, or weak_password.")
+    })
+    @PostMapping(path = "/password/reset", consumes = MediaType.APPLICATION_JSON_VALUE)
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    void resetPassword(@Valid @RequestBody ResetPasswordRequest request, HttpServletRequest http) {
+        passwordResetService.reset(request.token(), request.password(), clientIpOf(http));
     }
 
     /**

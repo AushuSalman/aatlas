@@ -58,4 +58,17 @@ record SignupRequest(
         @Schema(example = "both")
                 @NotNull(message = "Choose the seat you work in.")
                 SeatRole role) {
+
+    /**
+     * Trims the email before {@code @Email} sees it.
+     *
+     * <p>Bean validation runs against the record's accessors, after this constructor, so a
+     * client that pastes in a leading or trailing space gets a normal signup rather than a
+     * "not a valid email address" 400 - {@code email_normalised} already promises to be
+     * indifferent to exactly this, and the validation should not be stricter than the
+     * storage it is guarding.
+     */
+    SignupRequest {
+        email = email == null ? null : email.strip();
+    }
 }

@@ -4,6 +4,8 @@ import com.aatlas.common.error.ApiException;
 import com.aatlas.common.event.DomainEventPublisher;
 import com.aatlas.common.time.AatlasClock;
 import com.aatlas.identity.UserSignedUp;
+import com.aatlas.policy.PolicyReader;
+import com.aatlas.tenant.TenantDirectory;
 import com.aatlas.tenant.TenantProvisioning;
 import java.time.Instant;
 import org.slf4j.Logger;
@@ -16,9 +18,9 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * Creating an account.
  *
- * <p>One transaction writes three rows - the company, its first user, and the refresh
- * token that user leaves with - and enrols the {@code UserSignedUp} event in the same
- * commit through the outbox. Either all of it happened or none of it did; there is no
+ * <p>One transaction writes four rows - the company, its settings, its first user, and the
+ * refresh token that user leaves with - and enrols the {@code UserSignedUp} event in the
+ * same commit through the outbox. Either all of it happened or none of it did; there is no
  * state in which a company exists that nobody can sign in to.
  *
  * <p>Everything that does not have to happen before the response is deliberately not in
@@ -37,7 +39,9 @@ class SignupService {
     private final PasswordEncoder passwordEncoder;
     private final PasswordPolicy passwordPolicy;
     private final TokenService tokenService;
-    private final SignupRateLimiter rateLimiter;
+    private final AuthRateLimiter rateLimiter;
+    private final PolicyReader policy;
+    private final SessionViews sessions;
     private final DomainEventPublisher events;
     private final AatlasClock clock;
 
@@ -48,7 +52,9 @@ class SignupService {
             PasswordEncoder passwordEncoder,
             PasswordPolicy passwordPolicy,
             TokenService tokenService,
-            SignupRateLimiter rateLimiter,
+            AuthRateLimiter rateLimiter,
+            PolicyReader policy,
+            SessionViews sessions,
             DomainEventPublisher events,
             AatlasClock clock) {
         this.tenants = tenants;
@@ -58,6 +64,8 @@ class SignupService {
         this.passwordPolicy = passwordPolicy;
         this.tokenService = tokenService;
         this.rateLimiter = rateLimiter;
+        this.policy = policy;
+        this.sessions = sessions;
         this.events = events;
         this.clock = clock;
     }
@@ -73,7 +81,7 @@ class SignupService {
     AuthResponse signUp(SignupRequest request, String clientIp, String userAgent) {
         // Before BCrypt, not after: a rejected caller should cost a map lookup rather than
         // a tenth of a second of CPU.
-        rateLimiter.checkAndRecord(clientIp);
+        rateLimiter.checkAndRecord(AuthRateLimiter.Action.SIGNUP, clientIp);
 
         String email = request.email().strip();
         String emailNormalised = UserAccount.normalise(email);
@@ -89,12 +97,17 @@ class SignupService {
         TenantProvisioning.TenantView tenant = tenants.provision(
                 new TenantProvisioning.NewTenant(request.company(), request.country()));
 
+        // The title comes from role_policy, never from the form: a new tenant is on the
+        // platform defaults, so this is the persona's title as the seat picker showed it.
+        String title = policy.personaFor(tenant.id(), request.role().wireValue()).title();
+
         UserAccount user = new UserAccount(
                 tenant.id(),
                 email,
                 passwordEncoder.encode(request.password()),
                 request.fullName().strip().replaceAll("\\s+", " "),
-                request.role());
+                request.role(),
+                title);
 
         try {
             user = users.saveAndFlush(user);
@@ -108,7 +121,7 @@ class SignupService {
         Instant now = clock.now();
         TokenService.AccessToken accessToken =
                 tokenService.issueAccessToken(tenant.id(), user.getId(), user.getEmail(), user.getSeatRole());
-        TokenService.RefreshToken refreshToken = tokenService.issueRefreshToken();
+        TokenService.OpaqueToken refreshToken = tokenService.issueRefreshToken();
 
         refreshTokens.save(new RefreshTokenEntity(
                 tenant.id(),
@@ -125,25 +138,9 @@ class SignupService {
         // the account through the system.
         log.info("Signup complete: tenant={} user={} seat={}", tenant.id(), user.getId(), user.getSeatRole());
 
-        return AuthResponse.of(
-                accessToken,
-                refreshToken.value(),
-                new AuthResponse.SessionView(
-                        new AuthResponse.UserView(
-                                user.getId(),
-                                user.getFullName(),
-                                user.getEmail(),
-                                user.getTitle(),
-                                user.getSeatRole(),
-                                AuthResponse.initialsOf(user.getFullName())),
-                        tenant.name(),
-                        tenant.country(),
-                        tenant.tradingCurrency(),
-                        now,
-                        true,
-                        // A new tenant has no history to price from, so the client routes
-                        // to onboarding on exactly this being absent.
-                        null));
+        TenantDirectory.TenantInfo info = new TenantDirectory.TenantInfo(tenant.id(), tenant.name(), tenant.slug(),
+                "ACTIVE", tenant.country(), tenant.tradingCurrency(), now);
+        return AuthResponse.of(accessToken, refreshToken.value(), sessions.session(user, info, now, true));
     }
 
     /**
