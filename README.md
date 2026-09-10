@@ -4,7 +4,7 @@ Backend for the Aatlas decision-intelligence platform: what to charge, who to bu
 
 A **modular monolith** on Java 21 and Spring Boot — one deployable, sixteen modules whose boundaries are enforced at build time, with the compute-heavy work running out-of-band as workers. This is the scaffold described in `backend-blueprint.html`; the engines and endpoints land on top of it.
 
-> **Status: wave 1 (auth, tenant, policy, guardrails) landed on branch `wave1-auth`.** Infrastructure, configuration, module boundaries and the build are in place and verified. `identity`, `tenant` and `policy` now carry real endpoints and tables — see "Wave 1" below. The rest of the build order in the blueprint still arrives module by module.
+> **Status: wave 1 landed.** Infrastructure, configuration, module boundaries and the build are in place and verified. `identity` (signup, login, refresh, logout, password reset, `/me`), `tenant` (settings, reference data, FX), `policy` (role policy, guardrails), `catalog` and `ingest` (products, stores, regions, customers, sample-data provisioning), and `suppliers` (panel, terms, ratings, reviews, risk, lookup) all carry real endpoints and tables — see "Wave 1" below. The rest of the build order in the blueprint still arrives module by module.
 
 ---
 
@@ -188,9 +188,9 @@ Flyway owns the schema; Hibernate only validates against it (`ddl-auto: validate
 | `V5__policy_and_settings.sql` | `role_policy` (seeded from `seed/personas.json`), `tenant_settings`, `password_reset_tokens`; relaxes `tenants_currency_ck` to the full ten-currency set |
 | `V6__guardrails_and_fx.sql` | `pricing_guardrails`, `pricing_guardrail_history`, `fx_rate` (seeded from `seed/currencies.json`) |
 | `V7__catalog_and_data_sources.sql` | Regions/subdivisions, the logistics rate card, commodities (reference — not tenant-scoped); stores, products, product_stores, customers (catalogue — tenant-scoped); data_sources (catalog + ingest modules) |
-| `V8__suppliers.sql` | Suppliers, terms, ratings, reviews, risk, lookups, performance months (suppliers module) |
+| `V8__suppliers.sql` | `suppliers`, `supplier_terms`, `supplier_ratings`, `supplier_reviews`, `supplier_risk`, `supplier_lookups`, `supplier_performance_months` (suppliers module) |
 
-Business tables arrive with the modules that own them, so a table and the code reading it are reviewed together.
+Business tables arrive with the modules that own them, so a table and the code reading it are reviewed together. Migration numbers are reserved per builder and are not contiguous in any one worktree (V5–V7 belong to other in-flight modules).
 
 **Conventions** every business table follows: `id uuid` defaulted from `app.uuid_generate_v7()` (time-ordered, so inserts stay clustered instead of scattering a 24-month import across the whole index), `tenant_id uuid not null` as the first column of every composite index, `created_at` / `updated_at` / `version`, money as `numeric(14,4)` in USD with the currency beside it, and `jsonb` only for payloads rendered verbatim — anything filtered or sorted on is a real column.
 

@@ -1943,6 +1943,361 @@
 				},
 				"description": "Removes the source only. The catalogue it brought stays — run the products search above again and it still answers."
 			}
+		},
+		{
+			"name": "Suppliers — Signup a finance seat (for permission checks)",
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.collectionVariables.set('runEmail', 'finance-' + Date.now() + '@kestrelsupply.com');"
+						]
+					}
+				},
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('201 Created', () => pm.response.to.have.status(201));",
+							"pm.collectionVariables.set('financeAccessToken', pm.response.json().accessToken);"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/auth/signup",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"auth",
+						"signup"
+					]
+				},
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"fullName\": \"Sam Lee\",\n  \"email\": \"{{runEmail}}\",\n  \"password\": \"{{password}}\",\n  \"company\": \"Kestrel Supply Co.\",\n  \"country\": \"US\",\n  \"role\": \"finance\"\n}"
+				},
+				"description": "Finance is neither a buy seat nor the director, so it is the seat the two 403 requests below use. Run after the director's Signup request above (that one is what sets {{accessToken}})."
+			}
+		},
+		{
+			"name": "Suppliers — Seed the panel (happy path)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('200 OK', () => pm.response.to.have.status(200));",
+							"pm.test('seeded is a count', () => pm.expect(pm.response.json().seeded).to.be.a('number'));"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{accessToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/suppliers/seed",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"suppliers",
+						"seed"
+					]
+				},
+				"description": "Director only. Idempotent — eight the first time this tenant calls it, zero on every call after. Normally fired by the sample data source connecting; exposed directly so it can be exercised here."
+			}
+		},
+		{
+			"name": "Suppliers — 403 seed by a non-director seat",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('403 Forbidden', () => pm.response.to.have.status(403));",
+							"pm.test('carries a stable machine-readable code', () =>",
+							"  pm.expect(pm.response.json().code).to.eql('not_allowed'));"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{financeAccessToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/suppliers/seed",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"suppliers",
+						"seed"
+					]
+				},
+				"description": "Finance is not the commercial director."
+			}
+		},
+		{
+			"name": "Suppliers — Panel ranked by rating",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('200 OK', () => pm.response.to.have.status(200));",
+							"const items = pm.response.json().items;",
+							"pm.test('eight seeded suppliers, each with risk and currency', () => {",
+							"  pm.expect(items).to.have.lengthOf(8);",
+							"  pm.expect(items[0].risk).to.have.property('score');",
+							"  pm.expect(items[0].currency).to.be.a('string');",
+							"});",
+							"pm.test('ranked by rating, highest first', () => {",
+							"  for (let i = 1; i < items.length; i++) pm.expect(items[i - 1].rating).to.be.at.least(items[i].rating);",
+							"});",
+							"pm.test('the two ratings the brief pins', () => {",
+							"  const byName = Object.fromEntries(items.map((s) => [s.name, s.rating]));",
+							"  pm.expect(byName['Cascade Copper Mills']).to.eql(4.5);",
+							"  pm.expect(byName['Gulf States Polymer']).to.eql(3.0);",
+							"});"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{accessToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/suppliers",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"suppliers"
+					]
+				},
+				"description": "Run after \"Seed the panel\". Each row is the frontend's SupplierProfile plus the risk summary and currency columns the panel table adds."
+			}
+		},
+		{
+			"name": "Suppliers — Look a supplier up",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('200 OK', () => pm.response.to.have.status(200));",
+							"const body = pm.response.json();",
+							"pm.test('deterministic: this name always resolves to the same company', () =>",
+							"  pm.expect(body.profile.id).to.eql('cus-f26j4f'));",
+							"pm.collectionVariables.set('supplierLookupId', body.lookupId);"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{accessToken}}"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/suppliers/lookup",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"suppliers",
+						"lookup"
+					]
+				},
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"query\": \"Halden Metals Ltd\",\n  \"country\": \"UK\"\n}"
+				},
+				"description": "Nothing is fetched from the web — the profile, sources and reviews are synthesised deterministically from the name and country, and persisted so \"add\" references what was shown here."
+			}
+		},
+		{
+			"name": "Suppliers — Add the looked-up supplier (happy path)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('201 Created', () => pm.response.to.have.status(201));",
+							"pm.test('Location header points at the new supplier', () =>",
+							"  pm.expect(pm.response.headers.get('Location')).to.match(/\\/api\\/v1\\/suppliers\\/cus-/));",
+							"const body = pm.response.json();",
+							"pm.test('the profile added is the one that was looked up', () => {",
+							"  pm.expect(body.id).to.eql('cus-f26j4f');",
+							"  pm.expect(body.isCustom).to.be.true;",
+							"});"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{accessToken}}"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/suppliers",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"suppliers"
+					]
+				},
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"lookupId\": \"{{supplierLookupId}}\"\n}"
+				},
+				"description": "Buy seats (purchase manager, buyer, purchase head) and the commercial director only. Run after \"Look a supplier up\"."
+			}
+		},
+		{
+			"name": "Suppliers — 403 add by a non-buy seat",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('403 Forbidden', () => pm.response.to.have.status(403));",
+							"pm.test('carries a stable machine-readable code', () =>",
+							"  pm.expect(pm.response.json().code).to.eql('not_allowed'));"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{financeAccessToken}}"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/suppliers",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"suppliers"
+					]
+				},
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"lookupId\": \"{{supplierLookupId}}\"\n}"
+				},
+				"description": "Finance is neither a buy seat nor the director. The seat check runs before the lookup id is even resolved, so this 403s regardless of whose lookup id is sent."
+			}
+		},
+		{
+			"name": "Suppliers — 409 delete a seeded supplier",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('409 Conflict', () => pm.response.to.have.status(409));",
+							"pm.test('carries a stable machine-readable code', () =>",
+							"  pm.expect(pm.response.json().code).to.eql('seeded_supplier'));"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "DELETE",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{accessToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/suppliers/sup-2",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"suppliers",
+						"sup-2"
+					]
+				},
+				"description": "Only a supplier added from a lookup can be removed; sup-2 (Cascade Copper Mills) is part of the seeded panel."
+			}
 		}
 	]
 }
