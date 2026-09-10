@@ -12,12 +12,15 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Creates companies. The only writer of {@code tenants}.
+ * Creates companies. The only writer of {@code tenants} apart from {@link TenantService}.
  *
  * <p>{@link Propagation#MANDATORY} is the point of interest: provisioning must never run
  * on its own. Signup creates a company and its first user together, and a tenant with no
  * user is an orphan nobody can sign in to. Requiring a caller's transaction makes that a
  * startup-visible programming error rather than a row discovered months later.
+ *
+ * <p>Writes the {@code tenant_settings} row in the same breath, so "a tenant without
+ * settings" is not a state that exists.
  */
 @Service
 class TenantProvisioningService implements TenantProvisioning {
@@ -36,10 +39,12 @@ class TenantProvisioningService implements TenantProvisioning {
     private static final int MAX_SLUG_ATTEMPTS = 5;
 
     private final TenantRepository tenants;
+    private final TenantSettingsRepository settings;
     private final SecureRandom random = new SecureRandom();
 
-    TenantProvisioningService(TenantRepository tenants) {
+    TenantProvisioningService(TenantRepository tenants, TenantSettingsRepository settings) {
         this.tenants = tenants;
+        this.settings = settings;
     }
 
     @Override
@@ -49,11 +54,12 @@ class TenantProvisioningService implements TenantProvisioning {
         CountryCode country = command.country();
 
         TenantEntity saved = tenants.save(new TenantEntity(name, uniqueSlug(name), country));
+        settings.save(new TenantSettingsEntity(saved.getId(), country, country.tradingCurrency()));
         return new TenantView(
                 saved.getId(), saved.getName(), saved.getSlug(), saved.getCountry(), saved.getTradingCurrency());
     }
 
-    private static String cleanName(String raw) {
+    static String cleanName(String raw) {
         String name = raw == null ? "" : raw.strip();
         if (name.isEmpty()) {
             return DEFAULT_COMPANY_NAME;

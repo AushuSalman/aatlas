@@ -1,10 +1,12 @@
 package com.aatlas.identity.internal;
 
+import jakarta.persistence.LockModeType;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -14,6 +16,17 @@ interface RefreshTokenRepository extends JpaRepository<RefreshTokenEntity, UUID>
 
     /** The lookup every refresh performs. Backed by {@code refresh_tokens_hash_uk}. */
     Optional<RefreshTokenEntity> findByTokenHash(byte[] tokenHash);
+
+    /**
+     * The same lookup with a row lock, for rotation.
+     *
+     * <p>Two refreshes racing on one token must not both succeed: the second must see the
+     * first's {@code used_at} and be treated as reuse. {@code SELECT ... FOR UPDATE} makes
+     * the second wait for the first to commit, then read the spent row.
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select t from RefreshTokenEntity t where t.tokenHash = :hash")
+    Optional<RefreshTokenEntity> lockByTokenHash(@Param("hash") byte[] tokenHash);
 
     /** Live tokens for one user, newest first: the "signed-in devices" list. */
     List<RefreshTokenEntity> findByUserIdAndRevokedAtIsNullOrderByIssuedAtDesc(UUID userId);

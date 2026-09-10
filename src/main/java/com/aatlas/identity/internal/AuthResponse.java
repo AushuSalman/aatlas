@@ -8,7 +8,7 @@ import java.util.Locale;
 import java.util.UUID;
 
 /**
- * What a successful signup or sign-in returns.
+ * What a successful signup, sign-in or refresh returns.
  *
  * <p>Shaped to drop straight into the frontend's {@code Session} in
  * {@code src/lib/platform/types.ts}, so pointing the client at this API is a change to
@@ -32,9 +32,9 @@ record AuthResponse(
     /**
      * The signed-in state.
      *
-     * @param dataSource always null here. A new tenant has no transaction history, and a
-     *     pricing tool with nothing to price from has nothing to recommend, so the client
-     *     routes to onboarding on exactly this being absent.
+     * @param dataSource null until onboarding has connected one. A new tenant has no
+     *     transaction history, and a pricing tool with nothing to price from has nothing to
+     *     recommend, so the client routes to onboarding on exactly this being absent.
      */
     @Schema(name = "SessionView")
     record SessionView(
@@ -44,7 +44,7 @@ record AuthResponse(
             String currency,
             Instant signedInAt,
             boolean isNewAccount,
-            Object dataSource) {
+            DataSourceView dataSource) {
     }
 
     /** The person, as the header and the avatar need them. */

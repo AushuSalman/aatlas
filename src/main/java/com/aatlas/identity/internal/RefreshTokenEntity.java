@@ -83,6 +83,11 @@ public class RefreshTokenEntity extends TenantScopedEntity {
         return usedAt == null && revokedAt == null && expiresAt.isAfter(now);
     }
 
+    /** Spent or revoked: presenting it again is reuse, whatever the expiry says. */
+    boolean isSpent() {
+        return usedAt != null || revokedAt != null;
+    }
+
     void markUsed(Instant now, UUID successor) {
         this.usedAt = now;
         this.replacedBy = successor;
@@ -109,5 +114,9 @@ public class RefreshTokenEntity extends TenantScopedEntity {
 
     public Instant getRevokedAt() {
         return revokedAt;
+    }
+
+    public UUID getReplacedBy() {
+        return replacedBy;
     }
 }

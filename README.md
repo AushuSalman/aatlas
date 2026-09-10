@@ -4,7 +4,7 @@ Backend for the Aatlas decision-intelligence platform: what to charge, who to bu
 
 A **modular monolith** on Java 21 and Spring Boot — one deployable, sixteen modules whose boundaries are enforced at build time, with the compute-heavy work running out-of-band as workers. This is the scaffold described in `backend-blueprint.html`; the engines and endpoints land on top of it.
 
-> **Status: skeleton.** Infrastructure, configuration, module boundaries and the build are in place and verified. No business endpoints or entities yet — those arrive module by module, following the build order in the blueprint.
+> **Status: wave 1 (auth, tenant, policy, guardrails) landed on branch `wave1-auth`.** Infrastructure, configuration, module boundaries and the build are in place and verified. `identity`, `tenant` and `policy` now carry real endpoints and tables — see "Wave 1" below. The rest of the build order in the blueprint still arrives module by module.
 
 ---
 
@@ -66,6 +66,31 @@ Flyway applies the migrations on startup. On a fresh database you should see `V1
 ./mvnw test          # unit + architecture; no Docker needed
 ./mvnw verify        # adds the Testcontainers integration tests
 ```
+
+---
+
+## Wave 1 — auth, tenant, policy and guardrails
+
+Built on branch `wave1-auth`, on top of the signup and tenant-provisioning scaffold. Every route is `/api/v1/...`; the ones marked **public** are in `SecurityConfig.PUBLIC` and need no bearer token.
+
+**`identity`** (`V5` adds `password_reset_tokens`)
+- `POST /auth/login`, `/auth/refresh` (rotates; reusing a spent token revokes the whole family, `refresh_reused`), `/auth/logout` — all public.
+- `POST /auth/password/forgot` (always 202) and `/auth/password/reset` — public. `LogMailer` writes the reset link to the log; swap for SMTP before production.
+- `GET /me` — user, tenant, persona and data source in one round trip. `dataSource` is `null` until the `integrations` module's `data_sources` table (its `V7`) exists; `NoDataSourceYet` is the seam, with a `TODO(integrations)` marking where to plug in the real reader.
+
+**`policy`** (new module; `V5` adds `role_policy`, `V6` adds `pricing_guardrails` / `pricing_guardrail_history`)
+- `GET /roles` — the eight personas for the caller's tenant, merged from the platform defaults (`role_policy` rows with `tenant_id null`) and any per-tenant override.
+- `PolicyReader.personaFor(tenantId, role)` is the module's public API; `identity` calls it for `/me` and to fetch the persona's title at signup, `tenant` calls it for the rename permission.
+- `GET`/`PUT /guardrails`, `POST /guardrails/reset`, `GET /guardrails/history` — writes are refused (`403 not_allowed`) for any seat whose persona has `guardrails: false`; ranges are pinned to the frontend's `GUARDRAIL_FIELDS` by `GuardrailLimitsTest`.
+
+**`tenant`** (`V5` adds `tenant_settings`; `V6` adds `fx_rate`)
+- `GET`/`PATCH /tenant` — rename is restricted to heads of either side and the commercial director.
+- `GET`/`PUT /tenant/settings` — country and trading currency. `tenant_settings` is the source of truth since `V5`; `tenants.country` / `tenants.trading_currency` are a denormalised copy `TenantService` rewrites in the same transaction (kept because the session and reports already read from there). Currency accepts any of the ten codes in `seed/currencies.json`, not only the pair the country implies — `V5` relaxes `tenants_currency_ck` to match.
+- `GET /reference/countries` (public, `seed/countries.json` byte for byte, ETag) and `GET /reference/currencies` (public, static half from the seed joined to the live rate in `fx_rate`).
+
+**Two scaffold fixes, in `JwtConfig`:**
+- The `prod` profile now fails to start rather than minting an ephemeral RSA key pair when `JWT_PRIVATE_KEY` / `JWT_PUBLIC_KEY` are unset — a missing secret should be a page, not a pod that silently can't verify another pod's tokens.
+- The JWT decoder's expiry check is bound to `AatlasClock` rather than the system clock, so token minting and verification agree even when the clock is frozen for the demo tenant (and for every test) — see `docs/decisions.md`.
 
 ---
 
@@ -152,13 +177,16 @@ src/main/java/com/aatlas/
 
 ## Schema
 
-Flyway owns the schema; Hibernate only validates against it (`ddl-auto: validate`). Three migrations exist, all infrastructure:
+Flyway owns the schema; Hibernate only validates against it (`ddl-auto: validate`).
 
 | | |
 |---|---|
 | `V1__foundations.sql` | Extensions, `app.uuid_generate_v7()`, `app.current_tenant()`, `app.touch_updated_at()`, `app.enable_tenant_rls()`, ShedLock |
 | `V2__spring_batch.sql` | Batch metadata, verbatim from spring-batch-core |
 | `V3__event_publication.sql` | The outbox, verbatim from spring-modulith-events-jdbc |
+| `V4__identity.sql` | `tenants`, `users`, `refresh_tokens` |
+| `V5__policy_and_settings.sql` | `role_policy` (seeded from `seed/personas.json`), `tenant_settings`, `password_reset_tokens`; relaxes `tenants_currency_ck` to the full ten-currency set |
+| `V6__guardrails_and_fx.sql` | `pricing_guardrails`, `pricing_guardrail_history`, `fx_rate` (seeded from `seed/currencies.json`) |
 
 Business tables arrive with the modules that own them, so a table and the code reading it are reviewed together.
 

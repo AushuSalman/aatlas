@@ -24,15 +24,17 @@ public class TenantEntity extends BaseEntity {
     @Column(name = "slug", nullable = false, updatable = false)
     private String slug;
 
+    /**
+     * A copy of {@code tenant_settings.country_code}. Since V5 the settings row is the
+     * source of truth; this and {@link #tradingCurrency} are rewritten by
+     * {@code TenantService} in the same transaction as that row, and by nothing else.
+     * Kept because signup's session and every report already read them from here.
+     */
     @Enumerated(EnumType.STRING)
     @Column(name = "country", nullable = false, length = 2)
     private CountryCode country;
 
-    /**
-     * Denormalised from {@link CountryCode#tradingCurrency()} on purpose. Reports and
-     * exports read the currency a figure was recorded in; deriving it from the country
-     * at read time would silently rewrite history if a tenant ever moved country.
-     */
+    /** Copy of {@code tenant_settings.trading_currency}; see {@link #country}. */
     @Column(name = "trading_currency", nullable = false, length = 3)
     private String tradingCurrency;
 
@@ -50,6 +52,16 @@ public class TenantEntity extends BaseEntity {
         this.country = country;
         this.tradingCurrency = country.tradingCurrency();
         this.status = TenantStatus.ACTIVE;
+    }
+
+    void rename(String name) {
+        this.name = name;
+    }
+
+    /** Keeps the denormalised copy in step with {@code tenant_settings}. */
+    void mirror(TenantSettingsEntity settings) {
+        this.country = settings.getCountry();
+        this.tradingCurrency = settings.getTradingCurrency();
     }
 
     public String getName() {

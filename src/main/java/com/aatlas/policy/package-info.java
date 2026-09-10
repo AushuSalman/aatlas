@@ -1,5 +1,6 @@
 /**
- * Pricing guardrails and their change history.
+ * Policy: what each seat may do ({@code role_policy}), and the pricing guardrails every
+ * recommendation respects, with their change history.
  *
  * <p>Application module. Types in this package root are the public API other
  * modules may depend on; everything under it is internal.

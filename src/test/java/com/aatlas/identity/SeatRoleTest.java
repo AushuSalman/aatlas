@@ -3,7 +3,6 @@ package com.aatlas.identity;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -19,6 +18,11 @@ import org.junit.jupiter.params.provider.EnumSource;
  * enum have to agree exactly. Nothing in the compiler can check that, so the wire values
  * are pinned here: changing one without changing the other two fails this test rather than
  * producing an account nobody can sign in to.
+ *
+ * <p>{@code SeatRole} is deliberately just the closed set of keys now - title, approval
+ * limit, bulk and guardrails moved to {@code role_policy}, read through
+ * {@code com.aatlas.policy.PolicyReader}. That data is pinned instead by
+ * {@code com.aatlas.policy.internal.RolesIT} against the seeded rows.
  */
 class SeatRoleTest {
 
@@ -61,24 +65,4 @@ class SeatRoleTest {
         }
     }
 
-    @Test
-    @DisplayName("only the two seats with a ceiling carry an approval limit")
-    void approvalLimitsMatchThePersonas() {
-        assertThat(SeatRole.PURCHASE_MANAGER.approvalLimit()).contains(new BigDecimal("50000"));
-        assertThat(SeatRole.BUYER.approvalLimit()).contains(new BigDecimal("150000"));
-
-        // Heads approve without limit; the sell side and finance do not commit orders.
-        assertThat(SeatRole.PURCHASE_HEAD.approvalLimit()).isEmpty();
-        assertThat(SeatRole.SALES_HEAD.approvalLimit()).isEmpty();
-        assertThat(SeatRole.FINANCE.approvalLimit()).isEmpty();
-        assertThat(SeatRole.BOTH.approvalLimit()).isEmpty();
-    }
-
-    @Test
-    @DisplayName("every seat has a title, because signup stores it rather than asking")
-    void everySeatHasATitle() {
-        for (SeatRole role : SeatRole.values()) {
-            assertThat(role.title()).isNotBlank();
-        }
-    }
 }

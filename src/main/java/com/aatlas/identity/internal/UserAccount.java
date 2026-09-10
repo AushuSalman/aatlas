@@ -8,6 +8,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Locale;
 import java.util.UUID;
@@ -21,11 +22,18 @@ import java.util.UUID;
  *
  * <p>The class holds no password logic. It stores a hash it is handed and can tell you
  * whether the account is currently usable; comparing a candidate password and deciding
- * what a failure costs belong to the service that owns the login transaction.
+ * what a failure costs belong to the service that owns the login transaction. What it
+ * does own is the lockout arithmetic, because that is state on this row.
  */
 @Entity
 @Table(name = "users")
 public class UserAccount extends TenantScopedEntity {
+
+    /** Failed sign-ins before the account locks. Ten: generous for a person, useless for a script. */
+    static final int MAX_FAILED_LOGINS = 10;
+
+    /** How long a lock lasts. Short, because the point is to slow guessing, not to punish. */
+    static final Duration LOCK_FOR = Duration.ofMinutes(15);
 
     @Column(name = "email", nullable = false)
     private String email;
@@ -40,7 +48,7 @@ public class UserAccount extends TenantScopedEntity {
     @Column(name = "full_name", nullable = false)
     private String fullName;
 
-    /** Denormalised from the seat at signup so a later persona rename cannot rewrite it. */
+    /** Denormalised from the persona at signup so a later persona rename cannot rewrite it. */
     @Column(name = "title", nullable = false)
     private String title;
 
@@ -68,7 +76,7 @@ public class UserAccount extends TenantScopedEntity {
         // JPA
     }
 
-    UserAccount(UUID tenantId, String email, String passwordHash, String fullName, SeatRole seatRole) {
+    UserAccount(UUID tenantId, String email, String passwordHash, String fullName, SeatRole seatRole, String title) {
         // Set explicitly rather than left to the @PrePersist stamp: signup runs before any
         // tenant is bound to the thread, because the tenant is being created by the same
         // transaction that creates this row.
@@ -78,7 +86,7 @@ public class UserAccount extends TenantScopedEntity {
         this.passwordHash = passwordHash;
         this.fullName = fullName;
         this.seatRole = seatRole;
-        this.title = seatRole.title();
+        this.title = title;
         this.status = UserStatus.ACTIVE;
         this.emailVerified = false;
         this.failedLoginCount = 0;
@@ -103,6 +111,36 @@ public class UserAccount extends TenantScopedEntity {
 
     boolean isLocked(Instant now) {
         return lockedUntil != null && lockedUntil.isAfter(now);
+    }
+
+    /** A correct password: the counter resets and the lock, if any, clears. */
+    void recordSuccessfulLogin(Instant now) {
+        this.lastLoginAt = now;
+        this.failedLoginCount = 0;
+        this.lockedUntil = null;
+    }
+
+    /**
+     * A wrong password. Locks the account once {@link #MAX_FAILED_LOGINS} is reached and
+     * resets the counter, so the next window starts clean when the lock lifts.
+     *
+     * @return true if this failure locked the account
+     */
+    boolean recordFailedLogin(Instant now) {
+        this.failedLoginCount++;
+        if (this.failedLoginCount >= MAX_FAILED_LOGINS) {
+            this.lockedUntil = now.plus(LOCK_FOR);
+            this.failedLoginCount = 0;
+            return true;
+        }
+        return false;
+    }
+
+    /** A reset: the new hash takes effect and any lock is lifted, since the person proved control of the mailbox. */
+    void changePassword(String newPasswordHash) {
+        this.passwordHash = newPasswordHash;
+        this.failedLoginCount = 0;
+        this.lockedUntil = null;
     }
 
     public String getEmail() {
@@ -139,5 +177,9 @@ public class UserAccount extends TenantScopedEntity {
 
     public Instant getLastLoginAt() {
         return lastLoginAt;
+    }
+
+    public Instant getLockedUntil() {
+        return lockedUntil;
     }
 }
