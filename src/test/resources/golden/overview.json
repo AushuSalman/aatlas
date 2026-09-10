@@ -1,0 +1,3092 @@
+[
+ {
+  "fn": "getOverview",
+  "input": {},
+  "output": {
+   "sinceYesterday": {
+    "up": 10,
+    "down": 2,
+    "supplierChanges": 3,
+    "demandRegion": {
+     "label": "South",
+     "pct": 14.2,
+     "key": "south"
+    },
+    "opportunityTotal": 320625.54
+   },
+   "kpis": [
+    {
+     "key": "revenue",
+     "label": "Revenue",
+     "value": 22386464,
+     "format": "compact",
+     "deltaPct": 6.8,
+     "foot": "trailing twelve months"
+    },
+    {
+     "key": "margin",
+     "label": "Gross margin",
+     "value": 41,
+     "format": "pct",
+     "deltaPct": 1.4,
+     "foot": "across priced lines",
+     "tone": "good"
+    },
+    {
+     "key": "savings",
+     "label": "Procurement savings",
+     "value": 650111.05,
+     "format": "compact",
+     "foot": "realised on purchases at or under target",
+     "tone": "good"
+    },
+    {
+     "key": "opportunity",
+     "label": "Pricing opportunity",
+     "value": 193495.12,
+     "format": "compact",
+     "foot": "per month, at recommended prices"
+    },
+    {
+     "key": "inventory",
+     "label": "Inventory value",
+     "value": 6235156.839999999,
+     "format": "compact",
+     "foot": "4 branches overstocked"
+    },
+    {
+     "key": "adoption",
+     "label": "Recommendation adoption",
+     "value": 67,
+     "format": "pct",
+     "foot": "365 of 545 deals",
+     "tone": "good"
+    }
+   ],
+   "opportunities": [
+    {
+     "id": "raise",
+     "priority": "high",
+     "title": "Raise prices on 12 products",
+     "detail": "Largest single move: PVC Sanitary Tee 2\" at Dayton #100047, 22% below the recommendation.",
+     "impact": 193495.12,
+     "impactLabel": "/month",
+     "action": "Review and apply in bulk",
+     "href": "/app/sell/bulk?preset=raise",
+     "cta": "Review"
+    },
+    {
+     "id": "suppliers",
+     "priority": "procurement",
+     "title": "4 suppliers are priced above market",
+     "detail": "Anhui Precision Fittings accounts for $1,327,304 of it.",
+     "impact": 1525565.03,
+     "impactLabel": "/year",
+     "action": "Renegotiate or move the volume",
+     "href": "/app/buy/bulk",
+     "cta": "Review"
+    },
+    {
+     "id": "market",
+     "priority": "market",
+     "title": "Demand up 14% in the South",
+     "detail": "PEX-A Coupling 1\" is the fastest-growing line. 1 product needs more stock, 11 need a price change.",
+     "impact": 99478.19,
+     "impactLabel": "/month",
+     "action": "Increase inventory and adjust pricing",
+     "href": "/app/insights?region=south",
+     "cta": "View"
+    },
+    {
+     "id": "overstock",
+     "priority": "inventory",
+     "title": "4 branches are carrying too much stock",
+     "detail": "Fast-movement pricing on the heaviest lines frees working capital without breaking the margin floor.",
+     "impact": 74821.88,
+     "impactLabel": "/month",
+     "action": "Price to move",
+     "href": "/app/sell/bulk?store=100117&preset=overstock",
+     "cta": "Review"
+    }
+   ],
+   "risks": [
+    {
+     "id": "spike",
+     "level": "red",
+     "label": "Supplier price spike",
+     "count": 3,
+     "unit": "suppliers",
+     "detail": "Gulf States Polymer, Thermaline Systems",
+     "href": "/app/buy/bulk"
+    },
+    {
+     "id": "demand",
+     "level": "orange",
+     "label": "Demand decline",
+     "count": 3,
+     "unit": "products",
+     "detail": "Copper Tube 1/2\" Type L, Steel Nipple 1-1/4\"",
+     "href": "/app/products?filter=risk"
+    },
+    {
+     "id": "margin",
+     "level": "yellow",
+     "label": "Margin compression",
+     "count": 3,
+     "unit": "products",
+     "detail": "Under 26% gross margin somewhere in the network",
+     "href": "/app/products?filter=risk"
+    },
+    {
+     "id": "overstock",
+     "level": "yellow",
+     "label": "Inventory overstock",
+     "count": 4,
+     "unit": "branches",
+     "detail": "Austin, Seattle, Nashville, Denver",
+     "href": "/app/stores"
+    }
+   ],
+   "changes": [
+    {
+     "id": "c1",
+     "time": "10:32 AM",
+     "label": "Market price up for 10 products, led by 2 copper lines",
+     "tone": "up",
+     "href": "/app/products?sort=trend"
+    },
+    {
+     "id": "c2",
+     "time": "9:45 AM",
+     "label": "Gulf States Polymer raised its quote 5.9%",
+     "tone": "warn",
+     "href": "/app/buy/bulk"
+    },
+    {
+     "id": "c3",
+     "time": "9:20 AM",
+     "label": "Demand up 14% in the South",
+     "tone": "up",
+     "href": "/app/insights?region=south"
+    },
+    {
+     "id": "c4",
+     "time": "Yesterday",
+     "label": "PVC Sanitary Tee 2\" at Dayton #100047 fell 22% below the recommended price",
+     "tone": "info",
+     "href": "/app/sell?item=HRD290145&store=100047"
+    },
+    {
+     "id": "c5",
+     "time": "Yesterday",
+     "label": "AC Condensing Unit 3 ton crossed the 26% margin threshold",
+     "tone": "down",
+     "href": "/app/products?item=HRD983377"
+    },
+    {
+     "id": "c6",
+     "time": "2 days ago",
+     "label": "Market price softened for 2 steel and iron lines",
+     "tone": "down",
+     "href": "/app/products?sort=trend"
+    }
+   ],
+   "decisions": [],
+   "regions": [
+    {
+     "key": "west",
+     "label": "West",
+     "name": "West",
+     "storeIds": [
+      "100349",
+      "100649",
+      "100933"
+     ],
+     "stores": [
+      {
+       "storeId": "100349",
+       "label": "Phoenix #100349",
+       "city": "Phoenix",
+       "state": "AZ",
+       "regionKey": "west",
+       "regionLabel": "West",
+       "regionName": "West",
+       "revenue": 3917071,
+       "marginPct": 40.2,
+       "pricingAccuracyPct": 45,
+       "adoptionPct": 62,
+       "inventoryValue": 650261.9,
+       "inventoryRisk": "Medium",
+       "demandPct": 3.8,
+       "conversionPct": 70,
+       "health": "healthy",
+       "healthLabel": "Healthy",
+       "healthNote": "Margin, pricing accuracy and adoption all where they should be.",
+       "opportunities": [
+        {
+         "itemNumber": "HRD248813",
+         "name": "Steel Nipple 1-1/4\"",
+         "kind": "supplier",
+         "action": "Supplier renegotiation, 9% over target",
+         "impact": 8608.15,
+         "href": "/app/buy?item=HRD248813&region=west"
+        },
+        {
+         "itemNumber": "HRD248813",
+         "name": "Steel Nipple 1-1/4\"",
+         "kind": "price",
+         "action": "Increase price 16%",
+         "impact": 6604.56,
+         "href": "/app/sell?item=HRD248813&store=100349"
+        },
+        {
+         "itemNumber": "HRD118902",
+         "name": "Copper Tube 1/2\" Type L",
+         "kind": "demand",
+         "action": "Declining demand, review stock",
+         "impact": 4222.57,
+         "href": "/app/products?item=HRD118902"
+        },
+        {
+         "itemNumber": "HRD512066",
+         "name": "PEX-B Tubing 1/2\" (300 ft)",
+         "kind": "price",
+         "action": "Reduce price 9% to win volume",
+         "impact": 3071.88,
+         "href": "/app/sell?item=HRD512066&store=100349"
+        },
+        {
+         "itemNumber": "HRD661204",
+         "name": "PEX-A Coupling 1\"",
+         "kind": "price",
+         "action": "Increase price 9%",
+         "impact": 2750.88,
+         "href": "/app/sell?item=HRD661204&store=100349"
+        },
+        {
+         "itemNumber": "HRD512066",
+         "name": "PEX-B Tubing 1/2\" (300 ft)",
+         "kind": "inventory",
+         "action": "Overstocked, 20 weeks of cover",
+         "impact": 2624.91,
+         "href": "/app/sell/bulk?store=100349&preset=overstock"
+        }
+       ],
+       "products": [
+        {
+         "itemNumber": "HRD661204",
+         "name": "PEX-A Coupling 1\"",
+         "score": 81,
+         "tier": "strong",
+         "current": 58.72,
+         "recommended": 63.93
+        },
+        {
+         "itemNumber": "HRD335590",
+         "name": "Lavatory Faucet Chrome",
+         "score": 81,
+         "tier": "strong",
+         "current": 17.42,
+         "recommended": 17.35
+        },
+        {
+         "itemNumber": "HRD248813",
+         "name": "Steel Nipple 1-1/4\"",
+         "score": 81,
+         "tier": "strong",
+         "current": 1761.43,
+         "recommended": 2036.62
+        },
+        {
+         "itemNumber": "HRD772310",
+         "name": "Brass Ball Valve 3/4\"",
+         "score": 75,
+         "tier": "strong",
+         "current": 5.12,
+         "recommended": 5.44
+        },
+        {
+         "itemNumber": "HRD874019",
+         "name": "Cast Iron Coupling 4\"",
+         "score": 74,
+         "tier": "watch",
+         "current": 90.55,
+         "recommended": 78.25
+        },
+        {
+         "itemNumber": "HRD290145",
+         "name": "PVC Sanitary Tee 2\"",
+         "score": 68,
+         "tier": "watch",
+         "current": 185.67,
+         "recommended": 187.01
+        },
+        {
+         "itemNumber": "HRD983377",
+         "name": "AC Condensing Unit 3 ton",
+         "score": 68,
+         "tier": "watch",
+         "current": 8.82,
+         "recommended": 8.96
+        },
+        {
+         "itemNumber": "HRD304148",
+         "name": "CPVC Elbow 3/4\"",
+         "score": 49,
+         "tier": "watch",
+         "current": 11.39,
+         "recommended": 10.6
+        },
+        {
+         "itemNumber": "HRD450871",
+         "name": "Gas Water Heater 40 gal",
+         "score": 45,
+         "tier": "watch",
+         "current": 11.81,
+         "recommended": 11.25
+        },
+        {
+         "itemNumber": "HRD118902",
+         "name": "Copper Tube 1/2\" Type L",
+         "score": 32,
+         "tier": "risk",
+         "current": 118.29,
+         "recommended": 117.1
+        },
+        {
+         "itemNumber": "HRD512066",
+         "name": "PEX-B Tubing 1/2\" (300 ft)",
+         "score": 30,
+         "tier": "risk",
+         "current": 120.93,
+         "recommended": 109.8
+        }
+       ]
+      },
+      {
+       "storeId": "100649",
+       "label": "Seattle #100649",
+       "city": "Seattle",
+       "state": "WA",
+       "regionKey": "west",
+       "regionLabel": "West",
+       "regionName": "West",
+       "revenue": 1204374,
+       "marginPct": 39.8,
+       "pricingAccuracyPct": 40,
+       "adoptionPct": 65,
+       "inventoryValue": 724126.57,
+       "inventoryRisk": "High",
+       "demandPct": 1.7,
+       "conversionPct": 63,
+       "health": "healthy",
+       "healthLabel": "Healthy",
+       "healthNote": "Broadly on track. Inventory is heavy.",
+       "opportunities": [
+        {
+         "itemNumber": "HRD248813",
+         "name": "Steel Nipple 1-1/4\"",
+         "kind": "supplier",
+         "action": "Supplier renegotiation, 9% over target",
+         "impact": 14489.94,
+         "href": "/app/buy?item=HRD248813&region=west"
+        },
+        {
+         "itemNumber": "HRD450871",
+         "name": "Gas Water Heater 40 gal",
+         "kind": "price",
+         "action": "Increase price 14%",
+         "impact": 5408.49,
+         "href": "/app/sell?item=HRD450871&store=100649"
+        },
+        {
+         "itemNumber": "HRD661204",
+         "name": "PEX-A Coupling 1\"",
+         "kind": "price",
+         "action": "Reduce price 13% to win volume",
+         "impact": 3001.68,
+         "href": "/app/sell?item=HRD661204&store=100649"
+        },
+        {
+         "itemNumber": "HRD107744",
+         "name": "Copper Coil 3/4\" (100 ft)",
+         "kind": "price",
+         "action": "Increase price 9%",
+         "impact": 2730.5,
+         "href": "/app/sell?item=HRD107744&store=100649"
+        },
+        {
+         "itemNumber": "HRD118902",
+         "name": "Copper Tube 1/2\" Type L",
+         "kind": "price",
+         "action": "Reduce price 6% to win volume",
+         "impact": 2015.44,
+         "href": "/app/sell?item=HRD118902&store=100649"
+        },
+        {
+         "itemNumber": "HRD248813",
+         "name": "Steel Nipple 1-1/4\"",
+         "kind": "inventory",
+         "action": "Overstocked, 23 weeks of cover",
+         "impact": 1974.9,
+         "href": "/app/sell/bulk?store=100649&preset=overstock"
+        }
+       ],
+       "products": [
+        {
+         "itemNumber": "HRD772310",
+         "name": "Brass Ball Valve 3/4\"",
+         "score": 81,
+         "tier": "strong",
+         "current": 7.12,
+         "recommended": 7.55
+        },
+        {
+         "itemNumber": "HRD450871",
+         "name": "Gas Water Heater 40 gal",
+         "score": 75,
+         "tier": "strong",
+         "current": 10.05,
+         "recommended": 11.44
+        },
+        {
+         "itemNumber": "HRD661204",
+         "name": "PEX-A Coupling 1\"",
+         "score": 75,
+         "tier": "strong",
+         "current": 58.49,
+         "recommended": 50.91
+        },
+        {
+         "itemNumber": "HRD335590",
+         "name": "Lavatory Faucet Chrome",
+         "score": 70,
+         "tier": "watch",
+         "current": 16.15,
+         "recommended": 16.65
+        },
+        {
+         "itemNumber": "HRD107744",
+         "name": "Copper Coil 3/4\" (100 ft)",
+         "score": 65,
+         "tier": "watch",
+         "current": 45.96,
+         "recommended": 50.26
+        },
+        {
+         "itemNumber": "HRD874019",
+         "name": "Cast Iron Coupling 4\"",
+         "score": 64,
+         "tier": "watch",
+         "current": 81.03,
+         "recommended": 88.11
+        },
+        {
+         "itemNumber": "HRD248813",
+         "name": "Steel Nipple 1-1/4\"",
+         "score": 64,
+         "tier": "watch",
+         "current": 1764.75,
+         "recommended": 1805.03
+        },
+        {
+         "itemNumber": "HRD304148",
+         "name": "CPVC Elbow 3/4\"",
+         "score": 56,
+         "tier": "watch",
+         "current": 9.26,
+         "recommended": 9.23
+        },
+        {
+         "itemNumber": "HRD118902",
+         "name": "Copper Tube 1/2\" Type L",
+         "score": 52,
+         "tier": "watch",
+         "current": 124.44,
+         "recommended": 116.61
+        },
+        {
+         "itemNumber": "HRD290145",
+         "name": "PVC Sanitary Tee 2\"",
+         "score": 51,
+         "tier": "watch",
+         "current": 143.17,
+         "recommended": 136.4
+        }
+       ]
+      },
+      {
+       "storeId": "100933",
+       "label": "Denver #100933",
+       "city": "Denver",
+       "state": "CO",
+       "regionKey": "west",
+       "regionLabel": "West",
+       "regionName": "West",
+       "revenue": 1009797,
+       "marginPct": 46.9,
+       "pricingAccuracyPct": 33,
+       "adoptionPct": 75,
+       "inventoryValue": 759557.32,
+       "inventoryRisk": "High",
+       "demandPct": 5,
+       "conversionPct": 62,
+       "health": "watch",
+       "healthLabel": "Watch",
+       "healthNote": "Prices drift from the recommendation, inventory is heavy.",
+       "opportunities": [
+        {
+         "itemNumber": "HRD118902",
+         "name": "Copper Tube 1/2\" Type L",
+         "kind": "price",
+         "action": "Increase price 6%",
+         "impact": 6720,
+         "href": "/app/sell?item=HRD118902&store=100933"
+        },
+        {
+         "itemNumber": "HRD118902",
+         "name": "Copper Tube 1/2\" Type L",
+         "kind": "inventory",
+         "action": "Overstocked, 22 weeks of cover",
+         "impact": 5599.19,
+         "href": "/app/sell/bulk?store=100933&preset=overstock"
+        },
+        {
+         "itemNumber": "HRD512066",
+         "name": "PEX-B Tubing 1/2\" (300 ft)",
+         "kind": "price",
+         "action": "Increase price 11%",
+         "impact": 4463.9,
+         "href": "/app/sell?item=HRD512066&store=100933"
+        },
+        {
+         "itemNumber": "HRD304148",
+         "name": "CPVC Elbow 3/4\"",
+         "kind": "inventory",
+         "action": "Overstocked, 19 weeks of cover",
+         "impact": 1800.31,
+         "href": "/app/sell/bulk?store=100933&preset=overstock"
+        },
+        {
+         "itemNumber": "HRD335590",
+         "name": "Lavatory Faucet Chrome",
+         "kind": "demand",
+         "action": "Declining demand, review stock",
+         "impact": 1731.11,
+         "href": "/app/products?item=HRD335590"
+        },
+        {
+         "itemNumber": "HRD335590",
+         "name": "Lavatory Faucet Chrome",
+         "kind": "inventory",
+         "action": "Overstocked, 23 weeks of cover",
+         "impact": 1298.33,
+         "href": "/app/sell/bulk?store=100933&preset=overstock"
+        }
+       ],
+       "products": [
+        {
+         "itemNumber": "HRD450871",
+         "name": "Gas Water Heater 40 gal",
+         "score": 87,
+         "tier": "strong",
+         "current": 11.59,
+         "recommended": 11.7
+        },
+        {
+         "itemNumber": "HRD118902",
+         "name": "Copper Tube 1/2\" Type L",
+         "score": 81,
+         "tier": "strong",
+         "current": 142.72,
+         "recommended": 150.72
+        },
+        {
+         "itemNumber": "HRD512066",
+         "name": "PEX-B Tubing 1/2\" (300 ft)",
+         "score": 81,
+         "tier": "strong",
+         "current": 168.67,
+         "recommended": 186.89
+        },
+        {
+         "itemNumber": "HRD983377",
+         "name": "AC Condensing Unit 3 ton",
+         "score": 62,
+         "tier": "watch",
+         "current": 10.43,
+         "recommended": 9.29
+        },
+        {
+         "itemNumber": "HRD304148",
+         "name": "CPVC Elbow 3/4\"",
+         "score": 58,
+         "tier": "watch",
+         "current": 14.11,
+         "recommended": 14.25
+        },
+        {
+         "itemNumber": "HRD335590",
+         "name": "Lavatory Faucet Chrome",
+         "score": 51,
+         "tier": "watch",
+         "current": 24.25,
+         "recommended": 24.43
+        },
+        {
+         "itemNumber": "HRD290145",
+         "name": "PVC Sanitary Tee 2\"",
+         "score": 45,
+         "tier": "watch",
+         "current": 152.11,
+         "recommended": 144.77
+        },
+        {
+         "itemNumber": "HRD107744",
+         "name": "Copper Coil 3/4\" (100 ft)",
+         "score": 44,
+         "tier": "risk",
+         "current": 51.1,
+         "recommended": 47.59
+        },
+        {
+         "itemNumber": "HRD661204",
+         "name": "PEX-A Coupling 1\"",
+         "score": 21,
+         "tier": "risk",
+         "current": 50.59,
+         "recommended": 46.53
+        }
+       ]
+      }
+     ],
+     "revenue": 6131242,
+     "demandPct": 4.1,
+     "avgSellingPrice": 175.87,
+     "avgMarginPct": 42.3,
+     "conversionPct": 67,
+     "priceTrendPct": 2.8,
+     "inventoryRisk": "High",
+     "topCategory": "Plumbing",
+     "fastestGrowing": {
+      "itemNumber": "HRD450871",
+      "name": "Gas Water Heater 40 gal",
+      "pct": 17
+     },
+     "headline": "High margin",
+     "climateNote": "Dry heat and long build seasons: steady PEX and fittings volume at the best margins in the network.",
+     "actions": [
+      {
+       "label": "Increase inventory",
+       "count": 1,
+       "href": "/app/products?region=west&filter=strong"
+      },
+      {
+       "label": "Adjust prices",
+       "count": 9,
+       "href": "/app/sell/bulk?region=west"
+      },
+      {
+       "label": "Review suppliers",
+       "count": 4,
+       "href": "/app/buy/bulk?region=west"
+      }
+     ],
+     "raisePrices": [
+      "HRD772310",
+      "HRD661204",
+      "HRD248813",
+      "HRD450871",
+      "HRD874019",
+      "HRD335590",
+      "HRD107744",
+      "HRD118902",
+      "HRD512066"
+     ],
+     "increaseInventory": [
+      "HRD450871"
+     ],
+     "reviewSuppliers": [
+      "Cascade Copper Mills",
+      "Kotara Steel Products",
+      "Pacific Rim Tooling",
+      "Anhui Precision Fittings"
+     ]
+    },
+    {
+     "key": "north",
+     "label": "North",
+     "name": "North",
+     "storeIds": [
+      "100047",
+      "100571"
+     ],
+     "stores": [
+      {
+       "storeId": "100047",
+       "label": "Dayton #100047",
+       "city": "Dayton",
+       "state": "OH",
+       "regionKey": "north",
+       "regionLabel": "North",
+       "regionName": "North",
+       "revenue": 4881900,
+       "marginPct": 40.9,
+       "pricingAccuracyPct": 25,
+       "adoptionPct": 65,
+       "inventoryValue": 573170.34,
+       "inventoryRisk": "Medium",
+       "demandPct": -2.5,
+       "conversionPct": 52,
+       "health": "healthy",
+       "healthLabel": "Healthy",
+       "healthNote": "Broadly on track. Prices drift from the recommendation.",
+       "opportunities": [
+        {
+         "itemNumber": "HRD290145",
+         "name": "PVC Sanitary Tee 2\"",
+         "kind": "price",
+         "action": "Increase price 22%",
+         "impact": 27400.94,
+         "href": "/app/sell?item=HRD290145&store=100047"
+        },
+        {
+         "itemNumber": "HRD661204",
+         "name": "PEX-A Coupling 1\"",
+         "kind": "price",
+         "action": "Increase price 14%",
+         "impact": 5604.78,
+         "href": "/app/sell?item=HRD661204&store=100047"
+        },
+        {
+         "itemNumber": "HRD335590",
+         "name": "Lavatory Faucet Chrome",
+         "kind": "price",
+         "action": "Increase price 7%",
+         "impact": 4426.56,
+         "href": "/app/sell?item=HRD335590&store=100047"
+        },
+        {
+         "itemNumber": "HRD118902",
+         "name": "Copper Tube 1/2\" Type L",
+         "kind": "price",
+         "action": "Increase price 14%",
+         "impact": 3574.2,
+         "href": "/app/sell?item=HRD118902&store=100047"
+        },
+        {
+         "itemNumber": "HRD661204",
+         "name": "PEX-A Coupling 1\"",
+         "kind": "inventory",
+         "action": "Overstocked, 18 weeks of cover",
+         "impact": 1677.71,
+         "href": "/app/sell/bulk?store=100047&preset=overstock"
+        },
+        {
+         "itemNumber": "HRD983377",
+         "name": "AC Condensing Unit 3 ton",
+         "kind": "price",
+         "action": "Increase price 16%",
+         "impact": 1423.52,
+         "href": "/app/sell?item=HRD983377&store=100047"
+        }
+       ],
+       "products": [
+        {
+         "itemNumber": "HRD118902",
+         "name": "Copper Tube 1/2\" Type L",
+         "score": 80,
+         "tier": "strong",
+         "current": 135.23,
+         "recommended": 154.55
+        },
+        {
+         "itemNumber": "HRD335590",
+         "name": "Lavatory Faucet Chrome",
+         "score": 80,
+         "tier": "strong",
+         "current": 22.58,
+         "recommended": 24.17
+        },
+        {
+         "itemNumber": "HRD983377",
+         "name": "AC Condensing Unit 3 ton",
+         "score": 75,
+         "tier": "strong",
+         "current": 7.03,
+         "recommended": 8.15
+        },
+        {
+         "itemNumber": "HRD290145",
+         "name": "PVC Sanitary Tee 2\"",
+         "score": 74,
+         "tier": "watch",
+         "current": 160.37,
+         "recommended": 194.88
+        },
+        {
+         "itemNumber": "HRD874019",
+         "name": "Cast Iron Coupling 4\"",
+         "score": 70,
+         "tier": "watch",
+         "current": 89.2,
+         "recommended": 88.68
+        },
+        {
+         "itemNumber": "HRD450871",
+         "name": "Gas Water Heater 40 gal",
+         "score": 63,
+         "tier": "watch",
+         "current": 12.99,
+         "recommended": 12.14
+        },
+        {
+         "itemNumber": "HRD512066",
+         "name": "PEX-B Tubing 1/2\" (300 ft)",
+         "score": 62,
+         "tier": "watch",
+         "current": 121.94,
+         "recommended": 127.84
+        },
+        {
+         "itemNumber": "HRD661204",
+         "name": "PEX-A Coupling 1\"",
+         "score": 59,
+         "tier": "watch",
+         "current": 45.56,
+         "recommended": 52.1
+        }
+       ]
+      },
+      {
+       "storeId": "100571",
+       "label": "Elkhart #100571",
+       "city": "Elkhart",
+       "state": "IN",
+       "regionKey": "north",
+       "regionLabel": "North",
+       "regionName": "North",
+       "revenue": 933910,
+       "marginPct": 41.7,
+       "pricingAccuracyPct": 56,
+       "adoptionPct": 64,
+       "inventoryValue": 784385.24,
+       "inventoryRisk": "Medium",
+       "demandPct": -5.4,
+       "conversionPct": 48,
+       "health": "healthy",
+       "healthLabel": "Healthy",
+       "healthNote": "Margin, pricing accuracy and adoption all where they should be.",
+       "opportunities": [
+        {
+         "itemNumber": "HRD248813",
+         "name": "Steel Nipple 1-1/4\"",
+         "kind": "supplier",
+         "action": "Supplier renegotiation, 11% over target",
+         "impact": 30933.65,
+         "href": "/app/buy?item=HRD248813&region=north"
+        },
+        {
+         "itemNumber": "HRD118902",
+         "name": "Copper Tube 1/2\" Type L",
+         "kind": "price",
+         "action": "Reduce price 29% to win volume",
+         "impact": 20585.27,
+         "href": "/app/sell?item=HRD118902&store=100571"
+        },
+        {
+         "itemNumber": "HRD450871",
+         "name": "Gas Water Heater 40 gal",
+         "kind": "price",
+         "action": "Increase price 8%",
+         "impact": 4257.63,
+         "href": "/app/sell?item=HRD450871&store=100571"
+        },
+        {
+         "itemNumber": "HRD512066",
+         "name": "PEX-B Tubing 1/2\" (300 ft)",
+         "kind": "demand",
+         "action": "Declining demand, review stock",
+         "impact": 4130.68,
+         "href": "/app/products?item=HRD512066"
+        },
+        {
+         "itemNumber": "HRD118902",
+         "name": "Copper Tube 1/2\" Type L",
+         "kind": "demand",
+         "action": "Declining demand, review stock",
+         "impact": 2943.9,
+         "href": "/app/products?item=HRD118902"
+        },
+        {
+         "itemNumber": "HRD335590",
+         "name": "Lavatory Faucet Chrome",
+         "kind": "inventory",
+         "action": "Overstocked, 22 weeks of cover",
+         "impact": 2298.76,
+         "href": "/app/sell/bulk?store=100571&preset=overstock"
+        }
+       ],
+       "products": [
+        {
+         "itemNumber": "HRD450871",
+         "name": "Gas Water Heater 40 gal",
+         "score": 76,
+         "tier": "strong",
+         "current": 14.84,
+         "recommended": 16.01
+        },
+        {
+         "itemNumber": "HRD304148",
+         "name": "CPVC Elbow 3/4\"",
+         "score": 53,
+         "tier": "watch",
+         "current": 11.96,
+         "recommended": 12.37
+        },
+        {
+         "itemNumber": "HRD874019",
+         "name": "Cast Iron Coupling 4\"",
+         "score": 51,
+         "tier": "watch",
+         "current": 117.14,
+         "recommended": 113.04
+        },
+        {
+         "itemNumber": "HRD248813",
+         "name": "Steel Nipple 1-1/4\"",
+         "score": 46,
+         "tier": "watch",
+         "current": 1462.68,
+         "recommended": 1470.98
+        },
+        {
+         "itemNumber": "HRD772310",
+         "name": "Brass Ball Valve 3/4\"",
+         "score": 44,
+         "tier": "risk",
+         "current": 7.52,
+         "recommended": 5.56
+        },
+        {
+         "itemNumber": "HRD512066",
+         "name": "PEX-B Tubing 1/2\" (300 ft)",
+         "score": 38,
+         "tier": "risk",
+         "current": 122.85,
+         "recommended": 119.52
+        },
+        {
+         "itemNumber": "HRD118902",
+         "name": "Copper Tube 1/2\" Type L",
+         "score": 36,
+         "tier": "risk",
+         "current": 170.81,
+         "recommended": 120.43
+        },
+        {
+         "itemNumber": "HRD335590",
+         "name": "Lavatory Faucet Chrome",
+         "score": 33,
+         "tier": "risk",
+         "current": 20.42,
+         "recommended": 19.91
+        },
+        {
+         "itemNumber": "HRD661204",
+         "name": "PEX-A Coupling 1\"",
+         "score": 7,
+         "tier": "risk",
+         "current": 44.01,
+         "recommended": 41.17
+        }
+       ]
+      }
+     ],
+     "revenue": 5815810,
+     "demandPct": -2.6,
+     "avgSellingPrice": 151.01,
+     "avgMarginPct": 41.3,
+     "conversionPct": 52,
+     "priceTrendPct": 1.2,
+     "inventoryRisk": "Medium",
+     "topCategory": "Plumbing",
+     "fastestGrowing": {
+      "itemNumber": "HRD118902",
+      "name": "Copper Tube 1/2\" Type L",
+      "pct": 15.1
+     },
+     "headline": "Low conversion",
+     "climateNote": "Cold winters and a short build season: heating and copper spike in autumn, then the quotes go quiet.",
+     "actions": [
+      {
+       "label": "Increase inventory",
+       "count": 1,
+       "href": "/app/products?region=north&filter=strong"
+      },
+      {
+       "label": "Adjust prices",
+       "count": 8,
+       "href": "/app/sell/bulk?region=north"
+      },
+      {
+       "label": "Review suppliers",
+       "count": 4,
+       "href": "/app/buy/bulk?region=north"
+      }
+     ],
+     "raisePrices": [
+      "HRD118902",
+      "HRD290145",
+      "HRD661204",
+      "HRD983377",
+      "HRD512066",
+      "HRD335590",
+      "HRD304148",
+      "HRD450871"
+     ],
+     "increaseInventory": [
+      "HRD118902"
+     ],
+     "reviewSuppliers": [
+      "Pacific Rim Tooling",
+      "Cascade Copper Mills",
+      "Kotara Steel Products",
+      "Anhui Precision Fittings"
+     ]
+    },
+    {
+     "key": "south",
+     "label": "South",
+     "name": "South",
+     "storeIds": [
+      "100117",
+      "100812",
+      "100959"
+     ],
+     "stores": [
+      {
+       "storeId": "100117",
+       "label": "Austin #100117",
+       "city": "Austin",
+       "state": "TX",
+       "regionKey": "south",
+       "regionLabel": "South",
+       "regionName": "South",
+       "revenue": 1427502,
+       "marginPct": 42.5,
+       "pricingAccuracyPct": 50,
+       "adoptionPct": 54,
+       "inventoryValue": 748306.76,
+       "inventoryRisk": "High",
+       "demandPct": 16.5,
+       "conversionPct": 76,
+       "health": "watch",
+       "healthLabel": "Watch",
+       "healthNote": "Too many recommendations are ignored, inventory is heavy.",
+       "opportunities": [
+        {
+         "itemNumber": "HRD118902",
+         "name": "Copper Tube 1/2\" Type L",
+         "kind": "price",
+         "action": "Reduce price 30% to win volume",
+         "impact": 17339.56,
+         "href": "/app/sell?item=HRD118902&store=100117"
+        },
+        {
+         "itemNumber": "HRD248813",
+         "name": "Steel Nipple 1-1/4\"",
+         "kind": "supplier",
+         "action": "Supplier renegotiation, 10% over target",
+         "impact": 15029.88,
+         "href": "/app/buy?item=HRD248813&region=south"
+        },
+        {
+         "itemNumber": "HRD335590",
+         "name": "Lavatory Faucet Chrome",
+         "kind": "price",
+         "action": "Increase price 10%",
+         "impact": 6427.44,
+         "href": "/app/sell?item=HRD335590&store=100117"
+        },
+        {
+         "itemNumber": "HRD304148",
+         "name": "CPVC Elbow 3/4\"",
+         "kind": "price",
+         "action": "Increase price 15%",
+         "impact": 2938.32,
+         "href": "/app/sell?item=HRD304148&store=100117"
+        },
+        {
+         "itemNumber": "HRD118902",
+         "name": "Copper Tube 1/2\" Type L",
+         "kind": "demand",
+         "action": "Declining demand, review stock",
+         "impact": 2200.49,
+         "href": "/app/products?item=HRD118902"
+        },
+        {
+         "itemNumber": "HRD512066",
+         "name": "PEX-B Tubing 1/2\" (300 ft)",
+         "kind": "inventory",
+         "action": "Overstocked, 17 weeks of cover",
+         "impact": 2164.16,
+         "href": "/app/sell/bulk?store=100117&preset=overstock"
+        }
+       ],
+       "products": [
+        {
+         "itemNumber": "HRD290145",
+         "name": "PVC Sanitary Tee 2\"",
+         "score": 92,
+         "tier": "strong",
+         "current": 130.18,
+         "recommended": 130.52
+        },
+        {
+         "itemNumber": "HRD335590",
+         "name": "Lavatory Faucet Chrome",
+         "score": 85,
+         "tier": "strong",
+         "current": 16.41,
+         "recommended": 17.99
+        },
+        {
+         "itemNumber": "HRD661204",
+         "name": "PEX-A Coupling 1\"",
+         "score": 75,
+         "tier": "strong",
+         "current": 49.78,
+         "recommended": 56.39
+        },
+        {
+         "itemNumber": "HRD772310",
+         "name": "Brass Ball Valve 3/4\"",
+         "score": 65,
+         "tier": "watch",
+         "current": 7.36,
+         "recommended": 7.44
+        },
+        {
+         "itemNumber": "HRD107744",
+         "name": "Copper Coil 3/4\" (100 ft)",
+         "score": 65,
+         "tier": "watch",
+         "current": 46.55,
+         "recommended": 46.34
+        },
+        {
+         "itemNumber": "HRD983377",
+         "name": "AC Condensing Unit 3 ton",
+         "score": 62,
+         "tier": "watch",
+         "current": 7.5,
+         "recommended": 8.12
+        },
+        {
+         "itemNumber": "HRD248813",
+         "name": "Steel Nipple 1-1/4\"",
+         "score": 57,
+         "tier": "watch",
+         "current": 1460.04,
+         "recommended": 1466.13
+        },
+        {
+         "itemNumber": "HRD304148",
+         "name": "CPVC Elbow 3/4\"",
+         "score": 39,
+         "tier": "risk",
+         "current": 14.61,
+         "recommended": 16.73
+        },
+        {
+         "itemNumber": "HRD118902",
+         "name": "Copper Tube 1/2\" Type L",
+         "score": 36,
+         "tier": "risk",
+         "current": 179.16,
+         "recommended": 124.53
+        },
+        {
+         "itemNumber": "HRD512066",
+         "name": "PEX-B Tubing 1/2\" (300 ft)",
+         "score": 29,
+         "tier": "risk",
+         "current": 173.79,
+         "recommended": 168.12
+        }
+       ]
+      },
+      {
+       "storeId": "100812",
+       "label": "Nashville #100812",
+       "city": "Nashville",
+       "state": "TN",
+       "regionKey": "south",
+       "regionLabel": "South",
+       "regionName": "South",
+       "revenue": 3007022,
+       "marginPct": 41.2,
+       "pricingAccuracyPct": 30,
+       "adoptionPct": 77,
+       "inventoryValue": 651134.53,
+       "inventoryRisk": "High",
+       "demandPct": 16.5,
+       "conversionPct": 70,
+       "health": "watch",
+       "healthLabel": "Watch",
+       "healthNote": "Prices drift from the recommendation, inventory is heavy.",
+       "opportunities": [
+        {
+         "itemNumber": "HRD107744",
+         "name": "Copper Coil 3/4\" (100 ft)",
+         "kind": "price",
+         "action": "Increase price 27%",
+         "impact": 8152.62,
+         "href": "/app/sell?item=HRD107744&store=100812"
+        },
+        {
+         "itemNumber": "HRD118902",
+         "name": "Copper Tube 1/2\" Type L",
+         "kind": "price",
+         "action": "Increase price 10%",
+         "impact": 7425.6,
+         "href": "/app/sell?item=HRD118902&store=100812"
+        },
+        {
+         "itemNumber": "HRD248813",
+         "name": "Steel Nipple 1-1/4\"",
+         "kind": "supplier",
+         "action": "Supplier renegotiation, 11% over target",
+         "impact": 6131.61,
+         "href": "/app/buy?item=HRD248813&region=south"
+        },
+        {
+         "itemNumber": "HRD290145",
+         "name": "PVC Sanitary Tee 2\"",
+         "kind": "demand",
+         "action": "Declining demand, review stock",
+         "impact": 4362.67,
+         "href": "/app/products?item=HRD290145"
+        },
+        {
+         "itemNumber": "HRD290145",
+         "name": "PVC Sanitary Tee 2\"",
+         "kind": "inventory",
+         "action": "Overstocked, 20 weeks of cover",
+         "impact": 3272,
+         "href": "/app/sell/bulk?store=100812&preset=overstock"
+        },
+        {
+         "itemNumber": "HRD450871",
+         "name": "Gas Water Heater 40 gal",
+         "kind": "price",
+         "action": "Increase price 7%",
+         "impact": 3211.65,
+         "href": "/app/sell?item=HRD450871&store=100812"
+        }
+       ],
+       "products": [
+        {
+         "itemNumber": "HRD983377",
+         "name": "AC Condensing Unit 3 ton",
+         "score": 82,
+         "tier": "strong",
+         "current": 8.13,
+         "recommended": 9.94
+        },
+        {
+         "itemNumber": "HRD118902",
+         "name": "Copper Tube 1/2\" Type L",
+         "score": 75,
+         "tier": "strong",
+         "current": 148.27,
+         "recommended": 162.55
+        },
+        {
+         "itemNumber": "HRD107744",
+         "name": "Copper Coil 3/4\" (100 ft)",
+         "score": 73,
+         "tier": "watch",
+         "current": 36.18,
+         "recommended": 46.05
+        },
+        {
+         "itemNumber": "HRD450871",
+         "name": "Gas Water Heater 40 gal",
+         "score": 71,
+         "tier": "watch",
+         "current": 10.85,
+         "recommended": 11.66
+        },
+        {
+         "itemNumber": "HRD772310",
+         "name": "Brass Ball Valve 3/4\"",
+         "score": 70,
+         "tier": "watch",
+         "current": 7.29,
+         "recommended": 8.17
+        },
+        {
+         "itemNumber": "HRD304148",
+         "name": "CPVC Elbow 3/4\"",
+         "score": 69,
+         "tier": "watch",
+         "current": 14.62,
+         "recommended": 16.58
+        },
+        {
+         "itemNumber": "HRD335590",
+         "name": "Lavatory Faucet Chrome",
+         "score": 54,
+         "tier": "watch",
+         "current": 19.74,
+         "recommended": 19.62
+        },
+        {
+         "itemNumber": "HRD290145",
+         "name": "PVC Sanitary Tee 2\"",
+         "score": 45,
+         "tier": "watch",
+         "current": 165.43,
+         "recommended": 170.99
+        },
+        {
+         "itemNumber": "HRD661204",
+         "name": "PEX-A Coupling 1\"",
+         "score": 40,
+         "tier": "risk",
+         "current": 42.71,
+         "recommended": 41.43
+        },
+        {
+         "itemNumber": "HRD248813",
+         "name": "Steel Nipple 1-1/4\"",
+         "score": 5,
+         "tier": "risk",
+         "current": 1521.48,
+         "recommended": 1441.31
+        }
+       ]
+      },
+      {
+       "storeId": "100959",
+       "label": "Dallas #100959",
+       "city": "Dallas",
+       "state": "TX",
+       "regionKey": "south",
+       "regionLabel": "South",
+       "regionName": "South",
+       "revenue": 4322359,
+       "marginPct": 37.5,
+       "pricingAccuracyPct": 29,
+       "adoptionPct": 58,
+       "inventoryValue": 525395.23,
+       "inventoryRisk": "Medium",
+       "demandPct": 15,
+       "conversionPct": 75,
+       "health": "watch",
+       "healthLabel": "Watch",
+       "healthNote": "Prices drift from the recommendation, too many recommendations are ignored.",
+       "opportunities": [
+        {
+         "itemNumber": "HRD248813",
+         "name": "Steel Nipple 1-1/4\"",
+         "kind": "supplier",
+         "action": "Supplier renegotiation, 10% over target",
+         "impact": 15691.81,
+         "href": "/app/buy?item=HRD248813&region=south"
+        },
+        {
+         "itemNumber": "HRD118902",
+         "name": "Copper Tube 1/2\" Type L",
+         "kind": "price",
+         "action": "Increase price 11%",
+         "impact": 12661.66,
+         "href": "/app/sell?item=HRD118902&store=100959"
+        },
+        {
+         "itemNumber": "HRD661204",
+         "name": "PEX-A Coupling 1\"",
+         "kind": "price",
+         "action": "Increase price 31%",
+         "impact": 11111.04,
+         "href": "/app/sell?item=HRD661204&store=100959"
+        },
+        {
+         "itemNumber": "HRD248813",
+         "name": "Steel Nipple 1-1/4\"",
+         "kind": "price",
+         "action": "Increase price 16%",
+         "impact": 4209.88,
+         "href": "/app/sell?item=HRD248813&store=100959"
+        },
+        {
+         "itemNumber": "HRD874019",
+         "name": "Cast Iron Coupling 4\"",
+         "kind": "price",
+         "action": "Reduce price 24% to win volume",
+         "impact": 3083.22,
+         "href": "/app/sell?item=HRD874019&store=100959"
+        },
+        {
+         "itemNumber": "HRD661204",
+         "name": "PEX-A Coupling 1\"",
+         "kind": "demand",
+         "action": "Declining demand, review stock",
+         "impact": 2760.67,
+         "href": "/app/products?item=HRD661204"
+        }
+       ],
+       "products": [
+        {
+         "itemNumber": "HRD118902",
+         "name": "Copper Tube 1/2\" Type L",
+         "score": 97,
+         "tier": "strong",
+         "current": 128.66,
+         "recommended": 143.4
+        },
+        {
+         "itemNumber": "HRD450871",
+         "name": "Gas Water Heater 40 gal",
+         "score": 81,
+         "tier": "strong",
+         "current": 13.78,
+         "recommended": 14.65
+        },
+        {
+         "itemNumber": "HRD248813",
+         "name": "Steel Nipple 1-1/4\"",
+         "score": 69,
+         "tier": "watch",
+         "current": 1557.33,
+         "recommended": 1804.97
+        },
+        {
+         "itemNumber": "HRD512066",
+         "name": "PEX-B Tubing 1/2\" (300 ft)",
+         "score": 68,
+         "tier": "watch",
+         "current": 137.7,
+         "recommended": 140.6
+        },
+        {
+         "itemNumber": "HRD661204",
+         "name": "PEX-A Coupling 1\"",
+         "score": 34,
+         "tier": "risk",
+         "current": 41.42,
+         "recommended": 54.28
+        },
+        {
+         "itemNumber": "HRD304148",
+         "name": "CPVC Elbow 3/4\"",
+         "score": 32,
+         "tier": "risk",
+         "current": 11.25,
+         "recommended": 11.28
+        },
+        {
+         "itemNumber": "HRD874019",
+         "name": "Cast Iron Coupling 4\"",
+         "score": 27,
+         "tier": "risk",
+         "current": 103.04,
+         "recommended": 78.57
+        }
+       ]
+      }
+     ],
+     "revenue": 8756883,
+     "demandPct": 14.2,
+     "avgSellingPrice": 224.19,
+     "avgMarginPct": 40.4,
+     "conversionPct": 71,
+     "priceTrendPct": 1.6,
+     "inventoryRisk": "High",
+     "topCategory": "Plumbing",
+     "fastestGrowing": {
+      "itemNumber": "HRD661204",
+      "name": "PEX-A Coupling 1\"",
+      "pct": 16.7
+     },
+     "headline": "High demand",
+     "climateNote": "Hot, humid summers: cooling season drives HVAC, PVC and water-heater demand.",
+     "actions": [
+      {
+       "label": "Increase inventory",
+       "count": 1,
+       "href": "/app/products?region=south&filter=strong"
+      },
+      {
+       "label": "Adjust prices",
+       "count": 11,
+       "href": "/app/sell/bulk?region=south"
+      },
+      {
+       "label": "Review suppliers",
+       "count": 4,
+       "href": "/app/buy/bulk?region=south"
+      }
+     ],
+     "raisePrices": [
+      "HRD304148",
+      "HRD661204",
+      "HRD983377",
+      "HRD335590",
+      "HRD118902",
+      "HRD772310",
+      "HRD450871",
+      "HRD290145",
+      "HRD107744",
+      "HRD512066",
+      "HRD248813"
+     ],
+     "increaseInventory": [
+      "HRD107744"
+     ],
+     "reviewSuppliers": [
+      "Cascade Copper Mills",
+      "Kotara Steel Products",
+      "Pacific Rim Tooling",
+      "Anhui Precision Fittings"
+     ]
+    },
+    {
+     "key": "east",
+     "label": "East",
+     "name": "East",
+     "storeIds": [
+      "100205"
+     ],
+     "stores": [
+      {
+       "storeId": "100205",
+       "label": "Charlotte #100205",
+       "city": "Charlotte",
+       "state": "NC",
+       "regionKey": "east",
+       "regionLabel": "East",
+       "regionName": "East",
+       "revenue": 1682529,
+       "marginPct": 43.9,
+       "pricingAccuracyPct": 40,
+       "adoptionPct": 89,
+       "inventoryValue": 818818.95,
+       "inventoryRisk": "Medium",
+       "demandPct": 9,
+       "conversionPct": 63,
+       "health": "healthy",
+       "healthLabel": "Healthy",
+       "healthNote": "Margin, pricing accuracy and adoption all where they should be.",
+       "opportunities": [
+        {
+         "itemNumber": "HRD248813",
+         "name": "Steel Nipple 1-1/4\"",
+         "kind": "supplier",
+         "action": "Supplier renegotiation, 11% over target",
+         "impact": 19723.63,
+         "href": "/app/buy?item=HRD248813&region=east"
+        },
+        {
+         "itemNumber": "HRD290145",
+         "name": "PVC Sanitary Tee 2\"",
+         "kind": "price",
+         "action": "Increase price 9%",
+         "impact": 12909.67,
+         "href": "/app/sell?item=HRD290145&store=100205"
+        },
+        {
+         "itemNumber": "HRD118902",
+         "name": "Copper Tube 1/2\" Type L",
+         "kind": "price",
+         "action": "Increase price 11%",
+         "impact": 10686.5,
+         "href": "/app/sell?item=HRD118902&store=100205"
+        },
+        {
+         "itemNumber": "HRD290145",
+         "name": "PVC Sanitary Tee 2\"",
+         "kind": "inventory",
+         "action": "Overstocked, 16 weeks of cover",
+         "impact": 4312.42,
+         "href": "/app/sell/bulk?store=100205&preset=overstock"
+        },
+        {
+         "itemNumber": "HRD983377",
+         "name": "AC Condensing Unit 3 ton",
+         "kind": "price",
+         "action": "Increase price 13%",
+         "impact": 3346,
+         "href": "/app/sell?item=HRD983377&store=100205"
+        },
+        {
+         "itemNumber": "HRD661204",
+         "name": "PEX-A Coupling 1\"",
+         "kind": "price",
+         "action": "Increase price 18%",
+         "impact": 2913.68,
+         "href": "/app/sell?item=HRD661204&store=100205"
+        }
+       ],
+       "products": [
+        {
+         "itemNumber": "HRD107744",
+         "name": "Copper Coil 3/4\" (100 ft)",
+         "score": 85,
+         "tier": "strong",
+         "current": 47.87,
+         "recommended": 51.91
+        },
+        {
+         "itemNumber": "HRD290145",
+         "name": "PVC Sanitary Tee 2\"",
+         "score": 75,
+         "tier": "strong",
+         "current": 165.41,
+         "recommended": 180.58
+        },
+        {
+         "itemNumber": "HRD118902",
+         "name": "Copper Tube 1/2\" Type L",
+         "score": 69,
+         "tier": "watch",
+         "current": 150.42,
+         "recommended": 166.37
+        },
+        {
+         "itemNumber": "HRD983377",
+         "name": "AC Condensing Unit 3 ton",
+         "score": 68,
+         "tier": "watch",
+         "current": 10.47,
+         "recommended": 11.87
+        },
+        {
+         "itemNumber": "HRD772310",
+         "name": "Brass Ball Valve 3/4\"",
+         "score": 63,
+         "tier": "watch",
+         "current": 6.62,
+         "recommended": 6.54
+        },
+        {
+         "itemNumber": "HRD661204",
+         "name": "PEX-A Coupling 1\"",
+         "score": 62,
+         "tier": "watch",
+         "current": 45.82,
+         "recommended": 54.29
+        },
+        {
+         "itemNumber": "HRD335590",
+         "name": "Lavatory Faucet Chrome",
+         "score": 54,
+         "tier": "watch",
+         "current": 16.65,
+         "recommended": 18.01
+        },
+        {
+         "itemNumber": "HRD304148",
+         "name": "CPVC Elbow 3/4\"",
+         "score": 51,
+         "tier": "watch",
+         "current": 12.37,
+         "recommended": 12.64
+        },
+        {
+         "itemNumber": "HRD248813",
+         "name": "Steel Nipple 1-1/4\"",
+         "score": 45,
+         "tier": "watch",
+         "current": 1543.26,
+         "recommended": 1514.25
+        },
+        {
+         "itemNumber": "HRD450871",
+         "name": "Gas Water Heater 40 gal",
+         "score": 21,
+         "tier": "risk",
+         "current": 13.65,
+         "recommended": 13.08
+        }
+       ]
+      }
+     ],
+     "revenue": 1682529,
+     "demandPct": 9.3,
+     "avgSellingPrice": 201.25,
+     "avgMarginPct": 43.9,
+     "conversionPct": 64,
+     "priceTrendPct": 1.7,
+     "inventoryRisk": "Medium",
+     "topCategory": "Plumbing",
+     "fastestGrowing": {
+      "itemNumber": "HRD107744",
+      "name": "Copper Coil 3/4\" (100 ft)",
+      "pct": 17
+     },
+     "headline": "Growing demand",
+     "climateNote": "Four full seasons and dense housing: renovation work keeps fixtures and valves moving all year.",
+     "actions": [
+      {
+       "label": "Increase inventory",
+       "count": 0,
+       "href": "/app/products?region=east&filter=strong"
+      },
+      {
+       "label": "Adjust prices",
+       "count": 7,
+       "href": "/app/sell/bulk?region=east"
+      },
+      {
+       "label": "Review suppliers",
+       "count": 4,
+       "href": "/app/buy/bulk?region=east"
+      }
+     ],
+     "raisePrices": [
+      "HRD304148",
+      "HRD118902",
+      "HRD290145",
+      "HRD661204",
+      "HRD983377",
+      "HRD335590",
+      "HRD107744"
+     ],
+     "increaseInventory": [],
+     "reviewSuppliers": [
+      "Cascade Copper Mills",
+      "Kotara Steel Products",
+      "Pacific Rim Tooling",
+      "Anhui Precision Fittings"
+     ]
+    }
+   ],
+   "stores": [
+    {
+     "storeId": "100349",
+     "label": "Phoenix #100349",
+     "city": "Phoenix",
+     "state": "AZ",
+     "regionKey": "west",
+     "regionLabel": "West",
+     "regionName": "West",
+     "revenue": 3917071,
+     "marginPct": 40.2,
+     "pricingAccuracyPct": 45,
+     "adoptionPct": 62,
+     "inventoryValue": 650261.9,
+     "inventoryRisk": "Medium",
+     "demandPct": 3.8,
+     "conversionPct": 70,
+     "health": "healthy",
+     "healthLabel": "Healthy",
+     "healthNote": "Margin, pricing accuracy and adoption all where they should be.",
+     "opportunities": [
+      {
+       "itemNumber": "HRD248813",
+       "name": "Steel Nipple 1-1/4\"",
+       "kind": "supplier",
+       "action": "Supplier renegotiation, 9% over target",
+       "impact": 8608.15,
+       "href": "/app/buy?item=HRD248813&region=west"
+      },
+      {
+       "itemNumber": "HRD248813",
+       "name": "Steel Nipple 1-1/4\"",
+       "kind": "price",
+       "action": "Increase price 16%",
+       "impact": 6604.56,
+       "href": "/app/sell?item=HRD248813&store=100349"
+      },
+      {
+       "itemNumber": "HRD118902",
+       "name": "Copper Tube 1/2\" Type L",
+       "kind": "demand",
+       "action": "Declining demand, review stock",
+       "impact": 4222.57,
+       "href": "/app/products?item=HRD118902"
+      },
+      {
+       "itemNumber": "HRD512066",
+       "name": "PEX-B Tubing 1/2\" (300 ft)",
+       "kind": "price",
+       "action": "Reduce price 9% to win volume",
+       "impact": 3071.88,
+       "href": "/app/sell?item=HRD512066&store=100349"
+      },
+      {
+       "itemNumber": "HRD661204",
+       "name": "PEX-A Coupling 1\"",
+       "kind": "price",
+       "action": "Increase price 9%",
+       "impact": 2750.88,
+       "href": "/app/sell?item=HRD661204&store=100349"
+      },
+      {
+       "itemNumber": "HRD512066",
+       "name": "PEX-B Tubing 1/2\" (300 ft)",
+       "kind": "inventory",
+       "action": "Overstocked, 20 weeks of cover",
+       "impact": 2624.91,
+       "href": "/app/sell/bulk?store=100349&preset=overstock"
+      }
+     ],
+     "products": [
+      {
+       "itemNumber": "HRD661204",
+       "name": "PEX-A Coupling 1\"",
+       "score": 81,
+       "tier": "strong",
+       "current": 58.72,
+       "recommended": 63.93
+      },
+      {
+       "itemNumber": "HRD335590",
+       "name": "Lavatory Faucet Chrome",
+       "score": 81,
+       "tier": "strong",
+       "current": 17.42,
+       "recommended": 17.35
+      },
+      {
+       "itemNumber": "HRD248813",
+       "name": "Steel Nipple 1-1/4\"",
+       "score": 81,
+       "tier": "strong",
+       "current": 1761.43,
+       "recommended": 2036.62
+      },
+      {
+       "itemNumber": "HRD772310",
+       "name": "Brass Ball Valve 3/4\"",
+       "score": 75,
+       "tier": "strong",
+       "current": 5.12,
+       "recommended": 5.44
+      },
+      {
+       "itemNumber": "HRD874019",
+       "name": "Cast Iron Coupling 4\"",
+       "score": 74,
+       "tier": "watch",
+       "current": 90.55,
+       "recommended": 78.25
+      },
+      {
+       "itemNumber": "HRD290145",
+       "name": "PVC Sanitary Tee 2\"",
+       "score": 68,
+       "tier": "watch",
+       "current": 185.67,
+       "recommended": 187.01
+      },
+      {
+       "itemNumber": "HRD983377",
+       "name": "AC Condensing Unit 3 ton",
+       "score": 68,
+       "tier": "watch",
+       "current": 8.82,
+       "recommended": 8.96
+      },
+      {
+       "itemNumber": "HRD304148",
+       "name": "CPVC Elbow 3/4\"",
+       "score": 49,
+       "tier": "watch",
+       "current": 11.39,
+       "recommended": 10.6
+      },
+      {
+       "itemNumber": "HRD450871",
+       "name": "Gas Water Heater 40 gal",
+       "score": 45,
+       "tier": "watch",
+       "current": 11.81,
+       "recommended": 11.25
+      },
+      {
+       "itemNumber": "HRD118902",
+       "name": "Copper Tube 1/2\" Type L",
+       "score": 32,
+       "tier": "risk",
+       "current": 118.29,
+       "recommended": 117.1
+      },
+      {
+       "itemNumber": "HRD512066",
+       "name": "PEX-B Tubing 1/2\" (300 ft)",
+       "score": 30,
+       "tier": "risk",
+       "current": 120.93,
+       "recommended": 109.8
+      }
+     ]
+    },
+    {
+     "storeId": "100047",
+     "label": "Dayton #100047",
+     "city": "Dayton",
+     "state": "OH",
+     "regionKey": "north",
+     "regionLabel": "North",
+     "regionName": "North",
+     "revenue": 4881900,
+     "marginPct": 40.9,
+     "pricingAccuracyPct": 25,
+     "adoptionPct": 65,
+     "inventoryValue": 573170.34,
+     "inventoryRisk": "Medium",
+     "demandPct": -2.5,
+     "conversionPct": 52,
+     "health": "healthy",
+     "healthLabel": "Healthy",
+     "healthNote": "Broadly on track. Prices drift from the recommendation.",
+     "opportunities": [
+      {
+       "itemNumber": "HRD290145",
+       "name": "PVC Sanitary Tee 2\"",
+       "kind": "price",
+       "action": "Increase price 22%",
+       "impact": 27400.94,
+       "href": "/app/sell?item=HRD290145&store=100047"
+      },
+      {
+       "itemNumber": "HRD661204",
+       "name": "PEX-A Coupling 1\"",
+       "kind": "price",
+       "action": "Increase price 14%",
+       "impact": 5604.78,
+       "href": "/app/sell?item=HRD661204&store=100047"
+      },
+      {
+       "itemNumber": "HRD335590",
+       "name": "Lavatory Faucet Chrome",
+       "kind": "price",
+       "action": "Increase price 7%",
+       "impact": 4426.56,
+       "href": "/app/sell?item=HRD335590&store=100047"
+      },
+      {
+       "itemNumber": "HRD118902",
+       "name": "Copper Tube 1/2\" Type L",
+       "kind": "price",
+       "action": "Increase price 14%",
+       "impact": 3574.2,
+       "href": "/app/sell?item=HRD118902&store=100047"
+      },
+      {
+       "itemNumber": "HRD661204",
+       "name": "PEX-A Coupling 1\"",
+       "kind": "inventory",
+       "action": "Overstocked, 18 weeks of cover",
+       "impact": 1677.71,
+       "href": "/app/sell/bulk?store=100047&preset=overstock"
+      },
+      {
+       "itemNumber": "HRD983377",
+       "name": "AC Condensing Unit 3 ton",
+       "kind": "price",
+       "action": "Increase price 16%",
+       "impact": 1423.52,
+       "href": "/app/sell?item=HRD983377&store=100047"
+      }
+     ],
+     "products": [
+      {
+       "itemNumber": "HRD118902",
+       "name": "Copper Tube 1/2\" Type L",
+       "score": 80,
+       "tier": "strong",
+       "current": 135.23,
+       "recommended": 154.55
+      },
+      {
+       "itemNumber": "HRD335590",
+       "name": "Lavatory Faucet Chrome",
+       "score": 80,
+       "tier": "strong",
+       "current": 22.58,
+       "recommended": 24.17
+      },
+      {
+       "itemNumber": "HRD983377",
+       "name": "AC Condensing Unit 3 ton",
+       "score": 75,
+       "tier": "strong",
+       "current": 7.03,
+       "recommended": 8.15
+      },
+      {
+       "itemNumber": "HRD290145",
+       "name": "PVC Sanitary Tee 2\"",
+       "score": 74,
+       "tier": "watch",
+       "current": 160.37,
+       "recommended": 194.88
+      },
+      {
+       "itemNumber": "HRD874019",
+       "name": "Cast Iron Coupling 4\"",
+       "score": 70,
+       "tier": "watch",
+       "current": 89.2,
+       "recommended": 88.68
+      },
+      {
+       "itemNumber": "HRD450871",
+       "name": "Gas Water Heater 40 gal",
+       "score": 63,
+       "tier": "watch",
+       "current": 12.99,
+       "recommended": 12.14
+      },
+      {
+       "itemNumber": "HRD512066",
+       "name": "PEX-B Tubing 1/2\" (300 ft)",
+       "score": 62,
+       "tier": "watch",
+       "current": 121.94,
+       "recommended": 127.84
+      },
+      {
+       "itemNumber": "HRD661204",
+       "name": "PEX-A Coupling 1\"",
+       "score": 59,
+       "tier": "watch",
+       "current": 45.56,
+       "recommended": 52.1
+      }
+     ]
+    },
+    {
+     "storeId": "100117",
+     "label": "Austin #100117",
+     "city": "Austin",
+     "state": "TX",
+     "regionKey": "south",
+     "regionLabel": "South",
+     "regionName": "South",
+     "revenue": 1427502,
+     "marginPct": 42.5,
+     "pricingAccuracyPct": 50,
+     "adoptionPct": 54,
+     "inventoryValue": 748306.76,
+     "inventoryRisk": "High",
+     "demandPct": 16.5,
+     "conversionPct": 76,
+     "health": "watch",
+     "healthLabel": "Watch",
+     "healthNote": "Too many recommendations are ignored, inventory is heavy.",
+     "opportunities": [
+      {
+       "itemNumber": "HRD118902",
+       "name": "Copper Tube 1/2\" Type L",
+       "kind": "price",
+       "action": "Reduce price 30% to win volume",
+       "impact": 17339.56,
+       "href": "/app/sell?item=HRD118902&store=100117"
+      },
+      {
+       "itemNumber": "HRD248813",
+       "name": "Steel Nipple 1-1/4\"",
+       "kind": "supplier",
+       "action": "Supplier renegotiation, 10% over target",
+       "impact": 15029.88,
+       "href": "/app/buy?item=HRD248813&region=south"
+      },
+      {
+       "itemNumber": "HRD335590",
+       "name": "Lavatory Faucet Chrome",
+       "kind": "price",
+       "action": "Increase price 10%",
+       "impact": 6427.44,
+       "href": "/app/sell?item=HRD335590&store=100117"
+      },
+      {
+       "itemNumber": "HRD304148",
+       "name": "CPVC Elbow 3/4\"",
+       "kind": "price",
+       "action": "Increase price 15%",
+       "impact": 2938.32,
+       "href": "/app/sell?item=HRD304148&store=100117"
+      },
+      {
+       "itemNumber": "HRD118902",
+       "name": "Copper Tube 1/2\" Type L",
+       "kind": "demand",
+       "action": "Declining demand, review stock",
+       "impact": 2200.49,
+       "href": "/app/products?item=HRD118902"
+      },
+      {
+       "itemNumber": "HRD512066",
+       "name": "PEX-B Tubing 1/2\" (300 ft)",
+       "kind": "inventory",
+       "action": "Overstocked, 17 weeks of cover",
+       "impact": 2164.16,
+       "href": "/app/sell/bulk?store=100117&preset=overstock"
+      }
+     ],
+     "products": [
+      {
+       "itemNumber": "HRD290145",
+       "name": "PVC Sanitary Tee 2\"",
+       "score": 92,
+       "tier": "strong",
+       "current": 130.18,
+       "recommended": 130.52
+      },
+      {
+       "itemNumber": "HRD335590",
+       "name": "Lavatory Faucet Chrome",
+       "score": 85,
+       "tier": "strong",
+       "current": 16.41,
+       "recommended": 17.99
+      },
+      {
+       "itemNumber": "HRD661204",
+       "name": "PEX-A Coupling 1\"",
+       "score": 75,
+       "tier": "strong",
+       "current": 49.78,
+       "recommended": 56.39
+      },
+      {
+       "itemNumber": "HRD772310",
+       "name": "Brass Ball Valve 3/4\"",
+       "score": 65,
+       "tier": "watch",
+       "current": 7.36,
+       "recommended": 7.44
+      },
+      {
+       "itemNumber": "HRD107744",
+       "name": "Copper Coil 3/4\" (100 ft)",
+       "score": 65,
+       "tier": "watch",
+       "current": 46.55,
+       "recommended": 46.34
+      },
+      {
+       "itemNumber": "HRD983377",
+       "name": "AC Condensing Unit 3 ton",
+       "score": 62,
+       "tier": "watch",
+       "current": 7.5,
+       "recommended": 8.12
+      },
+      {
+       "itemNumber": "HRD248813",
+       "name": "Steel Nipple 1-1/4\"",
+       "score": 57,
+       "tier": "watch",
+       "current": 1460.04,
+       "recommended": 1466.13
+      },
+      {
+       "itemNumber": "HRD304148",
+       "name": "CPVC Elbow 3/4\"",
+       "score": 39,
+       "tier": "risk",
+       "current": 14.61,
+       "recommended": 16.73
+      },
+      {
+       "itemNumber": "HRD118902",
+       "name": "Copper Tube 1/2\" Type L",
+       "score": 36,
+       "tier": "risk",
+       "current": 179.16,
+       "recommended": 124.53
+      },
+      {
+       "itemNumber": "HRD512066",
+       "name": "PEX-B Tubing 1/2\" (300 ft)",
+       "score": 29,
+       "tier": "risk",
+       "current": 173.79,
+       "recommended": 168.12
+      }
+     ]
+    },
+    {
+     "storeId": "100649",
+     "label": "Seattle #100649",
+     "city": "Seattle",
+     "state": "WA",
+     "regionKey": "west",
+     "regionLabel": "West",
+     "regionName": "West",
+     "revenue": 1204374,
+     "marginPct": 39.8,
+     "pricingAccuracyPct": 40,
+     "adoptionPct": 65,
+     "inventoryValue": 724126.57,
+     "inventoryRisk": "High",
+     "demandPct": 1.7,
+     "conversionPct": 63,
+     "health": "healthy",
+     "healthLabel": "Healthy",
+     "healthNote": "Broadly on track. Inventory is heavy.",
+     "opportunities": [
+      {
+       "itemNumber": "HRD248813",
+       "name": "Steel Nipple 1-1/4\"",
+       "kind": "supplier",
+       "action": "Supplier renegotiation, 9% over target",
+       "impact": 14489.94,
+       "href": "/app/buy?item=HRD248813&region=west"
+      },
+      {
+       "itemNumber": "HRD450871",
+       "name": "Gas Water Heater 40 gal",
+       "kind": "price",
+       "action": "Increase price 14%",
+       "impact": 5408.49,
+       "href": "/app/sell?item=HRD450871&store=100649"
+      },
+      {
+       "itemNumber": "HRD661204",
+       "name": "PEX-A Coupling 1\"",
+       "kind": "price",
+       "action": "Reduce price 13% to win volume",
+       "impact": 3001.68,
+       "href": "/app/sell?item=HRD661204&store=100649"
+      },
+      {
+       "itemNumber": "HRD107744",
+       "name": "Copper Coil 3/4\" (100 ft)",
+       "kind": "price",
+       "action": "Increase price 9%",
+       "impact": 2730.5,
+       "href": "/app/sell?item=HRD107744&store=100649"
+      },
+      {
+       "itemNumber": "HRD118902",
+       "name": "Copper Tube 1/2\" Type L",
+       "kind": "price",
+       "action": "Reduce price 6% to win volume",
+       "impact": 2015.44,
+       "href": "/app/sell?item=HRD118902&store=100649"
+      },
+      {
+       "itemNumber": "HRD248813",
+       "name": "Steel Nipple 1-1/4\"",
+       "kind": "inventory",
+       "action": "Overstocked, 23 weeks of cover",
+       "impact": 1974.9,
+       "href": "/app/sell/bulk?store=100649&preset=overstock"
+      }
+     ],
+     "products": [
+      {
+       "itemNumber": "HRD772310",
+       "name": "Brass Ball Valve 3/4\"",
+       "score": 81,
+       "tier": "strong",
+       "current": 7.12,
+       "recommended": 7.55
+      },
+      {
+       "itemNumber": "HRD450871",
+       "name": "Gas Water Heater 40 gal",
+       "score": 75,
+       "tier": "strong",
+       "current": 10.05,
+       "recommended": 11.44
+      },
+      {
+       "itemNumber": "HRD661204",
+       "name": "PEX-A Coupling 1\"",
+       "score": 75,
+       "tier": "strong",
+       "current": 58.49,
+       "recommended": 50.91
+      },
+      {
+       "itemNumber": "HRD335590",
+       "name": "Lavatory Faucet Chrome",
+       "score": 70,
+       "tier": "watch",
+       "current": 16.15,
+       "recommended": 16.65
+      },
+      {
+       "itemNumber": "HRD107744",
+       "name": "Copper Coil 3/4\" (100 ft)",
+       "score": 65,
+       "tier": "watch",
+       "current": 45.96,
+       "recommended": 50.26
+      },
+      {
+       "itemNumber": "HRD874019",
+       "name": "Cast Iron Coupling 4\"",
+       "score": 64,
+       "tier": "watch",
+       "current": 81.03,
+       "recommended": 88.11
+      },
+      {
+       "itemNumber": "HRD248813",
+       "name": "Steel Nipple 1-1/4\"",
+       "score": 64,
+       "tier": "watch",
+       "current": 1764.75,
+       "recommended": 1805.03
+      },
+      {
+       "itemNumber": "HRD304148",
+       "name": "CPVC Elbow 3/4\"",
+       "score": 56,
+       "tier": "watch",
+       "current": 9.26,
+       "recommended": 9.23
+      },
+      {
+       "itemNumber": "HRD118902",
+       "name": "Copper Tube 1/2\" Type L",
+       "score": 52,
+       "tier": "watch",
+       "current": 124.44,
+       "recommended": 116.61
+      },
+      {
+       "itemNumber": "HRD290145",
+       "name": "PVC Sanitary Tee 2\"",
+       "score": 51,
+       "tier": "watch",
+       "current": 143.17,
+       "recommended": 136.4
+      }
+     ]
+    },
+    {
+     "storeId": "100812",
+     "label": "Nashville #100812",
+     "city": "Nashville",
+     "state": "TN",
+     "regionKey": "south",
+     "regionLabel": "South",
+     "regionName": "South",
+     "revenue": 3007022,
+     "marginPct": 41.2,
+     "pricingAccuracyPct": 30,
+     "adoptionPct": 77,
+     "inventoryValue": 651134.53,
+     "inventoryRisk": "High",
+     "demandPct": 16.5,
+     "conversionPct": 70,
+     "health": "watch",
+     "healthLabel": "Watch",
+     "healthNote": "Prices drift from the recommendation, inventory is heavy.",
+     "opportunities": [
+      {
+       "itemNumber": "HRD107744",
+       "name": "Copper Coil 3/4\" (100 ft)",
+       "kind": "price",
+       "action": "Increase price 27%",
+       "impact": 8152.62,
+       "href": "/app/sell?item=HRD107744&store=100812"
+      },
+      {
+       "itemNumber": "HRD118902",
+       "name": "Copper Tube 1/2\" Type L",
+       "kind": "price",
+       "action": "Increase price 10%",
+       "impact": 7425.6,
+       "href": "/app/sell?item=HRD118902&store=100812"
+      },
+      {
+       "itemNumber": "HRD248813",
+       "name": "Steel Nipple 1-1/4\"",
+       "kind": "supplier",
+       "action": "Supplier renegotiation, 11% over target",
+       "impact": 6131.61,
+       "href": "/app/buy?item=HRD248813&region=south"
+      },
+      {
+       "itemNumber": "HRD290145",
+       "name": "PVC Sanitary Tee 2\"",
+       "kind": "demand",
+       "action": "Declining demand, review stock",
+       "impact": 4362.67,
+       "href": "/app/products?item=HRD290145"
+      },
+      {
+       "itemNumber": "HRD290145",
+       "name": "PVC Sanitary Tee 2\"",
+       "kind": "inventory",
+       "action": "Overstocked, 20 weeks of cover",
+       "impact": 3272,
+       "href": "/app/sell/bulk?store=100812&preset=overstock"
+      },
+      {
+       "itemNumber": "HRD450871",
+       "name": "Gas Water Heater 40 gal",
+       "kind": "price",
+       "action": "Increase price 7%",
+       "impact": 3211.65,
+       "href": "/app/sell?item=HRD450871&store=100812"
+      }
+     ],
+     "products": [
+      {
+       "itemNumber": "HRD983377",
+       "name": "AC Condensing Unit 3 ton",
+       "score": 82,
+       "tier": "strong",
+       "current": 8.13,
+       "recommended": 9.94
+      },
+      {
+       "itemNumber": "HRD118902",
+       "name": "Copper Tube 1/2\" Type L",
+       "score": 75,
+       "tier": "strong",
+       "current": 148.27,
+       "recommended": 162.55
+      },
+      {
+       "itemNumber": "HRD107744",
+       "name": "Copper Coil 3/4\" (100 ft)",
+       "score": 73,
+       "tier": "watch",
+       "current": 36.18,
+       "recommended": 46.05
+      },
+      {
+       "itemNumber": "HRD450871",
+       "name": "Gas Water Heater 40 gal",
+       "score": 71,
+       "tier": "watch",
+       "current": 10.85,
+       "recommended": 11.66
+      },
+      {
+       "itemNumber": "HRD772310",
+       "name": "Brass Ball Valve 3/4\"",
+       "score": 70,
+       "tier": "watch",
+       "current": 7.29,
+       "recommended": 8.17
+      },
+      {
+       "itemNumber": "HRD304148",
+       "name": "CPVC Elbow 3/4\"",
+       "score": 69,
+       "tier": "watch",
+       "current": 14.62,
+       "recommended": 16.58
+      },
+      {
+       "itemNumber": "HRD335590",
+       "name": "Lavatory Faucet Chrome",
+       "score": 54,
+       "tier": "watch",
+       "current": 19.74,
+       "recommended": 19.62
+      },
+      {
+       "itemNumber": "HRD290145",
+       "name": "PVC Sanitary Tee 2\"",
+       "score": 45,
+       "tier": "watch",
+       "current": 165.43,
+       "recommended": 170.99
+      },
+      {
+       "itemNumber": "HRD661204",
+       "name": "PEX-A Coupling 1\"",
+       "score": 40,
+       "tier": "risk",
+       "current": 42.71,
+       "recommended": 41.43
+      },
+      {
+       "itemNumber": "HRD248813",
+       "name": "Steel Nipple 1-1/4\"",
+       "score": 5,
+       "tier": "risk",
+       "current": 1521.48,
+       "recommended": 1441.31
+      }
+     ]
+    },
+    {
+     "storeId": "100205",
+     "label": "Charlotte #100205",
+     "city": "Charlotte",
+     "state": "NC",
+     "regionKey": "east",
+     "regionLabel": "East",
+     "regionName": "East",
+     "revenue": 1682529,
+     "marginPct": 43.9,
+     "pricingAccuracyPct": 40,
+     "adoptionPct": 89,
+     "inventoryValue": 818818.95,
+     "inventoryRisk": "Medium",
+     "demandPct": 9,
+     "conversionPct": 63,
+     "health": "healthy",
+     "healthLabel": "Healthy",
+     "healthNote": "Margin, pricing accuracy and adoption all where they should be.",
+     "opportunities": [
+      {
+       "itemNumber": "HRD248813",
+       "name": "Steel Nipple 1-1/4\"",
+       "kind": "supplier",
+       "action": "Supplier renegotiation, 11% over target",
+       "impact": 19723.63,
+       "href": "/app/buy?item=HRD248813&region=east"
+      },
+      {
+       "itemNumber": "HRD290145",
+       "name": "PVC Sanitary Tee 2\"",
+       "kind": "price",
+       "action": "Increase price 9%",
+       "impact": 12909.67,
+       "href": "/app/sell?item=HRD290145&store=100205"
+      },
+      {
+       "itemNumber": "HRD118902",
+       "name": "Copper Tube 1/2\" Type L",
+       "kind": "price",
+       "action": "Increase price 11%",
+       "impact": 10686.5,
+       "href": "/app/sell?item=HRD118902&store=100205"
+      },
+      {
+       "itemNumber": "HRD290145",
+       "name": "PVC Sanitary Tee 2\"",
+       "kind": "inventory",
+       "action": "Overstocked, 16 weeks of cover",
+       "impact": 4312.42,
+       "href": "/app/sell/bulk?store=100205&preset=overstock"
+      },
+      {
+       "itemNumber": "HRD983377",
+       "name": "AC Condensing Unit 3 ton",
+       "kind": "price",
+       "action": "Increase price 13%",
+       "impact": 3346,
+       "href": "/app/sell?item=HRD983377&store=100205"
+      },
+      {
+       "itemNumber": "HRD661204",
+       "name": "PEX-A Coupling 1\"",
+       "kind": "price",
+       "action": "Increase price 18%",
+       "impact": 2913.68,
+       "href": "/app/sell?item=HRD661204&store=100205"
+      }
+     ],
+     "products": [
+      {
+       "itemNumber": "HRD107744",
+       "name": "Copper Coil 3/4\" (100 ft)",
+       "score": 85,
+       "tier": "strong",
+       "current": 47.87,
+       "recommended": 51.91
+      },
+      {
+       "itemNumber": "HRD290145",
+       "name": "PVC Sanitary Tee 2\"",
+       "score": 75,
+       "tier": "strong",
+       "current": 165.41,
+       "recommended": 180.58
+      },
+      {
+       "itemNumber": "HRD118902",
+       "name": "Copper Tube 1/2\" Type L",
+       "score": 69,
+       "tier": "watch",
+       "current": 150.42,
+       "recommended": 166.37
+      },
+      {
+       "itemNumber": "HRD983377",
+       "name": "AC Condensing Unit 3 ton",
+       "score": 68,
+       "tier": "watch",
+       "current": 10.47,
+       "recommended": 11.87
+      },
+      {
+       "itemNumber": "HRD772310",
+       "name": "Brass Ball Valve 3/4\"",
+       "score": 63,
+       "tier": "watch",
+       "current": 6.62,
+       "recommended": 6.54
+      },
+      {
+       "itemNumber": "HRD661204",
+       "name": "PEX-A Coupling 1\"",
+       "score": 62,
+       "tier": "watch",
+       "current": 45.82,
+       "recommended": 54.29
+      },
+      {
+       "itemNumber": "HRD335590",
+       "name": "Lavatory Faucet Chrome",
+       "score": 54,
+       "tier": "watch",
+       "current": 16.65,
+       "recommended": 18.01
+      },
+      {
+       "itemNumber": "HRD304148",
+       "name": "CPVC Elbow 3/4\"",
+       "score": 51,
+       "tier": "watch",
+       "current": 12.37,
+       "recommended": 12.64
+      },
+      {
+       "itemNumber": "HRD248813",
+       "name": "Steel Nipple 1-1/4\"",
+       "score": 45,
+       "tier": "watch",
+       "current": 1543.26,
+       "recommended": 1514.25
+      },
+      {
+       "itemNumber": "HRD450871",
+       "name": "Gas Water Heater 40 gal",
+       "score": 21,
+       "tier": "risk",
+       "current": 13.65,
+       "recommended": 13.08
+      }
+     ]
+    },
+    {
+     "storeId": "100933",
+     "label": "Denver #100933",
+     "city": "Denver",
+     "state": "CO",
+     "regionKey": "west",
+     "regionLabel": "West",
+     "regionName": "West",
+     "revenue": 1009797,
+     "marginPct": 46.9,
+     "pricingAccuracyPct": 33,
+     "adoptionPct": 75,
+     "inventoryValue": 759557.32,
+     "inventoryRisk": "High",
+     "demandPct": 5,
+     "conversionPct": 62,
+     "health": "watch",
+     "healthLabel": "Watch",
+     "healthNote": "Prices drift from the recommendation, inventory is heavy.",
+     "opportunities": [
+      {
+       "itemNumber": "HRD118902",
+       "name": "Copper Tube 1/2\" Type L",
+       "kind": "price",
+       "action": "Increase price 6%",
+       "impact": 6720,
+       "href": "/app/sell?item=HRD118902&store=100933"
+      },
+      {
+       "itemNumber": "HRD118902",
+       "name": "Copper Tube 1/2\" Type L",
+       "kind": "inventory",
+       "action": "Overstocked, 22 weeks of cover",
+       "impact": 5599.19,
+       "href": "/app/sell/bulk?store=100933&preset=overstock"
+      },
+      {
+       "itemNumber": "HRD512066",
+       "name": "PEX-B Tubing 1/2\" (300 ft)",
+       "kind": "price",
+       "action": "Increase price 11%",
+       "impact": 4463.9,
+       "href": "/app/sell?item=HRD512066&store=100933"
+      },
+      {
+       "itemNumber": "HRD304148",
+       "name": "CPVC Elbow 3/4\"",
+       "kind": "inventory",
+       "action": "Overstocked, 19 weeks of cover",
+       "impact": 1800.31,
+       "href": "/app/sell/bulk?store=100933&preset=overstock"
+      },
+      {
+       "itemNumber": "HRD335590",
+       "name": "Lavatory Faucet Chrome",
+       "kind": "demand",
+       "action": "Declining demand, review stock",
+       "impact": 1731.11,
+       "href": "/app/products?item=HRD335590"
+      },
+      {
+       "itemNumber": "HRD335590",
+       "name": "Lavatory Faucet Chrome",
+       "kind": "inventory",
+       "action": "Overstocked, 23 weeks of cover",
+       "impact": 1298.33,
+       "href": "/app/sell/bulk?store=100933&preset=overstock"
+      }
+     ],
+     "products": [
+      {
+       "itemNumber": "HRD450871",
+       "name": "Gas Water Heater 40 gal",
+       "score": 87,
+       "tier": "strong",
+       "current": 11.59,
+       "recommended": 11.7
+      },
+      {
+       "itemNumber": "HRD118902",
+       "name": "Copper Tube 1/2\" Type L",
+       "score": 81,
+       "tier": "strong",
+       "current": 142.72,
+       "recommended": 150.72
+      },
+      {
+       "itemNumber": "HRD512066",
+       "name": "PEX-B Tubing 1/2\" (300 ft)",
+       "score": 81,
+       "tier": "strong",
+       "current": 168.67,
+       "recommended": 186.89
+      },
+      {
+       "itemNumber": "HRD983377",
+       "name": "AC Condensing Unit 3 ton",
+       "score": 62,
+       "tier": "watch",
+       "current": 10.43,
+       "recommended": 9.29
+      },
+      {
+       "itemNumber": "HRD304148",
+       "name": "CPVC Elbow 3/4\"",
+       "score": 58,
+       "tier": "watch",
+       "current": 14.11,
+       "recommended": 14.25
+      },
+      {
+       "itemNumber": "HRD335590",
+       "name": "Lavatory Faucet Chrome",
+       "score": 51,
+       "tier": "watch",
+       "current": 24.25,
+       "recommended": 24.43
+      },
+      {
+       "itemNumber": "HRD290145",
+       "name": "PVC Sanitary Tee 2\"",
+       "score": 45,
+       "tier": "watch",
+       "current": 152.11,
+       "recommended": 144.77
+      },
+      {
+       "itemNumber": "HRD107744",
+       "name": "Copper Coil 3/4\" (100 ft)",
+       "score": 44,
+       "tier": "risk",
+       "current": 51.1,
+       "recommended": 47.59
+      },
+      {
+       "itemNumber": "HRD661204",
+       "name": "PEX-A Coupling 1\"",
+       "score": 21,
+       "tier": "risk",
+       "current": 50.59,
+       "recommended": 46.53
+      }
+     ]
+    },
+    {
+     "storeId": "100571",
+     "label": "Elkhart #100571",
+     "city": "Elkhart",
+     "state": "IN",
+     "regionKey": "north",
+     "regionLabel": "North",
+     "regionName": "North",
+     "revenue": 933910,
+     "marginPct": 41.7,
+     "pricingAccuracyPct": 56,
+     "adoptionPct": 64,
+     "inventoryValue": 784385.24,
+     "inventoryRisk": "Medium",
+     "demandPct": -5.4,
+     "conversionPct": 48,
+     "health": "healthy",
+     "healthLabel": "Healthy",
+     "healthNote": "Margin, pricing accuracy and adoption all where they should be.",
+     "opportunities": [
+      {
+       "itemNumber": "HRD248813",
+       "name": "Steel Nipple 1-1/4\"",
+       "kind": "supplier",
+       "action": "Supplier renegotiation, 11% over target",
+       "impact": 30933.65,
+       "href": "/app/buy?item=HRD248813&region=north"
+      },
+      {
+       "itemNumber": "HRD118902",
+       "name": "Copper Tube 1/2\" Type L",
+       "kind": "price",
+       "action": "Reduce price 29% to win volume",
+       "impact": 20585.27,
+       "href": "/app/sell?item=HRD118902&store=100571"
+      },
+      {
+       "itemNumber": "HRD450871",
+       "name": "Gas Water Heater 40 gal",
+       "kind": "price",
+       "action": "Increase price 8%",
+       "impact": 4257.63,
+       "href": "/app/sell?item=HRD450871&store=100571"
+      },
+      {
+       "itemNumber": "HRD512066",
+       "name": "PEX-B Tubing 1/2\" (300 ft)",
+       "kind": "demand",
+       "action": "Declining demand, review stock",
+       "impact": 4130.68,
+       "href": "/app/products?item=HRD512066"
+      },
+      {
+       "itemNumber": "HRD118902",
+       "name": "Copper Tube 1/2\" Type L",
+       "kind": "demand",
+       "action": "Declining demand, review stock",
+       "impact": 2943.9,
+       "href": "/app/products?item=HRD118902"
+      },
+      {
+       "itemNumber": "HRD335590",
+       "name": "Lavatory Faucet Chrome",
+       "kind": "inventory",
+       "action": "Overstocked, 22 weeks of cover",
+       "impact": 2298.76,
+       "href": "/app/sell/bulk?store=100571&preset=overstock"
+      }
+     ],
+     "products": [
+      {
+       "itemNumber": "HRD450871",
+       "name": "Gas Water Heater 40 gal",
+       "score": 76,
+       "tier": "strong",
+       "current": 14.84,
+       "recommended": 16.01
+      },
+      {
+       "itemNumber": "HRD304148",
+       "name": "CPVC Elbow 3/4\"",
+       "score": 53,
+       "tier": "watch",
+       "current": 11.96,
+       "recommended": 12.37
+      },
+      {
+       "itemNumber": "HRD874019",
+       "name": "Cast Iron Coupling 4\"",
+       "score": 51,
+       "tier": "watch",
+       "current": 117.14,
+       "recommended": 113.04
+      },
+      {
+       "itemNumber": "HRD248813",
+       "name": "Steel Nipple 1-1/4\"",
+       "score": 46,
+       "tier": "watch",
+       "current": 1462.68,
+       "recommended": 1470.98
+      },
+      {
+       "itemNumber": "HRD772310",
+       "name": "Brass Ball Valve 3/4\"",
+       "score": 44,
+       "tier": "risk",
+       "current": 7.52,
+       "recommended": 5.56
+      },
+      {
+       "itemNumber": "HRD512066",
+       "name": "PEX-B Tubing 1/2\" (300 ft)",
+       "score": 38,
+       "tier": "risk",
+       "current": 122.85,
+       "recommended": 119.52
+      },
+      {
+       "itemNumber": "HRD118902",
+       "name": "Copper Tube 1/2\" Type L",
+       "score": 36,
+       "tier": "risk",
+       "current": 170.81,
+       "recommended": 120.43
+      },
+      {
+       "itemNumber": "HRD335590",
+       "name": "Lavatory Faucet Chrome",
+       "score": 33,
+       "tier": "risk",
+       "current": 20.42,
+       "recommended": 19.91
+      },
+      {
+       "itemNumber": "HRD661204",
+       "name": "PEX-A Coupling 1\"",
+       "score": 7,
+       "tier": "risk",
+       "current": 44.01,
+       "recommended": 41.17
+      }
+     ]
+    },
+    {
+     "storeId": "100959",
+     "label": "Dallas #100959",
+     "city": "Dallas",
+     "state": "TX",
+     "regionKey": "south",
+     "regionLabel": "South",
+     "regionName": "South",
+     "revenue": 4322359,
+     "marginPct": 37.5,
+     "pricingAccuracyPct": 29,
+     "adoptionPct": 58,
+     "inventoryValue": 525395.23,
+     "inventoryRisk": "Medium",
+     "demandPct": 15,
+     "conversionPct": 75,
+     "health": "watch",
+     "healthLabel": "Watch",
+     "healthNote": "Prices drift from the recommendation, too many recommendations are ignored.",
+     "opportunities": [
+      {
+       "itemNumber": "HRD248813",
+       "name": "Steel Nipple 1-1/4\"",
+       "kind": "supplier",
+       "action": "Supplier renegotiation, 10% over target",
+       "impact": 15691.81,
+       "href": "/app/buy?item=HRD248813&region=south"
+      },
+      {
+       "itemNumber": "HRD118902",
+       "name": "Copper Tube 1/2\" Type L",
+       "kind": "price",
+       "action": "Increase price 11%",
+       "impact": 12661.66,
+       "href": "/app/sell?item=HRD118902&store=100959"
+      },
+      {
+       "itemNumber": "HRD661204",
+       "name": "PEX-A Coupling 1\"",
+       "kind": "price",
+       "action": "Increase price 31%",
+       "impact": 11111.04,
+       "href": "/app/sell?item=HRD661204&store=100959"
+      },
+      {
+       "itemNumber": "HRD248813",
+       "name": "Steel Nipple 1-1/4\"",
+       "kind": "price",
+       "action": "Increase price 16%",
+       "impact": 4209.88,
+       "href": "/app/sell?item=HRD248813&store=100959"
+      },
+      {
+       "itemNumber": "HRD874019",
+       "name": "Cast Iron Coupling 4\"",
+       "kind": "price",
+       "action": "Reduce price 24% to win volume",
+       "impact": 3083.22,
+       "href": "/app/sell?item=HRD874019&store=100959"
+      },
+      {
+       "itemNumber": "HRD661204",
+       "name": "PEX-A Coupling 1\"",
+       "kind": "demand",
+       "action": "Declining demand, review stock",
+       "impact": 2760.67,
+       "href": "/app/products?item=HRD661204"
+      }
+     ],
+     "products": [
+      {
+       "itemNumber": "HRD118902",
+       "name": "Copper Tube 1/2\" Type L",
+       "score": 97,
+       "tier": "strong",
+       "current": 128.66,
+       "recommended": 143.4
+      },
+      {
+       "itemNumber": "HRD450871",
+       "name": "Gas Water Heater 40 gal",
+       "score": 81,
+       "tier": "strong",
+       "current": 13.78,
+       "recommended": 14.65
+      },
+      {
+       "itemNumber": "HRD248813",
+       "name": "Steel Nipple 1-1/4\"",
+       "score": 69,
+       "tier": "watch",
+       "current": 1557.33,
+       "recommended": 1804.97
+      },
+      {
+       "itemNumber": "HRD512066",
+       "name": "PEX-B Tubing 1/2\" (300 ft)",
+       "score": 68,
+       "tier": "watch",
+       "current": 137.7,
+       "recommended": 140.6
+      },
+      {
+       "itemNumber": "HRD661204",
+       "name": "PEX-A Coupling 1\"",
+       "score": 34,
+       "tier": "risk",
+       "current": 41.42,
+       "recommended": 54.28
+      },
+      {
+       "itemNumber": "HRD304148",
+       "name": "CPVC Elbow 3/4\"",
+       "score": 32,
+       "tier": "risk",
+       "current": 11.25,
+       "recommended": 11.28
+      },
+      {
+       "itemNumber": "HRD874019",
+       "name": "Cast Iron Coupling 4\"",
+       "score": 27,
+       "tier": "risk",
+       "current": 103.04,
+       "recommended": 78.57
+      }
+     ]
+    }
+   ],
+   "adoptionPct": 67
+  }
+ }
+]

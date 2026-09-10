@@ -1,0 +1,3530 @@
+[
+ {
+  "fn": "opportunityScore",
+  "input": {
+   "itemNumber": "HRD304148",
+   "storeId": "100349"
+  },
+  "output": {
+   "itemNumber": "HRD304148",
+   "storeId": "100349",
+   "score": 49,
+   "tier": "watch",
+   "tierLabel": "Watch",
+   "reasons": [
+    {
+     "text": "Demand steady",
+     "good": true
+    },
+    {
+     "text": "Healthy margin",
+     "good": true
+    },
+    {
+     "text": "Healthy inventory",
+     "good": true
+    },
+    {
+     "text": "High conversion",
+     "good": true
+    },
+    {
+     "text": "Priced 7.2% above market",
+     "good": false
+    }
+   ],
+   "signals": {
+    "demandLevel": "medium",
+    "priceGapPct": -7.2,
+    "marginPct": 39.2,
+    "weeksOfCover": 4.8,
+    "conversionPct": 90,
+    "commodityPct90": 0.8
+   }
+  }
+ },
+ {
+  "fn": "opportunityScore",
+  "input": {
+   "itemNumber": "HRD304148",
+   "storeId": "100117"
+  },
+  "output": {
+   "itemNumber": "HRD304148",
+   "storeId": "100117",
+   "score": 39,
+   "tier": "risk",
+   "tierLabel": "Risk",
+   "reasons": [
+    {
+     "text": "Overstocked (18 weeks of cover)",
+     "good": false
+    },
+    {
+     "text": "Demand falling",
+     "good": false
+    },
+    {
+     "text": "Healthy margin",
+     "good": true
+    },
+    {
+     "text": "Your price 14.4% below market",
+     "good": true
+    }
+   ],
+   "signals": {
+    "demandLevel": "low",
+    "priceGapPct": 14.4,
+    "marginPct": 52.6,
+    "weeksOfCover": 17.5,
+    "conversionPct": 65,
+    "commodityPct90": 0.8
+   }
+  }
+ },
+ {
+  "fn": "opportunityScore",
+  "input": {
+   "itemNumber": "HRD304148",
+   "storeId": "100649"
+  },
+  "output": {
+   "itemNumber": "HRD304148",
+   "storeId": "100649",
+   "score": 56,
+   "tier": "watch",
+   "tierLabel": "Watch",
+   "reasons": [
+    {
+     "text": "Demand steady",
+     "good": true
+    },
+    {
+     "text": "Your price 7.7% below market",
+     "good": true
+    },
+    {
+     "text": "Low conversion",
+     "good": false
+    }
+   ],
+   "signals": {
+    "demandLevel": "medium",
+    "priceGapPct": 7.7,
+    "marginPct": 25.3,
+    "weeksOfCover": 15.4,
+    "conversionPct": 54,
+    "commodityPct90": 0.8
+   }
+  }
+ },
+ {
+  "fn": "opportunityScore",
+  "input": {
+   "itemNumber": "HRD304148",
+   "storeId": "100812"
+  },
+  "output": {
+   "itemNumber": "HRD304148",
+   "storeId": "100812",
+   "score": 69,
+   "tier": "watch",
+   "tierLabel": "Watch",
+   "reasons": [
+    {
+     "text": "Demand steady",
+     "good": true
+    },
+    {
+     "text": "Your price 11.1% below market",
+     "good": true
+    },
+    {
+     "text": "Healthy margin",
+     "good": true
+    },
+    {
+     "text": "High conversion",
+     "good": true
+    },
+    {
+     "text": "Low stock",
+     "good": false
+    }
+   ],
+   "signals": {
+    "demandLevel": "medium",
+    "priceGapPct": 11.1,
+    "marginPct": 52.7,
+    "weeksOfCover": 2.7,
+    "conversionPct": 80,
+    "commodityPct90": 0.8
+   }
+  }
+ },
+ {
+  "fn": "opportunityScore",
+  "input": {
+   "itemNumber": "HRD304148",
+   "storeId": "100205"
+  },
+  "output": {
+   "itemNumber": "HRD304148",
+   "storeId": "100205",
+   "score": 51,
+   "tier": "watch",
+   "tierLabel": "Watch",
+   "reasons": [
+    {
+     "text": "Demand steady",
+     "good": true
+    },
+    {
+     "text": "Healthy margin",
+     "good": true
+    },
+    {
+     "text": "Healthy inventory",
+     "good": true
+    },
+    {
+     "text": "Priced 3.2% above market",
+     "good": false
+    }
+   ],
+   "signals": {
+    "demandLevel": "medium",
+    "priceGapPct": -3.2,
+    "marginPct": 44.1,
+    "weeksOfCover": 5.7,
+    "conversionPct": 66,
+    "commodityPct90": 0.8
+   }
+  }
+ },
+ {
+  "fn": "opportunityScore",
+  "input": {
+   "itemNumber": "HRD304148",
+   "storeId": "100933"
+  },
+  "output": {
+   "itemNumber": "HRD304148",
+   "storeId": "100933",
+   "score": 58,
+   "tier": "watch",
+   "tierLabel": "Watch",
+   "reasons": [
+    {
+     "text": "Demand steady",
+     "good": true
+    },
+    {
+     "text": "Your price 7.7% below market",
+     "good": true
+    },
+    {
+     "text": "Healthy margin",
+     "good": true
+    },
+    {
+     "text": "Overstocked (19 weeks of cover)",
+     "good": false
+    }
+   ],
+   "signals": {
+    "demandLevel": "medium",
+    "priceGapPct": 7.7,
+    "marginPct": 51,
+    "weeksOfCover": 19.4,
+    "conversionPct": 63,
+    "commodityPct90": 0.8
+   }
+  }
+ },
+ {
+  "fn": "opportunityScore",
+  "input": {
+   "itemNumber": "HRD304148",
+   "storeId": "100571"
+  },
+  "output": {
+   "itemNumber": "HRD304148",
+   "storeId": "100571",
+   "score": 53,
+   "tier": "watch",
+   "tierLabel": "Watch",
+   "reasons": [
+    {
+     "text": "Demand steady",
+     "good": true
+    },
+    {
+     "text": "Priced at market",
+     "good": true
+    },
+    {
+     "text": "Healthy margin",
+     "good": true
+    },
+    {
+     "text": "High conversion",
+     "good": true
+    },
+    {
+     "text": "Overstocked (17 weeks of cover)",
+     "good": false
+    }
+   ],
+   "signals": {
+    "demandLevel": "medium",
+    "priceGapPct": 2.3,
+    "marginPct": 42.1,
+    "weeksOfCover": 17.4,
+    "conversionPct": 76,
+    "commodityPct90": 0.8
+   }
+  }
+ },
+ {
+  "fn": "opportunityScore",
+  "input": {
+   "itemNumber": "HRD304148",
+   "storeId": "100959"
+  },
+  "output": {
+   "itemNumber": "HRD304148",
+   "storeId": "100959",
+   "score": 32,
+   "tier": "risk",
+   "tierLabel": "Risk",
+   "reasons": [
+    {
+     "text": "Low conversion",
+     "good": false
+    },
+    {
+     "text": "Low stock",
+     "good": false
+    },
+    {
+     "text": "Priced 3.2% above market",
+     "good": false
+    },
+    {
+     "text": "Healthy margin",
+     "good": true
+    },
+    {
+     "text": "Demand steady",
+     "good": true
+    }
+   ],
+   "signals": {
+    "demandLevel": "medium",
+    "priceGapPct": -3.2,
+    "marginPct": 38.5,
+    "weeksOfCover": 2.4,
+    "conversionPct": 46,
+    "commodityPct90": 0.8
+   }
+  }
+ },
+ {
+  "fn": "opportunityScore",
+  "input": {
+   "itemNumber": "HRD118902",
+   "storeId": "100349"
+  },
+  "output": {
+   "itemNumber": "HRD118902",
+   "storeId": "100349",
+   "score": 32,
+   "tier": "risk",
+   "tierLabel": "Risk",
+   "reasons": [
+    {
+     "text": "Priced 0.4% above market",
+     "good": false
+    },
+    {
+     "text": "Demand falling",
+     "good": false
+    },
+    {
+     "text": "High conversion",
+     "good": true
+    },
+    {
+     "text": "Market price rising",
+     "good": true
+    }
+   ],
+   "signals": {
+    "demandLevel": "low",
+    "priceGapPct": -0.4,
+    "marginPct": 26.1,
+    "weeksOfCover": 13.4,
+    "conversionPct": 81,
+    "commodityPct90": 6.4
+   }
+  }
+ },
+ {
+  "fn": "opportunityScore",
+  "input": {
+   "itemNumber": "HRD118902",
+   "storeId": "100047"
+  },
+  "output": {
+   "itemNumber": "HRD118902",
+   "storeId": "100047",
+   "score": 80,
+   "tier": "strong",
+   "tierLabel": "Strong opportunity",
+   "reasons": [
+    {
+     "text": "Demand rising",
+     "good": true
+    },
+    {
+     "text": "Your price 10.7% below market",
+     "good": true
+    },
+    {
+     "text": "Market price rising",
+     "good": true
+    },
+    {
+     "text": "Healthy margin",
+     "good": true
+    },
+    {
+     "text": "Low stock",
+     "good": false
+    }
+   ],
+   "signals": {
+    "demandLevel": "high",
+    "priceGapPct": 10.7,
+    "marginPct": 35.3,
+    "weeksOfCover": 2.6,
+    "conversionPct": 56,
+    "commodityPct90": 6.4
+   }
+  }
+ },
+ {
+  "fn": "opportunityScore",
+  "input": {
+   "itemNumber": "HRD118902",
+   "storeId": "100117"
+  },
+  "output": {
+   "itemNumber": "HRD118902",
+   "storeId": "100117",
+   "score": 36,
+   "tier": "risk",
+   "tierLabel": "Risk",
+   "reasons": [
+    {
+     "text": "Priced 23.5% above market",
+     "good": false
+    },
+    {
+     "text": "Demand falling",
+     "good": false
+    },
+    {
+     "text": "High conversion",
+     "good": true
+    },
+    {
+     "text": "Healthy inventory",
+     "good": true
+    },
+    {
+     "text": "Healthy margin",
+     "good": true
+    }
+   ],
+   "signals": {
+    "demandLevel": "low",
+    "priceGapPct": -23.5,
+    "marginPct": 51.2,
+    "weeksOfCover": 10.3,
+    "conversionPct": 78,
+    "commodityPct90": 6.4
+   }
+  }
+ },
+ {
+  "fn": "opportunityScore",
+  "input": {
+   "itemNumber": "HRD118902",
+   "storeId": "100649"
+  },
+  "output": {
+   "itemNumber": "HRD118902",
+   "storeId": "100649",
+   "score": 52,
+   "tier": "watch",
+   "tierLabel": "Watch",
+   "reasons": [
+    {
+     "text": "Demand steady",
+     "good": true
+    },
+    {
+     "text": "Market price rising",
+     "good": true
+    },
+    {
+     "text": "Healthy inventory",
+     "good": true
+    },
+    {
+     "text": "Priced 3.2% above market",
+     "good": false
+    }
+   ],
+   "signals": {
+    "demandLevel": "medium",
+    "priceGapPct": -3.2,
+    "marginPct": 29.7,
+    "weeksOfCover": 5.6,
+    "conversionPct": 57,
+    "commodityPct90": 6.4
+   }
+  }
+ },
+ {
+  "fn": "opportunityScore",
+  "input": {
+   "itemNumber": "HRD118902",
+   "storeId": "100812"
+  },
+  "output": {
+   "itemNumber": "HRD118902",
+   "storeId": "100812",
+   "score": 75,
+   "tier": "strong",
+   "tierLabel": "Strong opportunity",
+   "reasons": [
+    {
+     "text": "Your price 6.9% below market",
+     "good": true
+    },
+    {
+     "text": "Market price rising",
+     "good": true
+    },
+    {
+     "text": "Healthy margin",
+     "good": true
+    },
+    {
+     "text": "High conversion",
+     "good": true
+    }
+   ],
+   "signals": {
+    "demandLevel": "none",
+    "priceGapPct": 6.9,
+    "marginPct": 41,
+    "weeksOfCover": 14.8,
+    "conversionPct": 83,
+    "commodityPct90": 6.4
+   }
+  }
+ },
+ {
+  "fn": "opportunityScore",
+  "input": {
+   "itemNumber": "HRD118902",
+   "storeId": "100205"
+  },
+  "output": {
+   "itemNumber": "HRD118902",
+   "storeId": "100205",
+   "score": 69,
+   "tier": "watch",
+   "tierLabel": "Watch",
+   "reasons": [
+    {
+     "text": "Your price 8.8% below market",
+     "good": true
+    },
+    {
+     "text": "Market price rising",
+     "good": true
+    },
+    {
+     "text": "Healthy margin",
+     "good": true
+    }
+   ],
+   "signals": {
+    "demandLevel": "none",
+    "priceGapPct": 8.8,
+    "marginPct": 41.9,
+    "weeksOfCover": 13.2,
+    "conversionPct": 65,
+    "commodityPct90": 6.4
+   }
+  }
+ },
+ {
+  "fn": "opportunityScore",
+  "input": {
+   "itemNumber": "HRD118902",
+   "storeId": "100933"
+  },
+  "output": {
+   "itemNumber": "HRD118902",
+   "storeId": "100933",
+   "score": 81,
+   "tier": "strong",
+   "tierLabel": "Strong opportunity",
+   "reasons": [
+    {
+     "text": "Demand rising",
+     "good": true
+    },
+    {
+     "text": "Your price 8.9% below market",
+     "good": true
+    },
+    {
+     "text": "Market price rising",
+     "good": true
+    },
+    {
+     "text": "Healthy margin",
+     "good": true
+    },
+    {
+     "text": "High conversion",
+     "good": true
+    }
+   ],
+   "signals": {
+    "demandLevel": "high",
+    "priceGapPct": 8.9,
+    "marginPct": 38.7,
+    "weeksOfCover": 22,
+    "conversionPct": 77,
+    "commodityPct90": 6.4
+   }
+  }
+ },
+ {
+  "fn": "opportunityScore",
+  "input": {
+   "itemNumber": "HRD118902",
+   "storeId": "100571"
+  },
+  "output": {
+   "itemNumber": "HRD118902",
+   "storeId": "100571",
+   "score": 36,
+   "tier": "risk",
+   "tierLabel": "Risk",
+   "reasons": [
+    {
+     "text": "Priced 19.8% above market",
+     "good": false
+    },
+    {
+     "text": "Demand falling",
+     "good": false
+    },
+    {
+     "text": "High conversion",
+     "good": true
+    },
+    {
+     "text": "Healthy inventory",
+     "good": true
+    },
+    {
+     "text": "Healthy margin",
+     "good": true
+    }
+   ],
+   "signals": {
+    "demandLevel": "low",
+    "priceGapPct": -19.8,
+    "marginPct": 48.8,
+    "weeksOfCover": 10.7,
+    "conversionPct": 78,
+    "commodityPct90": 6.4
+   }
+  }
+ },
+ {
+  "fn": "opportunityScore",
+  "input": {
+   "itemNumber": "HRD118902",
+   "storeId": "100959"
+  },
+  "output": {
+   "itemNumber": "HRD118902",
+   "storeId": "100959",
+   "score": 97,
+   "tier": "strong",
+   "tierLabel": "Strong opportunity",
+   "reasons": [
+    {
+     "text": "Demand rising",
+     "good": true
+    },
+    {
+     "text": "Your price 10.8% below market",
+     "good": true
+    },
+    {
+     "text": "Market price rising",
+     "good": true
+    },
+    {
+     "text": "Healthy margin",
+     "good": true
+    },
+    {
+     "text": "Healthy inventory",
+     "good": true
+    }
+   ],
+   "signals": {
+    "demandLevel": "high",
+    "priceGapPct": 10.8,
+    "marginPct": 32,
+    "weeksOfCover": 8.9,
+    "conversionPct": 78,
+    "commodityPct90": 6.4
+   }
+  }
+ },
+ {
+  "fn": "opportunityScore",
+  "input": {
+   "itemNumber": "HRD772310",
+   "storeId": "100349"
+  },
+  "output": {
+   "itemNumber": "HRD772310",
+   "storeId": "100349",
+   "score": 75,
+   "tier": "strong",
+   "tierLabel": "Strong opportunity",
+   "reasons": [
+    {
+     "text": "Demand rising",
+     "good": true
+    },
+    {
+     "text": "Your price 11.1% below market",
+     "good": true
+    },
+    {
+     "text": "Market price rising",
+     "good": true
+    },
+    {
+     "text": "Healthy margin",
+     "good": true
+    },
+    {
+     "text": "Overstocked (17 weeks of cover)",
+     "good": false
+    }
+   ],
+   "signals": {
+    "demandLevel": "high",
+    "priceGapPct": 11.1,
+    "marginPct": 30.9,
+    "weeksOfCover": 17.1,
+    "conversionPct": 67,
+    "commodityPct90": 3.1
+   }
+  }
+ },
+ {
+  "fn": "opportunityScore",
+  "input": {
+   "itemNumber": "HRD772310",
+   "storeId": "100117"
+  },
+  "output": {
+   "itemNumber": "HRD772310",
+   "storeId": "100117",
+   "score": 65,
+   "tier": "watch",
+   "tierLabel": "Watch",
+   "reasons": [
+    {
+     "text": "Your price 3.5% below market",
+     "good": true
+    },
+    {
+     "text": "Market price rising",
+     "good": true
+    },
+    {
+     "text": "Healthy margin",
+     "good": true
+    },
+    {
+     "text": "High conversion",
+     "good": true
+    },
+    {
+     "text": "Overstocked (17 weeks of cover)",
+     "good": false
+    }
+   ],
+   "signals": {
+    "demandLevel": "none",
+    "priceGapPct": 3.5,
+    "marginPct": 51.9,
+    "weeksOfCover": 16.6,
+    "conversionPct": 93,
+    "commodityPct90": 3.1
+   }
+  }
+ },
+ {
+  "fn": "opportunityScore",
+  "input": {
+   "itemNumber": "HRD772310",
+   "storeId": "100649"
+  },
+  "output": {
+   "itemNumber": "HRD772310",
+   "storeId": "100649",
+   "score": 81,
+   "tier": "strong",
+   "tierLabel": "Strong opportunity",
+   "reasons": [
+    {
+     "text": "Demand steady",
+     "good": true
+    },
+    {
+     "text": "Your price 18.4% below market",
+     "good": true
+    },
+    {
+     "text": "Market price rising",
+     "good": true
+    },
+    {
+     "text": "Healthy margin",
+     "good": true
+    },
+    {
+     "text": "Healthy inventory",
+     "good": true
+    }
+   ],
+   "signals": {
+    "demandLevel": "medium",
+    "priceGapPct": 18.4,
+    "marginPct": 50.3,
+    "weeksOfCover": 7.6,
+    "conversionPct": 57,
+    "commodityPct90": 3.1
+   }
+  }
+ },
+ {
+  "fn": "opportunityScore",
+  "input": {
+   "itemNumber": "HRD772310",
+   "storeId": "100812"
+  },
+  "output": {
+   "itemNumber": "HRD772310",
+   "storeId": "100812",
+   "score": 70,
+   "tier": "watch",
+   "tierLabel": "Watch",
+   "reasons": [
+    {
+     "text": "Demand steady",
+     "good": true
+    },
+    {
+     "text": "Your price 11.2% below market",
+     "good": true
+    },
+    {
+     "text": "Market price rising",
+     "good": true
+    },
+    {
+     "text": "Healthy margin",
+     "good": true
+    },
+    {
+     "text": "High conversion",
+     "good": true
+    }
+   ],
+   "signals": {
+    "demandLevel": "medium",
+    "priceGapPct": 11.2,
+    "marginPct": 51.4,
+    "weeksOfCover": 16.8,
+    "conversionPct": 92,
+    "commodityPct90": 3.1
+   }
+  }
+ },
+ {
+  "fn": "opportunityScore",
+  "input": {
+   "itemNumber": "HRD772310",
+   "storeId": "100205"
+  },
+  "output": {
+   "itemNumber": "HRD772310",
+   "storeId": "100205",
+   "score": 63,
+   "tier": "watch",
+   "tierLabel": "Watch",
+   "reasons": [
+    {
+     "text": "Demand steady",
+     "good": true
+    },
+    {
+     "text": "Market price rising",
+     "good": true
+    },
+    {
+     "text": "Healthy margin",
+     "good": true
+    },
+    {
+     "text": "Healthy inventory",
+     "good": true
+    },
+    {
+     "text": "High conversion",
+     "good": true
+    }
+   ],
+   "signals": {
+    "demandLevel": "medium",
+    "priceGapPct": -3.3,
+    "marginPct": 46.5,
+    "weeksOfCover": 11.9,
+    "conversionPct": 85,
+    "commodityPct90": 3.1
+   }
+  }
+ },
+ {
+  "fn": "opportunityScore",
+  "input": {
+   "itemNumber": "HRD772310",
+   "storeId": "100571"
+  },
+  "output": {
+   "itemNumber": "HRD772310",
+   "storeId": "100571",
+   "score": 44,
+   "tier": "risk",
+   "tierLabel": "Risk",
+   "reasons": [
+    {
+     "text": "Priced 18.5% above market",
+     "good": false
+    },
+    {
+     "text": "Healthy inventory",
+     "good": true
+    },
+    {
+     "text": "Healthy margin",
+     "good": true
+    },
+    {
+     "text": "Market price rising",
+     "good": true
+    }
+   ],
+   "signals": {
+    "demandLevel": "none",
+    "priceGapPct": -18.5,
+    "marginPct": 52.9,
+    "weeksOfCover": 11.8,
+    "conversionPct": 64,
+    "commodityPct90": 3.1
+   }
+  }
+ },
+ {
+  "fn": "opportunityScore",
+  "input": {
+   "itemNumber": "HRD450871",
+   "storeId": "100349"
+  },
+  "output": {
+   "itemNumber": "HRD450871",
+   "storeId": "100349",
+   "score": 45,
+   "tier": "watch",
+   "tierLabel": "Watch",
+   "reasons": [
+    {
+     "text": "Demand steady",
+     "good": true
+    },
+    {
+     "text": "Market price rising",
+     "good": true
+    },
+    {
+     "text": "Healthy margin",
+     "good": true
+    },
+    {
+     "text": "Priced 2.5% above market",
+     "good": false
+    },
+    {
+     "text": "Low stock",
+     "good": false
+    }
+   ],
+   "signals": {
+    "demandLevel": "medium",
+    "priceGapPct": -2.5,
+    "marginPct": 40.4,
+    "weeksOfCover": 2.9,
+    "conversionPct": 58,
+    "commodityPct90": 2.4
+   }
+  }
+ },
+ {
+  "fn": "opportunityScore",
+  "input": {
+   "itemNumber": "HRD450871",
+   "storeId": "100047"
+  },
+  "output": {
+   "itemNumber": "HRD450871",
+   "storeId": "100047",
+   "score": 63,
+   "tier": "watch",
+   "tierLabel": "Watch",
+   "reasons": [
+    {
+     "text": "Demand steady",
+     "good": true
+    },
+    {
+     "text": "Priced at market",
+     "good": true
+    },
+    {
+     "text": "Market price rising",
+     "good": true
+    },
+    {
+     "text": "Healthy margin",
+     "good": true
+    },
+    {
+     "text": "Healthy inventory",
+     "good": true
+    }
+   ],
+   "signals": {
+    "demandLevel": "medium",
+    "priceGapPct": 0.3,
+    "marginPct": 45.8,
+    "weeksOfCover": 7.7,
+    "conversionPct": 51,
+    "commodityPct90": 2.4
+   }
+  }
+ },
+ {
+  "fn": "opportunityScore",
+  "input": {
+   "itemNumber": "HRD450871",
+   "storeId": "100649"
+  },
+  "output": {
+   "itemNumber": "HRD450871",
+   "storeId": "100649",
+   "score": 75,
+   "tier": "strong",
+   "tierLabel": "Strong opportunity",
+   "reasons": [
+    {
+     "text": "Demand steady",
+     "good": true
+    },
+    {
+     "text": "Your price 18.8% below market",
+     "good": true
+    },
+    {
+     "text": "Market price rising",
+     "good": true
+    },
+    {
+     "text": "High conversion",
+     "good": true
+    }
+   ],
+   "signals": {
+    "demandLevel": "medium",
+    "priceGapPct": 18.8,
+    "marginPct": 30,
+    "weeksOfCover": 13.3,
+    "conversionPct": 84,
+    "commodityPct90": 2.4
+   }
+  }
+ },
+ {
+  "fn": "opportunityScore",
+  "input": {
+   "itemNumber": "HRD450871",
+   "storeId": "100812"
+  },
+  "output": {
+   "itemNumber": "HRD450871",
+   "storeId": "100812",
+   "score": 71,
+   "tier": "watch",
+   "tierLabel": "Watch",
+   "reasons": [
+    {
+     "text": "Priced at market",
+     "good": true
+    },
+    {
+     "text": "Market price rising",
+     "good": true
+    },
+    {
+     "text": "Healthy margin",
+     "good": true
+    },
+    {
+     "text": "Healthy inventory",
+     "good": true
+    },
+    {
+     "text": "High conversion",
+     "good": true
+    }
+   ],
+   "signals": {
+    "demandLevel": "none",
+    "priceGapPct": 2.2,
+    "marginPct": 35.1,
+    "weeksOfCover": 8,
+    "conversionPct": 87,
+    "commodityPct90": 2.4
+   }
+  }
+ },
+ {
+  "fn": "opportunityScore",
+  "input": {
+   "itemNumber": "HRD450871",
+   "storeId": "100205"
+  },
+  "output": {
+   "itemNumber": "HRD450871",
+   "storeId": "100205",
+   "score": 21,
+   "tier": "risk",
+   "tierLabel": "Risk",
+   "reasons": [
+    {
+     "text": "Overstocked (20 weeks of cover)",
+     "good": false
+    },
+    {
+     "text": "Priced 5.5% above market",
+     "good": false
+    },
+    {
+     "text": "Demand falling",
+     "good": false
+    },
+    {
+     "text": "Healthy margin",
+     "good": true
+    },
+    {
+     "text": "Market price rising",
+     "good": true
+    }
+   ],
+   "signals": {
+    "demandLevel": "low",
+    "priceGapPct": -5.5,
+    "marginPct": 48.4,
+    "weeksOfCover": 19.6,
+    "conversionPct": 67,
+    "commodityPct90": 2.4
+   }
+  }
+ },
+ {
+  "fn": "opportunityScore",
+  "input": {
+   "itemNumber": "HRD450871",
+   "storeId": "100933"
+  },
+  "output": {
+   "itemNumber": "HRD450871",
+   "storeId": "100933",
+   "score": 87,
+   "tier": "strong",
+   "tierLabel": "Strong opportunity",
+   "reasons": [
+    {
+     "text": "Demand rising",
+     "good": true
+    },
+    {
+     "text": "Priced at market",
+     "good": true
+    },
+    {
+     "text": "Market price rising",
+     "good": true
+    },
+    {
+     "text": "Healthy margin",
+     "good": true
+    },
+    {
+     "text": "Healthy inventory",
+     "good": true
+    }
+   ],
+   "signals": {
+    "demandLevel": "high",
+    "priceGapPct": 2.6,
+    "marginPct": 39.3,
+    "weeksOfCover": 4.1,
+    "conversionPct": 87,
+    "commodityPct90": 2.4
+   }
+  }
+ },
+ {
+  "fn": "opportunityScore",
+  "input": {
+   "itemNumber": "HRD450871",
+   "storeId": "100571"
+  },
+  "output": {
+   "itemNumber": "HRD450871",
+   "storeId": "100571",
+   "score": 76,
+   "tier": "strong",
+   "tierLabel": "Strong opportunity",
+   "reasons": [
+    {
+     "text": "Your price 5.9% below market",
+     "good": true
+    },
+    {
+     "text": "Market price rising",
+     "good": true
+    },
+    {
+     "text": "Healthy margin",
+     "good": true
+    },
+    {
+     "text": "Healthy inventory",
+     "good": true
+    }
+   ],
+   "signals": {
+    "demandLevel": "none",
+    "priceGapPct": 5.9,
+    "marginPct": 52.6,
+    "weeksOfCover": 8.8,
+    "conversionPct": 58,
+    "commodityPct90": 2.4
+   }
+  }
+ },
+ {
+  "fn": "opportunityScore",
+  "input": {
+   "itemNumber": "HRD450871",
+   "storeId": "100959"
+  },
+  "output": {
+   "itemNumber": "HRD450871",
+   "storeId": "100959",
+   "score": 81,
+   "tier": "strong",
+   "tierLabel": "Strong opportunity",
+   "reasons": [
+    {
+     "text": "Demand steady",
+     "good": true
+    },
+    {
+     "text": "Your price 5.4% below market",
+     "good": true
+    },
+    {
+     "text": "Market price rising",
+     "good": true
+    },
+    {
+     "text": "Healthy margin",
+     "good": true
+    },
+    {
+     "text": "Healthy inventory",
+     "good": true
+    }
+   ],
+   "signals": {
+    "demandLevel": "medium",
+    "priceGapPct": 5.4,
+    "marginPct": 48.9,
+    "weeksOfCover": 5.7,
+    "conversionPct": 73,
+    "commodityPct90": 2.4
+   }
+  }
+ },
+ {
+  "fn": "opportunityScore",
+  "input": {
+   "itemNumber": "HRD290145",
+   "storeId": "100349"
+  },
+  "output": {
+   "itemNumber": "HRD290145",
+   "storeId": "100349",
+   "score": 68,
+   "tier": "watch",
+   "tierLabel": "Watch",
+   "reasons": [
+    {
+     "text": "Demand rising",
+     "good": true
+    },
+    {
+     "text": "Priced at market",
+     "good": true
+    },
+    {
+     "text": "Healthy margin",
+     "good": true
+    },
+    {
+     "text": "Healthy inventory",
+     "good": true
+    },
+    {
+     "text": "Low conversion",
+     "good": false
+    }
+   ],
+   "signals": {
+    "demandLevel": "high",
+    "priceGapPct": 0.3,
+    "marginPct": 51.7,
+    "weeksOfCover": 5.8,
+    "conversionPct": 54,
+    "commodityPct90": 0.8
+   }
+  }
+ },
+ {
+  "fn": "opportunityScore",
+  "input": {
+   "itemNumber": "HRD290145",
+   "storeId": "100047"
+  },
+  "output": {
+   "itemNumber": "HRD290145",
+   "storeId": "100047",
+   "score": 74,
+   "tier": "watch",
+   "tierLabel": "Watch",
+   "reasons": [
+    {
+     "text": "Demand steady",
+     "good": true
+    },
+    {
+     "text": "Your price 15.9% below market",
+     "good": true
+    },
+    {
+     "text": "Healthy margin",
+     "good": true
+    },
+    {
+     "text": "High conversion",
+     "good": true
+    }
+   ],
+   "signals": {
+    "demandLevel": "medium",
+    "priceGapPct": 15.9,
+    "marginPct": 44.1,
+    "weeksOfCover": 15.1,
+    "conversionPct": 76,
+    "commodityPct90": 0.8
+   }
+  }
+ },
+ {
+  "fn": "opportunityScore",
+  "input": {
+   "itemNumber": "HRD290145",
+   "storeId": "100117"
+  },
+  "output": {
+   "itemNumber": "HRD290145",
+   "storeId": "100117",
+   "score": 92,
+   "tier": "strong",
+   "tierLabel": "Strong opportunity",
+   "reasons": [
+    {
+     "text": "Demand rising",
+     "good": true
+    },
+    {
+     "text": "Your price 13.4% below market",
+     "good": true
+    },
+    {
+     "text": "Healthy margin",
+     "good": true
+    },
+    {
+     "text": "Healthy inventory",
+     "good": true
+    },
+    {
+     "text": "High conversion",
+     "good": true
+    }
+   ],
+   "signals": {
+    "demandLevel": "high",
+    "priceGapPct": 13.4,
+    "marginPct": 31.1,
+    "weeksOfCover": 8.4,
+    "conversionPct": 79,
+    "commodityPct90": 0.8
+   }
+  }
+ },
+ {
+  "fn": "opportunityScore",
+  "input": {
+   "itemNumber": "HRD290145",
+   "storeId": "100649"
+  },
+  "output": {
+   "itemNumber": "HRD290145",
+   "storeId": "100649",
+   "score": 51,
+   "tier": "watch",
+   "tierLabel": "Watch",
+   "reasons": [
+    {
+     "text": "Demand rising",
+     "good": true
+    },
+    {
+     "text": "Priced at market",
+     "good": true
+    },
+    {
+     "text": "Healthy margin",
+     "good": true
+    },
+    {
+     "text": "Overstocked (17 weeks of cover)",
+     "good": false
+    },
+    {
+     "text": "Low conversion",
+     "good": false
+    }
+   ],
+   "signals": {
+    "demandLevel": "high",
+    "priceGapPct": 1.7,
+    "marginPct": 37.3,
+    "weeksOfCover": 17.1,
+    "conversionPct": 45,
+    "commodityPct90": 0.8
+   }
+  }
+ },
+ {
+  "fn": "opportunityScore",
+  "input": {
+   "itemNumber": "HRD290145",
+   "storeId": "100812"
+  },
+  "output": {
+   "itemNumber": "HRD290145",
+   "storeId": "100812",
+   "score": 45,
+   "tier": "watch",
+   "tierLabel": "Watch",
+   "reasons": [
+    {
+     "text": "Your price 4.1% below market",
+     "good": true
+    },
+    {
+     "text": "Healthy margin",
+     "good": true
+    },
+    {
+     "text": "High conversion",
+     "good": true
+    },
+    {
+     "text": "Demand falling",
+     "good": false
+    },
+    {
+     "text": "Overstocked (20 weeks of cover)",
+     "good": false
+    }
+   ],
+   "signals": {
+    "demandLevel": "low",
+    "priceGapPct": 4.1,
+    "marginPct": 45.8,
+    "weeksOfCover": 19.9,
+    "conversionPct": 78,
+    "commodityPct90": 0.8
+   }
+  }
+ },
+ {
+  "fn": "opportunityScore",
+  "input": {
+   "itemNumber": "HRD290145",
+   "storeId": "100205"
+  },
+  "output": {
+   "itemNumber": "HRD290145",
+   "storeId": "100205",
+   "score": 75,
+   "tier": "strong",
+   "tierLabel": "Strong opportunity",
+   "reasons": [
+    {
+     "text": "Demand rising",
+     "good": true
+    },
+    {
+     "text": "Your price 8.9% below market",
+     "good": true
+    },
+    {
+     "text": "Healthy margin",
+     "good": true
+    },
+    {
+     "text": "High conversion",
+     "good": true
+    },
+    {
+     "text": "Overstocked (16 weeks of cover)",
+     "good": false
+    }
+   ],
+   "signals": {
+    "demandLevel": "high",
+    "priceGapPct": 8.9,
+    "marginPct": 45.8,
+    "weeksOfCover": 16.3,
+    "conversionPct": 78,
+    "commodityPct90": 0.8
+   }
+  }
+ },
+ {
+  "fn": "opportunityScore",
+  "input": {
+   "itemNumber": "HRD290145",
+   "storeId": "100933"
+  },
+  "output": {
+   "itemNumber": "HRD290145",
+   "storeId": "100933",
+   "score": 45,
+   "tier": "watch",
+   "tierLabel": "Watch",
+   "reasons": [
+    {
+     "text": "Healthy margin",
+     "good": true
+    },
+    {
+     "text": "High conversion",
+     "good": true
+    },
+    {
+     "text": "Priced 1.5% above market",
+     "good": false
+    }
+   ],
+   "signals": {
+    "demandLevel": "none",
+    "priceGapPct": -1.5,
+    "marginPct": 41,
+    "weeksOfCover": 3.4,
+    "conversionPct": 91,
+    "commodityPct90": 0.8
+   }
+  }
+ },
+ {
+  "fn": "opportunityScore",
+  "input": {
+   "itemNumber": "HRD661204",
+   "storeId": "100349"
+  },
+  "output": {
+   "itemNumber": "HRD661204",
+   "storeId": "100349",
+   "score": 81,
+   "tier": "strong",
+   "tierLabel": "Strong opportunity",
+   "reasons": [
+    {
+     "text": "Demand steady",
+     "good": true
+    },
+    {
+     "text": "Your price 8.1% below market",
+     "good": true
+    },
+    {
+     "text": "Healthy margin",
+     "good": true
+    },
+    {
+     "text": "Healthy inventory",
+     "good": true
+    },
+    {
+     "text": "High conversion",
+     "good": true
+    }
+   ],
+   "signals": {
+    "demandLevel": "medium",
+    "priceGapPct": 8.1,
+    "marginPct": 47.4,
+    "weeksOfCover": 10.1,
+    "conversionPct": 85,
+    "commodityPct90": 1.6
+   }
+  }
+ },
+ {
+  "fn": "opportunityScore",
+  "input": {
+   "itemNumber": "HRD661204",
+   "storeId": "100047"
+  },
+  "output": {
+   "itemNumber": "HRD661204",
+   "storeId": "100047",
+   "score": 59,
+   "tier": "watch",
+   "tierLabel": "Watch",
+   "reasons": [
+    {
+     "text": "Your price 13.6% below market",
+     "good": true
+    },
+    {
+     "text": "Healthy margin",
+     "good": true
+    },
+    {
+     "text": "High conversion",
+     "good": true
+    },
+    {
+     "text": "Overstocked (18 weeks of cover)",
+     "good": false
+    }
+   ],
+   "signals": {
+    "demandLevel": "none",
+    "priceGapPct": 13.6,
+    "marginPct": 32.2,
+    "weeksOfCover": 18.3,
+    "conversionPct": 82,
+    "commodityPct90": 1.6
+   }
+  }
+ },
+ {
+  "fn": "opportunityScore",
+  "input": {
+   "itemNumber": "HRD661204",
+   "storeId": "100117"
+  },
+  "output": {
+   "itemNumber": "HRD661204",
+   "storeId": "100117",
+   "score": 75,
+   "tier": "strong",
+   "tierLabel": "Strong opportunity",
+   "reasons": [
+    {
+     "text": "Demand rising",
+     "good": true
+    },
+    {
+     "text": "Your price 10.7% below market",
+     "good": true
+    },
+    {
+     "text": "Healthy margin",
+     "good": true
+    },
+    {
+     "text": "High conversion",
+     "good": true
+    },
+    {
+     "text": "Overstocked (18 weeks of cover)",
+     "good": false
+    }
+   ],
+   "signals": {
+    "demandLevel": "high",
+    "priceGapPct": 10.7,
+    "marginPct": 38,
+    "weeksOfCover": 17.8,
+    "conversionPct": 92,
+    "commodityPct90": 1.6
+   }
+  }
+ },
+ {
+  "fn": "opportunityScore",
+  "input": {
+   "itemNumber": "HRD661204",
+   "storeId": "100649"
+  },
+  "output": {
+   "itemNumber": "HRD661204",
+   "storeId": "100649",
+   "score": 75,
+   "tier": "strong",
+   "tierLabel": "Strong opportunity",
+   "reasons": [
+    {
+     "text": "Demand steady",
+     "good": true
+    },
+    {
+     "text": "Your price 10.1% below market",
+     "good": true
+    },
+    {
+     "text": "Healthy margin",
+     "good": true
+    },
+    {
+     "text": "Healthy inventory",
+     "good": true
+    }
+   ],
+   "signals": {
+    "demandLevel": "medium",
+    "priceGapPct": 10.1,
+    "marginPct": 47.2,
+    "weeksOfCover": 7.8,
+    "conversionPct": 62,
+    "commodityPct90": 1.6
+   }
+  }
+ },
+ {
+  "fn": "opportunityScore",
+  "input": {
+   "itemNumber": "HRD661204",
+   "storeId": "100812"
+  },
+  "output": {
+   "itemNumber": "HRD661204",
+   "storeId": "100812",
+   "score": 40,
+   "tier": "risk",
+   "tierLabel": "Risk",
+   "reasons": [
+    {
+     "text": "Overstocked (20 weeks of cover)",
+     "good": false
+    },
+    {
+     "text": "Priced 4.4% above market",
+     "good": false
+    },
+    {
+     "text": "Demand rising",
+     "good": true
+    }
+   ],
+   "signals": {
+    "demandLevel": "high",
+    "priceGapPct": -4.4,
+    "marginPct": 27.7,
+    "weeksOfCover": 19.8,
+    "conversionPct": 62,
+    "commodityPct90": 1.6
+   }
+  }
+ },
+ {
+  "fn": "opportunityScore",
+  "input": {
+   "itemNumber": "HRD661204",
+   "storeId": "100205"
+  },
+  "output": {
+   "itemNumber": "HRD661204",
+   "storeId": "100205",
+   "score": 62,
+   "tier": "watch",
+   "tierLabel": "Watch",
+   "reasons": [
+    {
+     "text": "Your price 15.1% below market",
+     "good": true
+    },
+    {
+     "text": "Healthy margin",
+     "good": true
+    },
+    {
+     "text": "Healthy inventory",
+     "good": true
+    },
+    {
+     "text": "High conversion",
+     "good": true
+    },
+    {
+     "text": "Demand falling",
+     "good": false
+    }
+   ],
+   "signals": {
+    "demandLevel": "low",
+    "priceGapPct": 15.1,
+    "marginPct": 32.6,
+    "weeksOfCover": 11,
+    "conversionPct": 93,
+    "commodityPct90": 1.6
+   }
+  }
+ },
+ {
+  "fn": "opportunityScore",
+  "input": {
+   "itemNumber": "HRD661204",
+   "storeId": "100933"
+  },
+  "output": {
+   "itemNumber": "HRD661204",
+   "storeId": "100933",
+   "score": 21,
+   "tier": "risk",
+   "tierLabel": "Risk",
+   "reasons": [
+    {
+     "text": "Overstocked (22 weeks of cover)",
+     "good": false
+    },
+    {
+     "text": "Priced 1.8% above market",
+     "good": false
+    },
+    {
+     "text": "Demand falling",
+     "good": false
+    },
+    {
+     "text": "High conversion",
+     "good": true
+    },
+    {
+     "text": "Healthy margin",
+     "good": true
+    }
+   ],
+   "signals": {
+    "demandLevel": "low",
+    "priceGapPct": -1.8,
+    "marginPct": 39,
+    "weeksOfCover": 21.9,
+    "conversionPct": 91,
+    "commodityPct90": 1.6
+   }
+  }
+ },
+ {
+  "fn": "opportunityScore",
+  "input": {
+   "itemNumber": "HRD661204",
+   "storeId": "100571"
+  },
+  "output": {
+   "itemNumber": "HRD661204",
+   "storeId": "100571",
+   "score": 7,
+   "tier": "risk",
+   "tierLabel": "Risk",
+   "reasons": [
+    {
+     "text": "Low stock",
+     "good": false
+    },
+    {
+     "text": "Priced 6.4% above market",
+     "good": false
+    },
+    {
+     "text": "Demand falling",
+     "good": false
+    }
+   ],
+   "signals": {
+    "demandLevel": "low",
+    "priceGapPct": -6.4,
+    "marginPct": 29.8,
+    "weeksOfCover": 2.7,
+    "conversionPct": 66,
+    "commodityPct90": 1.6
+   }
+  }
+ },
+ {
+  "fn": "opportunityScore",
+  "input": {
+   "itemNumber": "HRD661204",
+   "storeId": "100959"
+  },
+  "output": {
+   "itemNumber": "HRD661204",
+   "storeId": "100959",
+   "score": 34,
+   "tier": "risk",
+   "tierLabel": "Risk",
+   "reasons": [
+    {
+     "text": "Overstocked (22 weeks of cover)",
+     "good": false
+    },
+    {
+     "text": "Demand falling",
+     "good": false
+    },
+    {
+     "text": "Your price 55.5% below market",
+     "good": true
+    }
+   ],
+   "signals": {
+    "demandLevel": "low",
+    "priceGapPct": 55.5,
+    "marginPct": 25.5,
+    "weeksOfCover": 22.4,
+    "conversionPct": 63,
+    "commodityPct90": 1.6
+   }
+  }
+ },
+ {
+  "fn": "opportunityScore",
+  "input": {
+   "itemNumber": "HRD983377",
+   "storeId": "100349"
+  },
+  "output": {
+   "itemNumber": "HRD983377",
+   "storeId": "100349",
+   "score": 68,
+   "tier": "watch",
+   "tierLabel": "Watch",
+   "reasons": [
+    {
+     "text": "Demand rising",
+     "good": true
+    },
+    {
+     "text": "Market price rising",
+     "good": true
+    },
+    {
+     "text": "Healthy margin",
+     "good": true
+    },
+    {
+     "text": "Healthy inventory",
+     "good": true
+    },
+    {
+     "text": "Priced 0.7% above market",
+     "good": false
+    }
+   ],
+   "signals": {
+    "demandLevel": "high",
+    "priceGapPct": -0.7,
+    "marginPct": 39.7,
+    "weeksOfCover": 6.2,
+    "conversionPct": 72,
+    "commodityPct90": 2.4
+   }
+  }
+ },
+ {
+  "fn": "opportunityScore",
+  "input": {
+   "itemNumber": "HRD983377",
+   "storeId": "100047"
+  },
+  "output": {
+   "itemNumber": "HRD983377",
+   "storeId": "100047",
+   "score": 75,
+   "tier": "strong",
+   "tierLabel": "Strong opportunity",
+   "reasons": [
+    {
+     "text": "Demand steady",
+     "good": true
+    },
+    {
+     "text": "Your price 12.7% below market",
+     "good": true
+    },
+    {
+     "text": "Market price rising",
+     "good": true
+    },
+    {
+     "text": "High conversion",
+     "good": true
+    }
+   ],
+   "signals": {
+    "demandLevel": "medium",
+    "priceGapPct": 12.7,
+    "marginPct": 24.3,
+    "weeksOfCover": 13.9,
+    "conversionPct": 82,
+    "commodityPct90": 2.4
+   }
+  }
+ },
+ {
+  "fn": "opportunityScore",
+  "input": {
+   "itemNumber": "HRD983377",
+   "storeId": "100117"
+  },
+  "output": {
+   "itemNumber": "HRD983377",
+   "storeId": "100117",
+   "score": 62,
+   "tier": "watch",
+   "tierLabel": "Watch",
+   "reasons": [
+    {
+     "text": "Demand steady",
+     "good": true
+    },
+    {
+     "text": "Your price 9.9% below market",
+     "good": true
+    },
+    {
+     "text": "Market price rising",
+     "good": true
+    },
+    {
+     "text": "Low conversion",
+     "good": false
+    }
+   ],
+   "signals": {
+    "demandLevel": "medium",
+    "priceGapPct": 9.9,
+    "marginPct": 29.1,
+    "weeksOfCover": 12.7,
+    "conversionPct": 50,
+    "commodityPct90": 2.4
+   }
+  }
+ },
+ {
+  "fn": "opportunityScore",
+  "input": {
+   "itemNumber": "HRD983377",
+   "storeId": "100812"
+  },
+  "output": {
+   "itemNumber": "HRD983377",
+   "storeId": "100812",
+   "score": 82,
+   "tier": "strong",
+   "tierLabel": "Strong opportunity",
+   "reasons": [
+    {
+     "text": "Your price 33.6% below market",
+     "good": true
+    },
+    {
+     "text": "Market price rising",
+     "good": true
+    },
+    {
+     "text": "Healthy margin",
+     "good": true
+    },
+    {
+     "text": "Healthy inventory",
+     "good": true
+    },
+    {
+     "text": "High conversion",
+     "good": true
+    }
+   ],
+   "signals": {
+    "demandLevel": "none",
+    "priceGapPct": 33.6,
+    "marginPct": 34.6,
+    "weeksOfCover": 6.6,
+    "conversionPct": 82,
+    "commodityPct90": 2.4
+   }
+  }
+ },
+ {
+  "fn": "opportunityScore",
+  "input": {
+   "itemNumber": "HRD983377",
+   "storeId": "100205"
+  },
+  "output": {
+   "itemNumber": "HRD983377",
+   "storeId": "100205",
+   "score": 68,
+   "tier": "watch",
+   "tierLabel": "Watch",
+   "reasons": [
+    {
+     "text": "Your price 14.9% below market",
+     "good": true
+    },
+    {
+     "text": "Market price rising",
+     "good": true
+    },
+    {
+     "text": "Healthy margin",
+     "good": true
+    },
+    {
+     "text": "Healthy inventory",
+     "good": true
+    },
+    {
+     "text": "High conversion",
+     "good": true
+    }
+   ],
+   "signals": {
+    "demandLevel": "low",
+    "priceGapPct": 14.9,
+    "marginPct": 49.2,
+    "weeksOfCover": 5,
+    "conversionPct": 75,
+    "commodityPct90": 2.4
+   }
+  }
+ },
+ {
+  "fn": "opportunityScore",
+  "input": {
+   "itemNumber": "HRD983377",
+   "storeId": "100933"
+  },
+  "output": {
+   "itemNumber": "HRD983377",
+   "storeId": "100933",
+   "score": 62,
+   "tier": "watch",
+   "tierLabel": "Watch",
+   "reasons": [
+    {
+     "text": "Your price 4.1% below market",
+     "good": true
+    },
+    {
+     "text": "Market price rising",
+     "good": true
+    },
+    {
+     "text": "Healthy margin",
+     "good": true
+    },
+    {
+     "text": "Low conversion",
+     "good": false
+    }
+   ],
+   "signals": {
+    "demandLevel": "none",
+    "priceGapPct": 4.1,
+    "marginPct": 49,
+    "weeksOfCover": 12.9,
+    "conversionPct": 45,
+    "commodityPct90": 2.4
+   }
+  }
+ },
+ {
+  "fn": "opportunityScore",
+  "input": {
+   "itemNumber": "HRD512066",
+   "storeId": "100349"
+  },
+  "output": {
+   "itemNumber": "HRD512066",
+   "storeId": "100349",
+   "score": 30,
+   "tier": "risk",
+   "tierLabel": "Risk",
+   "reasons": [
+    {
+     "text": "Low conversion",
+     "good": false
+    },
+    {
+     "text": "Overstocked (20 weeks of cover)",
+     "good": false
+    },
+    {
+     "text": "Priced 11.0% above market",
+     "good": false
+    },
+    {
+     "text": "Healthy margin",
+     "good": true
+    },
+    {
+     "text": "Demand rising",
+     "good": true
+    }
+   ],
+   "signals": {
+    "demandLevel": "high",
+    "priceGapPct": -11,
+    "marginPct": 31.9,
+    "weeksOfCover": 20,
+    "conversionPct": 48,
+    "commodityPct90": 1.6
+   }
+  }
+ },
+ {
+  "fn": "opportunityScore",
+  "input": {
+   "itemNumber": "HRD512066",
+   "storeId": "100047"
+  },
+  "output": {
+   "itemNumber": "HRD512066",
+   "storeId": "100047",
+   "score": 62,
+   "tier": "watch",
+   "tierLabel": "Watch",
+   "reasons": [
+    {
+     "text": "Demand rising",
+     "good": true
+    },
+    {
+     "text": "Healthy margin",
+     "good": true
+    },
+    {
+     "text": "Healthy inventory",
+     "good": true
+    },
+    {
+     "text": "Priced 0.3% above market",
+     "good": false
+    }
+   ],
+   "signals": {
+    "demandLevel": "high",
+    "priceGapPct": -0.3,
+    "marginPct": 32.5,
+    "weeksOfCover": 12,
+    "conversionPct": 59,
+    "commodityPct90": 1.6
+   }
+  }
+ },
+ {
+  "fn": "opportunityScore",
+  "input": {
+   "itemNumber": "HRD512066",
+   "storeId": "100117"
+  },
+  "output": {
+   "itemNumber": "HRD512066",
+   "storeId": "100117",
+   "score": 29,
+   "tier": "risk",
+   "tierLabel": "Risk",
+   "reasons": [
+    {
+     "text": "Overstocked (17 weeks of cover)",
+     "good": false
+    },
+    {
+     "text": "Priced 1.8% above market",
+     "good": false
+    },
+    {
+     "text": "Healthy margin",
+     "good": true
+    }
+   ],
+   "signals": {
+    "demandLevel": "none",
+    "priceGapPct": -1.8,
+    "marginPct": 52.6,
+    "weeksOfCover": 17.2,
+    "conversionPct": 56,
+    "commodityPct90": 1.6
+   }
+  }
+ },
+ {
+  "fn": "opportunityScore",
+  "input": {
+   "itemNumber": "HRD512066",
+   "storeId": "100933"
+  },
+  "output": {
+   "itemNumber": "HRD512066",
+   "storeId": "100933",
+   "score": 81,
+   "tier": "strong",
+   "tierLabel": "Strong opportunity",
+   "reasons": [
+    {
+     "text": "Demand steady",
+     "good": true
+    },
+    {
+     "text": "Your price 18.6% below market",
+     "good": true
+    },
+    {
+     "text": "Healthy margin",
+     "good": true
+    },
+    {
+     "text": "Healthy inventory",
+     "good": true
+    },
+    {
+     "text": "High conversion",
+     "good": true
+    }
+   ],
+   "signals": {
+    "demandLevel": "medium",
+    "priceGapPct": 18.6,
+    "marginPct": 51.2,
+    "weeksOfCover": 11.5,
+    "conversionPct": 85,
+    "commodityPct90": 1.6
+   }
+  }
+ },
+ {
+  "fn": "opportunityScore",
+  "input": {
+   "itemNumber": "HRD512066",
+   "storeId": "100571"
+  },
+  "output": {
+   "itemNumber": "HRD512066",
+   "storeId": "100571",
+   "score": 38,
+   "tier": "risk",
+   "tierLabel": "Risk",
+   "reasons": [
+    {
+     "text": "Demand falling",
+     "good": false
+    },
+    {
+     "text": "Healthy margin",
+     "good": true
+    },
+    {
+     "text": "Priced at market",
+     "good": true
+    }
+   ],
+   "signals": {
+    "demandLevel": "low",
+    "priceGapPct": 2.9,
+    "marginPct": 33,
+    "weeksOfCover": 12.3,
+    "conversionPct": 61,
+    "commodityPct90": 1.6
+   }
+  }
+ },
+ {
+  "fn": "opportunityScore",
+  "input": {
+   "itemNumber": "HRD512066",
+   "storeId": "100959"
+  },
+  "output": {
+   "itemNumber": "HRD512066",
+   "storeId": "100959",
+   "score": 68,
+   "tier": "watch",
+   "tierLabel": "Watch",
+   "reasons": [
+    {
+     "text": "Demand rising",
+     "good": true
+    },
+    {
+     "text": "Healthy margin",
+     "good": true
+    },
+    {
+     "text": "Healthy inventory",
+     "good": true
+    },
+    {
+     "text": "High conversion",
+     "good": true
+    },
+    {
+     "text": "Priced 0.3% above market",
+     "good": false
+    }
+   ],
+   "signals": {
+    "demandLevel": "high",
+    "priceGapPct": -0.3,
+    "marginPct": 40.2,
+    "weeksOfCover": 7.4,
+    "conversionPct": 76,
+    "commodityPct90": 1.6
+   }
+  }
+ },
+ {
+  "fn": "opportunityScore",
+  "input": {
+   "itemNumber": "HRD874019",
+   "storeId": "100349"
+  },
+  "output": {
+   "itemNumber": "HRD874019",
+   "storeId": "100349",
+   "score": 74,
+   "tier": "watch",
+   "tierLabel": "Watch",
+   "reasons": [
+    {
+     "text": "Demand steady",
+     "good": true
+    },
+    {
+     "text": "Your price 3.1% below market",
+     "good": true
+    },
+    {
+     "text": "Healthy margin",
+     "good": true
+    },
+    {
+     "text": "High conversion",
+     "good": true
+    }
+   ],
+   "signals": {
+    "demandLevel": "medium",
+    "priceGapPct": 3.1,
+    "marginPct": 39.4,
+    "weeksOfCover": 14.6,
+    "conversionPct": 89,
+    "commodityPct90": -1.1
+   }
+  }
+ },
+ {
+  "fn": "opportunityScore",
+  "input": {
+   "itemNumber": "HRD874019",
+   "storeId": "100047"
+  },
+  "output": {
+   "itemNumber": "HRD874019",
+   "storeId": "100047",
+   "score": 70,
+   "tier": "watch",
+   "tierLabel": "Watch",
+   "reasons": [
+    {
+     "text": "Your price 4.7% below market",
+     "good": true
+    },
+    {
+     "text": "Healthy margin",
+     "good": true
+    },
+    {
+     "text": "Healthy inventory",
+     "good": true
+    }
+   ],
+   "signals": {
+    "demandLevel": "none",
+    "priceGapPct": 4.7,
+    "marginPct": 38.5,
+    "weeksOfCover": 11.7,
+    "conversionPct": 65,
+    "commodityPct90": -1.1
+   }
+  }
+ },
+ {
+  "fn": "opportunityScore",
+  "input": {
+   "itemNumber": "HRD874019",
+   "storeId": "100649"
+  },
+  "output": {
+   "itemNumber": "HRD874019",
+   "storeId": "100649",
+   "score": 64,
+   "tier": "watch",
+   "tierLabel": "Watch",
+   "reasons": [
+    {
+     "text": "Demand steady",
+     "good": true
+    },
+    {
+     "text": "Your price 19.3% below market",
+     "good": true
+    },
+    {
+     "text": "Healthy margin",
+     "good": true
+    },
+    {
+     "text": "High conversion",
+     "good": true
+    },
+    {
+     "text": "Overstocked (23 weeks of cover)",
+     "good": false
+    }
+   ],
+   "signals": {
+    "demandLevel": "medium",
+    "priceGapPct": 19.3,
+    "marginPct": 32.3,
+    "weeksOfCover": 23.4,
+    "conversionPct": 82,
+    "commodityPct90": -1.1
+   }
+  }
+ },
+ {
+  "fn": "opportunityScore",
+  "input": {
+   "itemNumber": "HRD874019",
+   "storeId": "100571"
+  },
+  "output": {
+   "itemNumber": "HRD874019",
+   "storeId": "100571",
+   "score": 51,
+   "tier": "watch",
+   "tierLabel": "Watch",
+   "reasons": [
+    {
+     "text": "Demand steady",
+     "good": true
+    },
+    {
+     "text": "Healthy margin",
+     "good": true
+    },
+    {
+     "text": "Healthy inventory",
+     "good": true
+    },
+    {
+     "text": "Priced 5.9% above market",
+     "good": false
+    }
+   ],
+   "signals": {
+    "demandLevel": "medium",
+    "priceGapPct": -5.9,
+    "marginPct": 53.2,
+    "weeksOfCover": 6.6,
+    "conversionPct": 56,
+    "commodityPct90": -1.1
+   }
+  }
+ },
+ {
+  "fn": "opportunityScore",
+  "input": {
+   "itemNumber": "HRD874019",
+   "storeId": "100959"
+  },
+  "output": {
+   "itemNumber": "HRD874019",
+   "storeId": "100959",
+   "score": 27,
+   "tier": "risk",
+   "tierLabel": "Risk",
+   "reasons": [
+    {
+     "text": "Overstocked (18 weeks of cover)",
+     "good": false
+    },
+    {
+     "text": "Priced 9.4% above market",
+     "good": false
+    },
+    {
+     "text": "High conversion",
+     "good": true
+    },
+    {
+     "text": "Healthy margin",
+     "good": true
+    }
+   ],
+   "signals": {
+    "demandLevel": "none",
+    "priceGapPct": -9.4,
+    "marginPct": 46.7,
+    "weeksOfCover": 18.3,
+    "conversionPct": 87,
+    "commodityPct90": -1.1
+   }
+  }
+ },
+ {
+  "fn": "opportunityScore",
+  "input": {
+   "itemNumber": "HRD335590",
+   "storeId": "100349"
+  },
+  "output": {
+   "itemNumber": "HRD335590",
+   "storeId": "100349",
+   "score": 81,
+   "tier": "strong",
+   "tierLabel": "Strong opportunity",
+   "reasons": [
+    {
+     "text": "Demand rising",
+     "good": true
+    },
+    {
+     "text": "Priced at market",
+     "good": true
+    },
+    {
+     "text": "Market price rising",
+     "good": true
+    },
+    {
+     "text": "Healthy margin",
+     "good": true
+    },
+    {
+     "text": "Healthy inventory",
+     "good": true
+    }
+   ],
+   "signals": {
+    "demandLevel": "high",
+    "priceGapPct": 1.3,
+    "marginPct": 35.1,
+    "weeksOfCover": 11.6,
+    "conversionPct": 68,
+    "commodityPct90": 3.1
+   }
+  }
+ },
+ {
+  "fn": "opportunityScore",
+  "input": {
+   "itemNumber": "HRD335590",
+   "storeId": "100047"
+  },
+  "output": {
+   "itemNumber": "HRD335590",
+   "storeId": "100047",
+   "score": 80,
+   "tier": "strong",
+   "tierLabel": "Strong opportunity",
+   "reasons": [
+    {
+     "text": "Demand steady",
+     "good": true
+    },
+    {
+     "text": "Your price 5.4% below market",
+     "good": true
+    },
+    {
+     "text": "Market price rising",
+     "good": true
+    },
+    {
+     "text": "Healthy margin",
+     "good": true
+    },
+    {
+     "text": "High conversion",
+     "good": true
+    }
+   ],
+   "signals": {
+    "demandLevel": "medium",
+    "priceGapPct": 5.4,
+    "marginPct": 49.9,
+    "weeksOfCover": 13,
+    "conversionPct": 75,
+    "commodityPct90": 3.1
+   }
+  }
+ },
+ {
+  "fn": "opportunityScore",
+  "input": {
+   "itemNumber": "HRD335590",
+   "storeId": "100117"
+  },
+  "output": {
+   "itemNumber": "HRD335590",
+   "storeId": "100117",
+   "score": 85,
+   "tier": "strong",
+   "tierLabel": "Strong opportunity",
+   "reasons": [
+    {
+     "text": "Demand rising",
+     "good": true
+    },
+    {
+     "text": "Your price 7.2% below market",
+     "good": true
+    },
+    {
+     "text": "Market price rising",
+     "good": true
+    },
+    {
+     "text": "Healthy margin",
+     "good": true
+    }
+   ],
+   "signals": {
+    "demandLevel": "high",
+    "priceGapPct": 7.2,
+    "marginPct": 31.1,
+    "weeksOfCover": 15.4,
+    "conversionPct": 69,
+    "commodityPct90": 3.1
+   }
+  }
+ },
+ {
+  "fn": "opportunityScore",
+  "input": {
+   "itemNumber": "HRD335590",
+   "storeId": "100649"
+  },
+  "output": {
+   "itemNumber": "HRD335590",
+   "storeId": "100649",
+   "score": 70,
+   "tier": "watch",
+   "tierLabel": "Watch",
+   "reasons": [
+    {
+     "text": "Demand rising",
+     "good": true
+    },
+    {
+     "text": "Your price 8.4% below market",
+     "good": true
+    },
+    {
+     "text": "Market price rising",
+     "good": true
+    },
+    {
+     "text": "Overstocked (17 weeks of cover)",
+     "good": false
+    }
+   ],
+   "signals": {
+    "demandLevel": "high",
+    "priceGapPct": 8.4,
+    "marginPct": 30,
+    "weeksOfCover": 16.5,
+    "conversionPct": 72,
+    "commodityPct90": 3.1
+   }
+  }
+ },
+ {
+  "fn": "opportunityScore",
+  "input": {
+   "itemNumber": "HRD335590",
+   "storeId": "100812"
+  },
+  "output": {
+   "itemNumber": "HRD335590",
+   "storeId": "100812",
+   "score": 54,
+   "tier": "watch",
+   "tierLabel": "Watch",
+   "reasons": [
+    {
+     "text": "Priced at market",
+     "good": true
+    },
+    {
+     "text": "Market price rising",
+     "good": true
+    },
+    {
+     "text": "Healthy margin",
+     "good": true
+    },
+    {
+     "text": "High conversion",
+     "good": true
+    },
+    {
+     "text": "Overstocked (21 weeks of cover)",
+     "good": false
+    }
+   ],
+   "signals": {
+    "demandLevel": "none",
+    "priceGapPct": 0.4,
+    "marginPct": 42.7,
+    "weeksOfCover": 21.4,
+    "conversionPct": 78,
+    "commodityPct90": 3.1
+   }
+  }
+ },
+ {
+  "fn": "opportunityScore",
+  "input": {
+   "itemNumber": "HRD335590",
+   "storeId": "100205"
+  },
+  "output": {
+   "itemNumber": "HRD335590",
+   "storeId": "100205",
+   "score": 54,
+   "tier": "watch",
+   "tierLabel": "Watch",
+   "reasons": [
+    {
+     "text": "Priced at market",
+     "good": true
+    },
+    {
+     "text": "Market price rising",
+     "good": true
+    },
+    {
+     "text": "Healthy margin",
+     "good": true
+    },
+    {
+     "text": "High conversion",
+     "good": true
+    },
+    {
+     "text": "Overstocked (21 weeks of cover)",
+     "good": false
+    }
+   ],
+   "signals": {
+    "demandLevel": "none",
+    "priceGapPct": 2.2,
+    "marginPct": 32.1,
+    "weeksOfCover": 20.7,
+    "conversionPct": 80,
+    "commodityPct90": 3.1
+   }
+  }
+ },
+ {
+  "fn": "opportunityScore",
+  "input": {
+   "itemNumber": "HRD335590",
+   "storeId": "100933"
+  },
+  "output": {
+   "itemNumber": "HRD335590",
+   "storeId": "100933",
+   "score": 51,
+   "tier": "watch",
+   "tierLabel": "Watch",
+   "reasons": [
+    {
+     "text": "Your price 10.2% below market",
+     "good": true
+    },
+    {
+     "text": "Market price rising",
+     "good": true
+    },
+    {
+     "text": "Healthy margin",
+     "good": true
+    },
+    {
+     "text": "High conversion",
+     "good": true
+    },
+    {
+     "text": "Demand falling",
+     "good": false
+    }
+   ],
+   "signals": {
+    "demandLevel": "low",
+    "priceGapPct": 10.2,
+    "marginPct": 53.4,
+    "weeksOfCover": 22.9,
+    "conversionPct": 85,
+    "commodityPct90": 3.1
+   }
+  }
+ },
+ {
+  "fn": "opportunityScore",
+  "input": {
+   "itemNumber": "HRD335590",
+   "storeId": "100571"
+  },
+  "output": {
+   "itemNumber": "HRD335590",
+   "storeId": "100571",
+   "score": 33,
+   "tier": "risk",
+   "tierLabel": "Risk",
+   "reasons": [
+    {
+     "text": "Overstocked (22 weeks of cover)",
+     "good": false
+    },
+    {
+     "text": "Priced 6.1% above market",
+     "good": false
+    },
+    {
+     "text": "High conversion",
+     "good": true
+    },
+    {
+     "text": "Healthy margin",
+     "good": true
+    },
+    {
+     "text": "Market price rising",
+     "good": true
+    }
+   ],
+   "signals": {
+    "demandLevel": "none",
+    "priceGapPct": -6.1,
+    "marginPct": 44.6,
+    "weeksOfCover": 21.5,
+    "conversionPct": 92,
+    "commodityPct90": 3.1
+   }
+  }
+ },
+ {
+  "fn": "opportunityScore",
+  "input": {
+   "itemNumber": "HRD107744",
+   "storeId": "100117"
+  },
+  "output": {
+   "itemNumber": "HRD107744",
+   "storeId": "100117",
+   "score": 65,
+   "tier": "watch",
+   "tierLabel": "Watch",
+   "reasons": [
+    {
+     "text": "Priced at market",
+     "good": true
+    },
+    {
+     "text": "Market price rising",
+     "good": true
+    },
+    {
+     "text": "Healthy margin",
+     "good": true
+    },
+    {
+     "text": "Healthy inventory",
+     "good": true
+    }
+   ],
+   "signals": {
+    "demandLevel": "none",
+    "priceGapPct": 0,
+    "marginPct": 44,
+    "weeksOfCover": 6.5,
+    "conversionPct": 69,
+    "commodityPct90": 6.4
+   }
+  }
+ },
+ {
+  "fn": "opportunityScore",
+  "input": {
+   "itemNumber": "HRD107744",
+   "storeId": "100649"
+  },
+  "output": {
+   "itemNumber": "HRD107744",
+   "storeId": "100649",
+   "score": 65,
+   "tier": "watch",
+   "tierLabel": "Watch",
+   "reasons": [
+    {
+     "text": "Your price 14.7% below market",
+     "good": true
+    },
+    {
+     "text": "Market price rising",
+     "good": true
+    },
+    {
+     "text": "Healthy margin",
+     "good": true
+    },
+    {
+     "text": "High conversion",
+     "good": true
+    },
+    {
+     "text": "Overstocked (21 weeks of cover)",
+     "good": false
+    }
+   ],
+   "signals": {
+    "demandLevel": "none",
+    "priceGapPct": 14.7,
+    "marginPct": 43.3,
+    "weeksOfCover": 21.1,
+    "conversionPct": 93,
+    "commodityPct90": 6.4
+   }
+  }
+ },
+ {
+  "fn": "opportunityScore",
+  "input": {
+   "itemNumber": "HRD107744",
+   "storeId": "100812"
+  },
+  "output": {
+   "itemNumber": "HRD107744",
+   "storeId": "100812",
+   "score": 73,
+   "tier": "watch",
+   "tierLabel": "Watch",
+   "reasons": [
+    {
+     "text": "Demand rising",
+     "good": true
+    },
+    {
+     "text": "Your price 35.7% below market",
+     "good": true
+    },
+    {
+     "text": "Market price rising",
+     "good": true
+    },
+    {
+     "text": "Low conversion",
+     "good": false
+    }
+   ],
+   "signals": {
+    "demandLevel": "high",
+    "priceGapPct": 35.7,
+    "marginPct": 28,
+    "weeksOfCover": 3.2,
+    "conversionPct": 47,
+    "commodityPct90": 6.4
+   }
+  }
+ },
+ {
+  "fn": "opportunityScore",
+  "input": {
+   "itemNumber": "HRD107744",
+   "storeId": "100205"
+  },
+  "output": {
+   "itemNumber": "HRD107744",
+   "storeId": "100205",
+   "score": 85,
+   "tier": "strong",
+   "tierLabel": "Strong opportunity",
+   "reasons": [
+    {
+     "text": "Demand rising",
+     "good": true
+    },
+    {
+     "text": "Your price 5.6% below market",
+     "good": true
+    },
+    {
+     "text": "Market price rising",
+     "good": true
+    },
+    {
+     "text": "Healthy margin",
+     "good": true
+    }
+   ],
+   "signals": {
+    "demandLevel": "high",
+    "priceGapPct": 5.6,
+    "marginPct": 45.6,
+    "weeksOfCover": 14,
+    "conversionPct": 58,
+    "commodityPct90": 6.4
+   }
+  }
+ },
+ {
+  "fn": "opportunityScore",
+  "input": {
+   "itemNumber": "HRD107744",
+   "storeId": "100933"
+  },
+  "output": {
+   "itemNumber": "HRD107744",
+   "storeId": "100933",
+   "score": 44,
+   "tier": "risk",
+   "tierLabel": "Risk",
+   "reasons": [
+    {
+     "text": "Priced 2.4% above market",
+     "good": false
+    },
+    {
+     "text": "Demand falling",
+     "good": false
+    },
+    {
+     "text": "High conversion",
+     "good": true
+    },
+    {
+     "text": "Healthy inventory",
+     "good": true
+    },
+    {
+     "text": "Healthy margin",
+     "good": true
+    }
+   ],
+   "signals": {
+    "demandLevel": "low",
+    "priceGapPct": -2.4,
+    "marginPct": 49,
+    "weeksOfCover": 5.2,
+    "conversionPct": 92,
+    "commodityPct90": 6.4
+   }
+  }
+ },
+ {
+  "fn": "opportunityScore",
+  "input": {
+   "itemNumber": "HRD248813",
+   "storeId": "100349"
+  },
+  "output": {
+   "itemNumber": "HRD248813",
+   "storeId": "100349",
+   "score": 81,
+   "tier": "strong",
+   "tierLabel": "Strong opportunity",
+   "reasons": [
+    {
+     "text": "Demand rising",
+     "good": true
+    },
+    {
+     "text": "Your price 11.2% below market",
+     "good": true
+    },
+    {
+     "text": "Healthy margin",
+     "good": true
+    },
+    {
+     "text": "Healthy inventory",
+     "good": true
+    },
+    {
+     "text": "Market price softening",
+     "good": false
+    }
+   ],
+   "signals": {
+    "demandLevel": "high",
+    "priceGapPct": 11.2,
+    "marginPct": 48.8,
+    "weeksOfCover": 5.5,
+    "conversionPct": 70,
+    "commodityPct90": -2.2
+   }
+  }
+ },
+ {
+  "fn": "opportunityScore",
+  "input": {
+   "itemNumber": "HRD248813",
+   "storeId": "100117"
+  },
+  "output": {
+   "itemNumber": "HRD248813",
+   "storeId": "100117",
+   "score": 57,
+   "tier": "watch",
+   "tierLabel": "Watch",
+   "reasons": [
+    {
+     "text": "Your price 4.9% below market",
+     "good": true
+    },
+    {
+     "text": "Healthy margin",
+     "good": true
+    },
+    {
+     "text": "Healthy inventory",
+     "good": true
+    },
+    {
+     "text": "High conversion",
+     "good": true
+    },
+    {
+     "text": "Demand falling",
+     "good": false
+    }
+   ],
+   "signals": {
+    "demandLevel": "low",
+    "priceGapPct": 4.9,
+    "marginPct": 38.2,
+    "weeksOfCover": 11.3,
+    "conversionPct": 92,
+    "commodityPct90": -2.2
+   }
+  }
+ },
+ {
+  "fn": "opportunityScore",
+  "input": {
+   "itemNumber": "HRD248813",
+   "storeId": "100649"
+  },
+  "output": {
+   "itemNumber": "HRD248813",
+   "storeId": "100649",
+   "score": 64,
+   "tier": "watch",
+   "tierLabel": "Watch",
+   "reasons": [
+    {
+     "text": "Demand rising",
+     "good": true
+    },
+    {
+     "text": "Your price 8.9% below market",
+     "good": true
+    },
+    {
+     "text": "Healthy margin",
+     "good": true
+    },
+    {
+     "text": "Market price softening",
+     "good": false
+    },
+    {
+     "text": "Overstocked (23 weeks of cover)",
+     "good": false
+    }
+   ],
+   "signals": {
+    "demandLevel": "high",
+    "priceGapPct": 8.9,
+    "marginPct": 48.9,
+    "weeksOfCover": 23.4,
+    "conversionPct": 65,
+    "commodityPct90": -2.2
+   }
+  }
+ },
+ {
+  "fn": "opportunityScore",
+  "input": {
+   "itemNumber": "HRD248813",
+   "storeId": "100812"
+  },
+  "output": {
+   "itemNumber": "HRD248813",
+   "storeId": "100812",
+   "score": 5,
+   "tier": "risk",
+   "tierLabel": "Risk",
+   "reasons": [
+    {
+     "text": "Overstocked (17 weeks of cover)",
+     "good": false
+    },
+    {
+     "text": "Market price softening",
+     "good": false
+    },
+    {
+     "text": "Priced 6.0% above market",
+     "good": false
+    },
+    {
+     "text": "Demand falling",
+     "good": false
+    },
+    {
+     "text": "Healthy margin",
+     "good": true
+    }
+   ],
+   "signals": {
+    "demandLevel": "low",
+    "priceGapPct": -6,
+    "marginPct": 40.7,
+    "weeksOfCover": 17.1,
+    "conversionPct": 72,
+    "commodityPct90": -2.2
+   }
+  }
+ },
+ {
+  "fn": "opportunityScore",
+  "input": {
+   "itemNumber": "HRD248813",
+   "storeId": "100205"
+  },
+  "output": {
+   "itemNumber": "HRD248813",
+   "storeId": "100205",
+   "score": 45,
+   "tier": "watch",
+   "tierLabel": "Watch",
+   "reasons": [
+    {
+     "text": "Demand steady",
+     "good": true
+    },
+    {
+     "text": "Healthy margin",
+     "good": true
+    },
+    {
+     "text": "High conversion",
+     "good": true
+    },
+    {
+     "text": "Priced 0.9% above market",
+     "good": false
+    },
+    {
+     "text": "Market price softening",
+     "good": false
+    }
+   ],
+   "signals": {
+    "demandLevel": "medium",
+    "priceGapPct": -0.9,
+    "marginPct": 41.6,
+    "weeksOfCover": 12.3,
+    "conversionPct": 81,
+    "commodityPct90": -2.2
+   }
+  }
+ },
+ {
+  "fn": "opportunityScore",
+  "input": {
+   "itemNumber": "HRD248813",
+   "storeId": "100571"
+  },
+  "output": {
+   "itemNumber": "HRD248813",
+   "storeId": "100571",
+   "score": 46,
+   "tier": "watch",
+   "tierLabel": "Watch",
+   "reasons": [
+    {
+     "text": "Demand steady",
+     "good": true
+    },
+    {
+     "text": "Your price 4.9% below market",
+     "good": true
+    },
+    {
+     "text": "Healthy margin",
+     "good": true
+    },
+    {
+     "text": "Market price softening",
+     "good": false
+    },
+    {
+     "text": "Overstocked (17 weeks of cover)",
+     "good": false
+    }
+   ],
+   "signals": {
+    "demandLevel": "medium",
+    "priceGapPct": 4.9,
+    "marginPct": 38.4,
+    "weeksOfCover": 16.9,
+    "conversionPct": 44,
+    "commodityPct90": -2.2
+   }
+  }
+ },
+ {
+  "fn": "opportunityScore",
+  "input": {
+   "itemNumber": "HRD248813",
+   "storeId": "100959"
+  },
+  "output": {
+   "itemNumber": "HRD248813",
+   "storeId": "100959",
+   "score": 69,
+   "tier": "watch",
+   "tierLabel": "Watch",
+   "reasons": [
+    {
+     "text": "Demand steady",
+     "good": true
+    },
+    {
+     "text": "Your price 19.8% below market",
+     "good": true
+    },
+    {
+     "text": "Healthy margin",
+     "good": true
+    },
+    {
+     "text": "High conversion",
+     "good": true
+    },
+    {
+     "text": "Market price softening",
+     "good": false
+    }
+   ],
+   "signals": {
+    "demandLevel": "medium",
+    "priceGapPct": 19.8,
+    "marginPct": 42.1,
+    "weeksOfCover": 13.3,
+    "conversionPct": 78,
+    "commodityPct90": -2.2
+   }
+  }
+ }
+]
