@@ -1,0 +1,6 @@
+{
+  "minMarginPct": 25,
+  "maxDiscountPct": 15,
+  "maxSpeedPremiumPct": 8,
+  "maxMarketDeviationPct": 10
+}

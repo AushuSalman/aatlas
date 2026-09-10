@@ -1,0 +1,215 @@
+{
+  "regions": [
+    {
+      "key": "pacific-northwest",
+      "label": "Pacific Northwest",
+      "states": [
+        "WA",
+        "OR",
+        "ID"
+      ],
+      "inlandPct": {
+        "west": 2.1,
+        "east": 5.4,
+        "gulf": 4.7,
+        "domestic": 2.9
+      },
+      "inlandDays": {
+        "west": 3,
+        "east": 8,
+        "gulf": 7,
+        "domestic": 4
+      }
+    },
+    {
+      "key": "southwest",
+      "label": "Southwest",
+      "states": [
+        "AZ",
+        "NV",
+        "NM"
+      ],
+      "inlandPct": {
+        "west": 1.5,
+        "east": 4.9,
+        "gulf": 3.5,
+        "domestic": 2.5
+      },
+      "inlandDays": {
+        "west": 2,
+        "east": 7,
+        "gulf": 5,
+        "domestic": 3
+      }
+    },
+    {
+      "key": "mountain",
+      "label": "Mountain",
+      "states": [
+        "CO",
+        "UT",
+        "WY",
+        "MT"
+      ],
+      "inlandPct": {
+        "west": 2.7,
+        "east": 4.5,
+        "gulf": 3.4,
+        "domestic": 3
+      },
+      "inlandDays": {
+        "west": 4,
+        "east": 6,
+        "gulf": 5,
+        "domestic": 4
+      }
+    },
+    {
+      "key": "south-central",
+      "label": "South Central",
+      "states": [
+        "TX",
+        "OK",
+        "LA",
+        "AR"
+      ],
+      "inlandPct": {
+        "west": 3.5,
+        "east": 3.7,
+        "gulf": 1.2,
+        "domestic": 2.3
+      },
+      "inlandDays": {
+        "west": 5,
+        "east": 5,
+        "gulf": 1,
+        "domestic": 3
+      }
+    },
+    {
+      "key": "midwest",
+      "label": "Midwest",
+      "states": [
+        "OH",
+        "IN",
+        "IL",
+        "MI",
+        "WI",
+        "MN",
+        "IA",
+        "MO"
+      ],
+      "inlandPct": {
+        "west": 4.4,
+        "east": 3,
+        "gulf": 3.2,
+        "domestic": 2
+      },
+      "inlandDays": {
+        "west": 6,
+        "east": 4,
+        "gulf": 4,
+        "domestic": 3
+      }
+    },
+    {
+      "key": "southeast",
+      "label": "Southeast",
+      "states": [
+        "TN",
+        "NC",
+        "GA",
+        "FL",
+        "SC",
+        "AL",
+        "VA"
+      ],
+      "inlandPct": {
+        "west": 5,
+        "east": 1.7,
+        "gulf": 2.7,
+        "domestic": 2.2
+      },
+      "inlandDays": {
+        "west": 7,
+        "east": 2,
+        "gulf": 4,
+        "domestic": 3
+      }
+    }
+  ],
+  "origins": {
+    "USA": {
+      "entry": "domestic",
+      "mode": "domestic",
+      "gateway": "domestic truck",
+      "inboundPct": 0,
+      "inboundDays": 0,
+      "dutyPct": 0,
+      "dutyNote": "Domestic - no duty"
+    },
+    "Mexico": {
+      "entry": "gulf",
+      "mode": "overland",
+      "gateway": "Laredo, TX",
+      "inboundPct": 2.4,
+      "inboundDays": 6,
+      "dutyPct": 0,
+      "dutyNote": "USMCA - duty free"
+    },
+    "Germany": {
+      "entry": "east",
+      "mode": "ocean",
+      "gateway": "Savannah, GA",
+      "inboundPct": 5.1,
+      "inboundDays": 21,
+      "dutyPct": 2.7,
+      "dutyNote": "MFN rate"
+    },
+    "China": {
+      "entry": "west",
+      "mode": "ocean",
+      "gateway": "Los Angeles / Long Beach",
+      "inboundPct": 7.8,
+      "inboundDays": 34,
+      "dutyPct": 12.5,
+      "dutyNote": "MFN rate plus Section 301"
+    },
+    "India": {
+      "entry": "east",
+      "mode": "ocean",
+      "gateway": "Savannah, GA",
+      "inboundPct": 8.4,
+      "inboundDays": 38,
+      "dutyPct": 5.8,
+      "dutyNote": "MFN rate"
+    },
+    "Vietnam": {
+      "entry": "west",
+      "mode": "ocean",
+      "gateway": "Los Angeles / Long Beach",
+      "inboundPct": 8.1,
+      "inboundDays": 31,
+      "dutyPct": 6.2,
+      "dutyNote": "MFN rate"
+    },
+    "UK": {
+      "entry": "east",
+      "mode": "ocean",
+      "gateway": "Savannah, GA",
+      "inboundPct": 5.3,
+      "inboundDays": 19,
+      "dutyPct": 2.9,
+      "dutyNote": "MFN rate"
+    },
+    "Canada": {
+      "entry": "east",
+      "mode": "overland",
+      "gateway": "Detroit, MI",
+      "inboundPct": 1.8,
+      "inboundDays": 3,
+      "dutyPct": 0,
+      "dutyNote": "USMCA - duty free"
+    }
+  }
+}

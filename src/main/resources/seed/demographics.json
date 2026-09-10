@@ -1,0 +1,37 @@
+{
+  "segments": [
+    "Contractor",
+    "Institutional",
+    "Industrial",
+    "Walk-in"
+  ],
+  "segmentLabel": {
+    "Contractor": "Contractors",
+    "Institutional": "Institutional accounts",
+    "Industrial": "Industrial accounts",
+    "Walk-in": "Walk-in trade"
+  },
+  "periods": [
+    {
+      "key": "30d",
+      "label": "Last 30 days",
+      "factor": 0.08333333333333333
+    },
+    {
+      "key": "90d",
+      "label": "Last 90 days",
+      "factor": 0.25
+    },
+    {
+      "key": "12m",
+      "label": "Last 12 months",
+      "factor": 1
+    }
+  ],
+  "categories": [
+    "Plumbing",
+    "HVAC",
+    "Water heating",
+    "Fixtures"
+  ]
+}

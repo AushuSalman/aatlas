@@ -1,0 +1,241 @@
+{
+  "endpoint": "https://aatlas-ai.vercel.app/mcp",
+  "integrations": [
+    {
+      "key": "p21",
+      "name": "Epicor Prophet 21",
+      "category": "ERP",
+      "note": "Sales history, costs, item master",
+      "status": "available"
+    },
+    {
+      "key": "eclipse",
+      "name": "Epicor Eclipse",
+      "category": "ERP",
+      "note": "Sales history, costs, item master",
+      "status": "available"
+    },
+    {
+      "key": "sxe",
+      "name": "Infor SX.e",
+      "category": "ERP",
+      "note": "Sales history, costs, item master",
+      "status": "available"
+    },
+    {
+      "key": "d365",
+      "name": "Microsoft Dynamics 365",
+      "category": "ERP",
+      "note": "Sales history, costs, item master",
+      "status": "available"
+    },
+    {
+      "key": "netsuite",
+      "name": "NetSuite",
+      "category": "ERP",
+      "note": "Sales history, costs, item master",
+      "status": "available"
+    },
+    {
+      "key": "sap",
+      "name": "SAP",
+      "category": "ERP",
+      "note": "Sales history, costs, item master",
+      "status": "available"
+    },
+    {
+      "key": "salesforce",
+      "name": "Salesforce",
+      "category": "CRM",
+      "note": "Accounts, quotes, SLAs",
+      "status": "available"
+    },
+    {
+      "key": "hubspot",
+      "name": "HubSpot",
+      "category": "CRM",
+      "note": "Accounts, quotes",
+      "status": "available"
+    },
+    {
+      "key": "quickbooks",
+      "name": "QuickBooks",
+      "category": "Accounting",
+      "note": "Invoices, payment terms",
+      "status": "available"
+    },
+    {
+      "key": "xero",
+      "name": "Xero",
+      "category": "Accounting",
+      "note": "Invoices, payment terms",
+      "status": "available"
+    },
+    {
+      "key": "wms",
+      "name": "Warehouse management",
+      "category": "Inventory",
+      "note": "Stock on hand, lots, receipts",
+      "status": "available"
+    },
+    {
+      "key": "oms",
+      "name": "Order management",
+      "category": "Order management",
+      "note": "Open orders, promised dates",
+      "status": "available"
+    },
+    {
+      "key": "edi",
+      "name": "Supplier EDI / portals",
+      "category": "Supplier systems",
+      "note": "Quotes, confirmations, ship notices",
+      "status": "available"
+    },
+    {
+      "key": "api",
+      "name": "REST API",
+      "category": "API",
+      "note": "Read recommendations and outcomes programmatically",
+      "status": "available"
+    },
+    {
+      "key": "webhooks",
+      "name": "Webhooks",
+      "category": "Webhooks",
+      "note": "Push price changes and supplier alerts to your systems",
+      "status": "available"
+    }
+  ],
+  "mcpClients": [
+    {
+      "key": "claude",
+      "name": "Claude",
+      "note": "Anthropic"
+    },
+    {
+      "key": "gemini",
+      "name": "Gemini",
+      "note": "Google"
+    },
+    {
+      "key": "other",
+      "name": "Other MCP-compatible tools",
+      "note": "Any client that speaks the protocol"
+    }
+  ],
+  "mcpPermissions": [
+    {
+      "key": "read-products",
+      "group": "read",
+      "label": "Products",
+      "requiresApproval": false,
+      "defaultOn": true
+    },
+    {
+      "key": "read-pricing",
+      "group": "read",
+      "label": "Pricing",
+      "requiresApproval": false,
+      "defaultOn": true
+    },
+    {
+      "key": "read-market",
+      "group": "read",
+      "label": "Market data",
+      "requiresApproval": false,
+      "defaultOn": true
+    },
+    {
+      "key": "read-suppliers",
+      "group": "read",
+      "label": "Suppliers",
+      "requiresApproval": false,
+      "defaultOn": true
+    },
+    {
+      "key": "read-orders",
+      "group": "read",
+      "label": "Orders",
+      "requiresApproval": false,
+      "defaultOn": false
+    },
+    {
+      "key": "read-inventory",
+      "group": "read",
+      "label": "Inventory",
+      "requiresApproval": false,
+      "defaultOn": true
+    },
+    {
+      "key": "read-reports",
+      "group": "read",
+      "label": "Reports",
+      "requiresApproval": false,
+      "defaultOn": true
+    },
+    {
+      "key": "act-recommend",
+      "group": "actions",
+      "label": "Create a recommendation",
+      "requiresApproval": false,
+      "defaultOn": true
+    },
+    {
+      "key": "act-purchase-request",
+      "group": "actions",
+      "label": "Prepare a purchase request",
+      "requiresApproval": false,
+      "defaultOn": true
+    },
+    {
+      "key": "act-price-update",
+      "group": "actions",
+      "label": "Prepare a price update",
+      "requiresApproval": false,
+      "defaultOn": true
+    },
+    {
+      "key": "act-report",
+      "group": "actions",
+      "label": "Generate a report",
+      "requiresApproval": false,
+      "defaultOn": true
+    },
+    {
+      "key": "act-negotiation",
+      "group": "actions",
+      "label": "Prepare a negotiation",
+      "requiresApproval": false,
+      "defaultOn": false
+    },
+    {
+      "key": "restricted-apply-price",
+      "group": "restricted",
+      "label": "Apply a price",
+      "requiresApproval": true,
+      "defaultOn": false
+    },
+    {
+      "key": "restricted-place-po",
+      "group": "restricted",
+      "label": "Place a purchase order",
+      "requiresApproval": true,
+      "defaultOn": false
+    },
+    {
+      "key": "restricted-modify-supplier",
+      "group": "restricted",
+      "label": "Modify a supplier",
+      "requiresApproval": true,
+      "defaultOn": false
+    },
+    {
+      "key": "restricted-rules",
+      "group": "restricted",
+      "label": "Change business rules",
+      "requiresApproval": true,
+      "defaultOn": false
+    }
+  ]
+}

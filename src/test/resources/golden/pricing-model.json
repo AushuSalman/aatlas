@@ -1,0 +1,5779 @@
+[
+ {
+  "item": "HRD304148",
+  "storeId": "100349",
+  "priceable": true,
+  "cost": 6.92,
+  "currentPrice": 11.39,
+  "optimalPrice": 10.6,
+  "aggressivePrice": 12.56,
+  "recommendedTier": "aggressive",
+  "floorPrice": 9.23,
+  "ceilingPrice": 12.57,
+  "peerQ1": 9.29,
+  "peerQ2": 10.56,
+  "peerQ3": 12.57,
+  "competitors": [
+   {
+    "name": "Northline Supply",
+    "domain": "northline.example.com",
+    "price": 10.57,
+    "delta_vs_current": -0.82
+   },
+   {
+    "name": "Castellan Trade",
+    "domain": "castellan.example.com",
+    "price": 9.7,
+    "delta_vs_current": -1.69
+   },
+   {
+    "name": "Redhawk Building Supply",
+    "domain": "redhawk.example.com",
+    "price": 12.94,
+    "delta_vs_current": 1.55
+   },
+   {
+    "name": "Vantage Wholesale",
+    "domain": "vantage.example.com",
+    "price": 9.59,
+    "delta_vs_current": -1.8
+   }
+  ],
+  "competitorMedian": 10.57,
+  "msaMult": 0.9868,
+  "msaMode": "competition",
+  "demand": {
+   "level": "medium",
+   "label": "Stable demand",
+   "index": 1.08,
+   "movePercent": 0,
+   "confidence": "medium",
+   "confWeight": 0.66,
+   "recentVelocity": 0.85,
+   "expectedVelocity": 0.79,
+   "maxAdjustmentPct": 3,
+   "trendDirection": "STABLE",
+   "historyDays": 293
+  },
+  "segment": "regular",
+  "totalTransactions": 144,
+  "totalCompanies": 44,
+  "observedMin": 8.22,
+  "observedMax": 16.29
+ },
+ {
+  "item": "HRD304148",
+  "storeId": "100117",
+  "priceable": true,
+  "cost": 6.92,
+  "currentPrice": 14.61,
+  "optimalPrice": 16.73,
+  "aggressivePrice": 18.1,
+  "recommendedTier": "optimal",
+  "floorPrice": 9.23,
+  "ceilingPrice": 19.72,
+  "peerQ1": 9.29,
+  "peerQ2": 10.56,
+  "peerQ3": 12.57,
+  "competitors": [
+   {
+    "name": "Northline Supply",
+    "domain": "northline.example.com",
+    "price": 14.42,
+    "delta_vs_current": -0.19
+   },
+   {
+    "name": "Castellan Trade",
+    "domain": "castellan.example.com",
+    "price": 17.29,
+    "delta_vs_current": 2.68
+   },
+   {
+    "name": "Redhawk Building Supply",
+    "domain": "redhawk.example.com",
+    "price": 17.54,
+    "delta_vs_current": 2.93
+   },
+   {
+    "name": "Vantage Wholesale",
+    "domain": "vantage.example.com",
+    "price": 16.71,
+    "delta_vs_current": 2.1
+   },
+   {
+    "name": "Ironbridge Industrial",
+    "domain": "ironbridge.example.com",
+    "price": 14.4,
+    "delta_vs_current": -0.21
+   }
+  ],
+  "competitorMedian": 16.71,
+  "msaMult": 1.016,
+  "msaMode": "competition",
+  "demand": {
+   "level": "low",
+   "label": "Low demand",
+   "index": 0.768,
+   "movePercent": -2.5,
+   "confidence": "high",
+   "confWeight": 0.82,
+   "recentVelocity": 6.14,
+   "expectedVelocity": 7.99,
+   "maxAdjustmentPct": 3,
+   "trendDirection": "DECREASING",
+   "historyDays": 269
+  },
+  "segment": "occasional",
+  "totalTransactions": 192,
+  "totalCompanies": 44,
+  "observedMin": 11.74,
+  "observedMax": 19.51
+ },
+ {
+  "item": "HRD304148",
+  "storeId": "100649",
+  "priceable": true,
+  "cost": 6.92,
+  "currentPrice": 9.26,
+  "optimalPrice": 9.23,
+  "aggressivePrice": 10.33,
+  "recommendedTier": "aggressive",
+  "floorPrice": 9.23,
+  "ceilingPrice": 12.57,
+  "peerQ1": 9.29,
+  "peerQ2": 10.56,
+  "peerQ3": 12.57,
+  "competitors": [
+   {
+    "name": "Northline Supply",
+    "domain": "northline.example.com",
+    "price": 11.17,
+    "delta_vs_current": 1.91
+   },
+   {
+    "name": "Castellan Trade",
+    "domain": "castellan.example.com",
+    "price": 9.97,
+    "delta_vs_current": 0.71
+   },
+   {
+    "name": "Redhawk Building Supply",
+    "domain": "redhawk.example.com",
+    "price": 9.09,
+    "delta_vs_current": -0.17
+   },
+   {
+    "name": "Vantage Wholesale",
+    "domain": "vantage.example.com",
+    "price": 11.41,
+    "delta_vs_current": 2.15
+   },
+   {
+    "name": "Ironbridge Industrial",
+    "domain": "ironbridge.example.com",
+    "price": 9.59,
+    "delta_vs_current": 0.33
+   },
+   {
+    "name": "Cobalt Depot",
+    "domain": "cobalt.example.com",
+    "price": 11.33,
+    "delta_vs_current": 2.07
+   },
+   {
+    "name": "Fairhaven Supply",
+    "domain": "fairhaven.example.com",
+    "price": 7.73,
+    "delta_vs_current": -1.53
+   }
+  ],
+  "competitorMedian": 9.97,
+  "msaMult": 0.9379,
+  "msaMode": "competition",
+  "demand": {
+   "level": "medium",
+   "label": "Stable demand",
+   "index": 1.088,
+   "movePercent": 0,
+   "confidence": "medium",
+   "confWeight": 0.71,
+   "recentVelocity": 8.12,
+   "expectedVelocity": 7.46,
+   "maxAdjustmentPct": 3,
+   "trendDirection": "STABLE",
+   "historyDays": 453
+  },
+  "segment": "regular",
+  "totalTransactions": 159,
+  "totalCompanies": 44,
+  "observedMin": 8.51,
+  "observedMax": 12.82
+ },
+ {
+  "item": "HRD304148",
+  "storeId": "100812",
+  "priceable": true,
+  "cost": 6.92,
+  "currentPrice": 14.62,
+  "optimalPrice": 16.58,
+  "aggressivePrice": 19.38,
+  "recommendedTier": "optimal",
+  "floorPrice": 9.23,
+  "ceilingPrice": 19.18,
+  "peerQ1": 9.29,
+  "peerQ2": 10.56,
+  "peerQ3": 12.57,
+  "competitors": [
+   {
+    "name": "Northline Supply",
+    "domain": "northline.example.com",
+    "price": 16.25,
+    "delta_vs_current": 1.63
+   },
+   {
+    "name": "Castellan Trade",
+    "domain": "castellan.example.com",
+    "price": 15.78,
+    "delta_vs_current": 1.16
+   },
+   {
+    "name": "Redhawk Building Supply",
+    "domain": "redhawk.example.com",
+    "price": 16.4,
+    "delta_vs_current": 1.78
+   },
+   {
+    "name": "Vantage Wholesale",
+    "domain": "vantage.example.com",
+    "price": 13.84,
+    "delta_vs_current": -0.78
+   }
+  ],
+  "competitorMedian": 16.25,
+  "msaMult": 1.0319,
+  "msaMode": "competition",
+  "demand": {
+   "level": "medium",
+   "label": "Stable demand",
+   "index": 1.096,
+   "movePercent": 0,
+   "confidence": "low",
+   "confWeight": 0.39,
+   "recentVelocity": 3.75,
+   "expectedVelocity": 3.42,
+   "maxAdjustmentPct": 3,
+   "trendDirection": "STABLE",
+   "historyDays": 325
+  },
+  "segment": "occasional",
+  "totalTransactions": 164,
+  "totalCompanies": 44,
+  "observedMin": 11.2,
+  "observedMax": 20.65
+ },
+ {
+  "item": "HRD304148",
+  "storeId": "100205",
+  "priceable": true,
+  "cost": 6.92,
+  "currentPrice": 12.37,
+  "optimalPrice": 12.64,
+  "aggressivePrice": 13.76,
+  "recommendedTier": "aggressive",
+  "floorPrice": 9.23,
+  "ceilingPrice": 14.14,
+  "peerQ1": 9.29,
+  "peerQ2": 10.56,
+  "peerQ3": 12.57,
+  "competitors": [
+   {
+    "name": "Northline Supply",
+    "domain": "northline.example.com",
+    "price": 14.53,
+    "delta_vs_current": 2.16
+   },
+   {
+    "name": "Castellan Trade",
+    "domain": "castellan.example.com",
+    "price": 11.37,
+    "delta_vs_current": -1
+   },
+   {
+    "name": "Redhawk Building Supply",
+    "domain": "redhawk.example.com",
+    "price": 15.21,
+    "delta_vs_current": 2.84
+   },
+   {
+    "name": "Vantage Wholesale",
+    "domain": "vantage.example.com",
+    "price": 13.03,
+    "delta_vs_current": 0.66
+   },
+   {
+    "name": "Ironbridge Industrial",
+    "domain": "ironbridge.example.com",
+    "price": 11.98,
+    "delta_vs_current": -0.39
+   },
+   {
+    "name": "Cobalt Depot",
+    "domain": "cobalt.example.com",
+    "price": 10.34,
+    "delta_vs_current": -2.03
+   },
+   {
+    "name": "Fairhaven Supply",
+    "domain": "fairhaven.example.com",
+    "price": 11.8,
+    "delta_vs_current": -0.57
+   }
+  ],
+  "competitorMedian": 11.98,
+  "msaMult": 1.0176,
+  "msaMode": "competition",
+  "demand": {
+   "level": "medium",
+   "label": "Stable demand",
+   "index": 1.037,
+   "movePercent": 0,
+   "confidence": "high",
+   "confWeight": 0.89,
+   "recentVelocity": 1.21,
+   "expectedVelocity": 1.17,
+   "maxAdjustmentPct": 3,
+   "trendDirection": "STABLE",
+   "historyDays": 458
+  },
+  "segment": "regular",
+  "totalTransactions": 235,
+  "totalCompanies": 44,
+  "observedMin": 8.97,
+  "observedMax": 15.16
+ },
+ {
+  "item": "HRD304148",
+  "storeId": "100933",
+  "priceable": true,
+  "cost": 6.92,
+  "currentPrice": 14.11,
+  "optimalPrice": 14.25,
+  "aggressivePrice": 16.86,
+  "recommendedTier": "optimal",
+  "floorPrice": 9.23,
+  "ceilingPrice": 17.92,
+  "peerQ1": 9.29,
+  "peerQ2": 10.56,
+  "peerQ3": 12.57,
+  "competitors": [
+   {
+    "name": "Northline Supply",
+    "domain": "northline.example.com",
+    "price": 15.19,
+    "delta_vs_current": 1.08
+   },
+   {
+    "name": "Castellan Trade",
+    "domain": "castellan.example.com",
+    "price": 13.31,
+    "delta_vs_current": -0.8
+   },
+   {
+    "name": "Redhawk Building Supply",
+    "domain": "redhawk.example.com",
+    "price": 15.74,
+    "delta_vs_current": 1.63
+   },
+   {
+    "name": "Vantage Wholesale",
+    "domain": "vantage.example.com",
+    "price": 12.04,
+    "delta_vs_current": -2.07
+   }
+  ],
+  "competitorMedian": 15.19,
+  "msaMult": 0.9731,
+  "msaMode": "competition",
+  "demand": {
+   "level": "medium",
+   "label": "Stable demand",
+   "index": 1.013,
+   "movePercent": 0,
+   "confidence": "low",
+   "confWeight": 0.41,
+   "recentVelocity": 6.86,
+   "expectedVelocity": 6.77,
+   "maxAdjustmentPct": 3,
+   "trendDirection": "STABLE",
+   "historyDays": 183
+  },
+  "segment": "occasional",
+  "totalTransactions": 129,
+  "totalCompanies": 44,
+  "observedMin": 13.07,
+  "observedMax": 19.1
+ },
+ {
+  "item": "HRD304148",
+  "storeId": "100571",
+  "priceable": true,
+  "cost": 6.92,
+  "currentPrice": 11.96,
+  "optimalPrice": 12.37,
+  "aggressivePrice": 13.27,
+  "recommendedTier": "optimal",
+  "floorPrice": 9.23,
+  "ceilingPrice": 14.44,
+  "peerQ1": 9.29,
+  "peerQ2": 10.56,
+  "peerQ3": 12.57,
+  "competitors": [
+   {
+    "name": "Northline Supply",
+    "domain": "northline.example.com",
+    "price": 12.24,
+    "delta_vs_current": 0.28
+   },
+   {
+    "name": "Castellan Trade",
+    "domain": "castellan.example.com",
+    "price": 11.95,
+    "delta_vs_current": -0.01
+   },
+   {
+    "name": "Redhawk Building Supply",
+    "domain": "redhawk.example.com",
+    "price": 10.22,
+    "delta_vs_current": -1.74
+   },
+   {
+    "name": "Vantage Wholesale",
+    "domain": "vantage.example.com",
+    "price": 14.61,
+    "delta_vs_current": 2.65
+   },
+   {
+    "name": "Ironbridge Industrial",
+    "domain": "ironbridge.example.com",
+    "price": 10.05,
+    "delta_vs_current": -1.91
+   },
+   {
+    "name": "Cobalt Depot",
+    "domain": "cobalt.example.com",
+    "price": 10.47,
+    "delta_vs_current": -1.49
+   },
+   {
+    "name": "Fairhaven Supply",
+    "domain": "fairhaven.example.com",
+    "price": 12.8,
+    "delta_vs_current": 0.84
+   },
+   {
+    "name": "Pemberton Trade Group",
+    "domain": "pemberton.example.com",
+    "price": 13.37,
+    "delta_vs_current": 1.41
+   },
+   {
+    "name": "Granite & Co.",
+    "domain": "granite.example.com",
+    "price": 13.12,
+    "delta_vs_current": 1.16
+   }
+  ],
+  "competitorMedian": 12.24,
+  "msaMult": 1,
+  "msaMode": "competition",
+  "demand": {
+   "level": "medium",
+   "label": "Stable demand",
+   "index": 0.979,
+   "movePercent": 0,
+   "confidence": "medium",
+   "confWeight": 0.67,
+   "recentVelocity": 0.62,
+   "expectedVelocity": 0.63,
+   "maxAdjustmentPct": 3,
+   "trendDirection": "STABLE",
+   "historyDays": 425
+  },
+  "segment": "occasional",
+  "totalTransactions": 48,
+  "totalCompanies": 44,
+  "observedMin": 9.9,
+  "observedMax": 16.61
+ },
+ {
+  "item": "HRD304148",
+  "storeId": "100959",
+  "priceable": true,
+  "cost": 6.92,
+  "currentPrice": 11.25,
+  "optimalPrice": 11.28,
+  "aggressivePrice": 13.11,
+  "recommendedTier": "aggressive",
+  "floorPrice": 9.23,
+  "ceilingPrice": 12.85,
+  "peerQ1": 9.29,
+  "peerQ2": 10.56,
+  "peerQ3": 12.57,
+  "competitors": [
+   {
+    "name": "Northline Supply",
+    "domain": "northline.example.com",
+    "price": 9.59,
+    "delta_vs_current": -1.66
+   },
+   {
+    "name": "Castellan Trade",
+    "domain": "castellan.example.com",
+    "price": 11.63,
+    "delta_vs_current": 0.38
+   },
+   {
+    "name": "Redhawk Building Supply",
+    "domain": "redhawk.example.com",
+    "price": 13.87,
+    "delta_vs_current": 2.62
+   },
+   {
+    "name": "Vantage Wholesale",
+    "domain": "vantage.example.com",
+    "price": 13.25,
+    "delta_vs_current": 2
+   },
+   {
+    "name": "Ironbridge Industrial",
+    "domain": "ironbridge.example.com",
+    "price": 10.08,
+    "delta_vs_current": -1.17
+   },
+   {
+    "name": "Cobalt Depot",
+    "domain": "cobalt.example.com",
+    "price": 9.53,
+    "delta_vs_current": -1.72
+   },
+   {
+    "name": "Fairhaven Supply",
+    "domain": "fairhaven.example.com",
+    "price": 10.89,
+    "delta_vs_current": -0.36
+   }
+  ],
+  "competitorMedian": 10.89,
+  "msaMult": 1.0022,
+  "msaMode": "competition",
+  "demand": {
+   "level": "medium",
+   "label": "Stable demand",
+   "index": 0.921,
+   "movePercent": 0,
+   "confidence": "high",
+   "confWeight": 0.8,
+   "recentVelocity": 7.96,
+   "expectedVelocity": 8.65,
+   "maxAdjustmentPct": 3,
+   "trendDirection": "STABLE",
+   "historyDays": 469
+  },
+  "segment": "regular",
+  "totalTransactions": 120,
+  "totalCompanies": 44,
+  "observedMin": 10.43,
+  "observedMax": 17.16
+ },
+ {
+  "item": "HRD118902",
+  "storeId": "100349",
+  "priceable": true,
+  "cost": 87.46,
+  "currentPrice": 118.29,
+  "optimalPrice": 117.1,
+  "aggressivePrice": 125.45,
+  "recommendedTier": "aggressive",
+  "floorPrice": 116.94,
+  "ceilingPrice": 163.03,
+  "peerQ1": 120.56,
+  "peerQ2": 137,
+  "peerQ3": 163.03,
+  "competitors": [
+   {
+    "name": "Northline Supply",
+    "domain": "northline.example.com",
+    "price": 117.84,
+    "delta_vs_current": -0.45
+   },
+   {
+    "name": "Castellan Trade",
+    "domain": "castellan.example.com",
+    "price": 109.41,
+    "delta_vs_current": -8.88
+   },
+   {
+    "name": "Redhawk Building Supply",
+    "domain": "redhawk.example.com",
+    "price": 115.81,
+    "delta_vs_current": -2.48
+   },
+   {
+    "name": "Vantage Wholesale",
+    "domain": "vantage.example.com",
+    "price": 127.39,
+    "delta_vs_current": 9.1
+   },
+   {
+    "name": "Ironbridge Industrial",
+    "domain": "ironbridge.example.com",
+    "price": 122,
+    "delta_vs_current": 3.71
+   },
+   {
+    "name": "Cobalt Depot",
+    "domain": "cobalt.example.com",
+    "price": 101,
+    "delta_vs_current": -17.29
+   },
+   {
+    "name": "Fairhaven Supply",
+    "domain": "fairhaven.example.com",
+    "price": 100.34,
+    "delta_vs_current": -17.95
+   },
+   {
+    "name": "Pemberton Trade Group",
+    "domain": "pemberton.example.com",
+    "price": 125.12,
+    "delta_vs_current": 6.83
+   }
+  ],
+  "competitorMedian": 117.84,
+  "msaMult": 0.9868,
+  "msaMode": "competition",
+  "demand": {
+   "level": "low",
+   "label": "Low demand",
+   "index": 0.779,
+   "movePercent": -2.2,
+   "confidence": "medium",
+   "confWeight": 0.74,
+   "recentVelocity": 4.48,
+   "expectedVelocity": 5.75,
+   "maxAdjustmentPct": 3,
+   "trendDirection": "DECREASING",
+   "historyDays": 193
+  },
+  "segment": "regular",
+  "totalTransactions": 119,
+  "totalCompanies": 228,
+  "observedMin": 100.38,
+  "observedMax": 157.18
+ },
+ {
+  "item": "HRD118902",
+  "storeId": "100047",
+  "priceable": true,
+  "cost": 87.46,
+  "currentPrice": 135.23,
+  "optimalPrice": 154.55,
+  "aggressivePrice": 169.71,
+  "recommendedTier": "aggressive",
+  "floorPrice": 116.94,
+  "ceilingPrice": 176.63,
+  "peerQ1": 120.56,
+  "peerQ2": 137,
+  "peerQ3": 163.03,
+  "competitors": [
+   {
+    "name": "Northline Supply",
+    "domain": "northline.example.com",
+    "price": 163.54,
+    "delta_vs_current": 28.31
+   },
+   {
+    "name": "Castellan Trade",
+    "domain": "castellan.example.com",
+    "price": 149.69,
+    "delta_vs_current": 14.46
+   },
+   {
+    "name": "Redhawk Building Supply",
+    "domain": "redhawk.example.com",
+    "price": 127.22,
+    "delta_vs_current": -8.01
+   },
+   {
+    "name": "Vantage Wholesale",
+    "domain": "vantage.example.com",
+    "price": 121.23,
+    "delta_vs_current": -14
+   }
+  ],
+  "competitorMedian": 149.69,
+  "msaMult": 1.0567,
+  "msaMode": "competition",
+  "demand": {
+   "level": "high",
+   "label": "High demand",
+   "index": 1.674,
+   "movePercent": 1.9,
+   "confidence": "medium",
+   "confWeight": 0.64,
+   "recentVelocity": 6.33,
+   "expectedVelocity": 3.78,
+   "maxAdjustmentPct": 3,
+   "trendDirection": "INCREASING",
+   "historyDays": 159
+  },
+  "segment": "regular",
+  "totalTransactions": 95,
+  "totalCompanies": 228,
+  "observedMin": 105.14,
+  "observedMax": 206.06
+ },
+ {
+  "item": "HRD118902",
+  "storeId": "100117",
+  "priceable": true,
+  "cost": 87.46,
+  "currentPrice": 179.16,
+  "optimalPrice": 124.53,
+  "aggressivePrice": 139.33,
+  "recommendedTier": "optimal",
+  "floorPrice": 116.94,
+  "ceilingPrice": 192.38,
+  "peerQ1": 120.56,
+  "peerQ2": 137,
+  "peerQ3": 163.03,
+  "competitors": [],
+  "competitorMedian": null,
+  "msaMult": 1.016,
+  "msaMode": "competition",
+  "demand": {
+   "level": "low",
+   "label": "Low demand",
+   "index": 0.679,
+   "movePercent": -1.8,
+   "confidence": "medium",
+   "confWeight": 0.61,
+   "recentVelocity": 4.82,
+   "expectedVelocity": 7.1,
+   "maxAdjustmentPct": 3,
+   "trendDirection": "DECREASING",
+   "historyDays": 204
+  },
+  "segment": "occasional",
+  "totalTransactions": 185,
+  "totalCompanies": 228,
+  "observedMin": 99.63,
+  "observedMax": 196.74
+ },
+ {
+  "item": "HRD118902",
+  "storeId": "100649",
+  "priceable": true,
+  "cost": 87.46,
+  "currentPrice": 124.44,
+  "optimalPrice": 116.61,
+  "aggressivePrice": 129.91,
+  "recommendedTier": "aggressive",
+  "floorPrice": 116.94,
+  "ceilingPrice": 163.03,
+  "peerQ1": 120.56,
+  "peerQ2": 137,
+  "peerQ3": 163.03,
+  "competitors": [
+   {
+    "name": "Northline Supply",
+    "domain": "northline.example.com",
+    "price": 137.29,
+    "delta_vs_current": 12.85
+   },
+   {
+    "name": "Castellan Trade",
+    "domain": "castellan.example.com",
+    "price": 125.02,
+    "delta_vs_current": 0.58
+   },
+   {
+    "name": "Redhawk Building Supply",
+    "domain": "redhawk.example.com",
+    "price": 143.53,
+    "delta_vs_current": 19.09
+   },
+   {
+    "name": "Vantage Wholesale",
+    "domain": "vantage.example.com",
+    "price": 114.07,
+    "delta_vs_current": -10.37
+   },
+   {
+    "name": "Ironbridge Industrial",
+    "domain": "ironbridge.example.com",
+    "price": 144.54,
+    "delta_vs_current": 20.1
+   },
+   {
+    "name": "Cobalt Depot",
+    "domain": "cobalt.example.com",
+    "price": 120.4,
+    "delta_vs_current": -4.04
+   },
+   {
+    "name": "Fairhaven Supply",
+    "domain": "fairhaven.example.com",
+    "price": 106.16,
+    "delta_vs_current": -18.28
+   },
+   {
+    "name": "Pemberton Trade Group",
+    "domain": "pemberton.example.com",
+    "price": 106.82,
+    "delta_vs_current": -17.62
+   },
+   {
+    "name": "Granite & Co.",
+    "domain": "granite.example.com",
+    "price": 102.69,
+    "delta_vs_current": -21.75
+   }
+  ],
+  "competitorMedian": 120.4,
+  "msaMult": 0.9379,
+  "msaMode": "competition",
+  "demand": {
+   "level": "medium",
+   "label": "Stable demand",
+   "index": 1.035,
+   "movePercent": 0,
+   "confidence": "low",
+   "confWeight": 0.43,
+   "recentVelocity": 5.18,
+   "expectedVelocity": 5.01,
+   "maxAdjustmentPct": 3,
+   "trendDirection": "STABLE",
+   "historyDays": 253
+  },
+  "segment": "regular",
+  "totalTransactions": 144,
+  "totalCompanies": 228,
+  "observedMin": 87.71,
+  "observedMax": 144.64
+ },
+ {
+  "item": "HRD118902",
+  "storeId": "100812",
+  "priceable": true,
+  "cost": 87.46,
+  "currentPrice": 148.27,
+  "optimalPrice": 162.55,
+  "aggressivePrice": 189.53,
+  "recommendedTier": "optimal",
+  "floorPrice": 116.94,
+  "ceilingPrice": 187.02,
+  "peerQ1": 120.56,
+  "peerQ2": 137,
+  "peerQ3": 163.03,
+  "competitors": [
+   {
+    "name": "Northline Supply",
+    "domain": "northline.example.com",
+    "price": 179.48,
+    "delta_vs_current": 31.21
+   },
+   {
+    "name": "Castellan Trade",
+    "domain": "castellan.example.com",
+    "price": 169.77,
+    "delta_vs_current": 21.5
+   },
+   {
+    "name": "Redhawk Building Supply",
+    "domain": "redhawk.example.com",
+    "price": 161.58,
+    "delta_vs_current": 13.31
+   },
+   {
+    "name": "Vantage Wholesale",
+    "domain": "vantage.example.com",
+    "price": 132.8,
+    "delta_vs_current": -15.47
+   },
+   {
+    "name": "Ironbridge Industrial",
+    "domain": "ironbridge.example.com",
+    "price": 168.49,
+    "delta_vs_current": 20.22
+   },
+   {
+    "name": "Cobalt Depot",
+    "domain": "cobalt.example.com",
+    "price": 139.05,
+    "delta_vs_current": -9.22
+   },
+   {
+    "name": "Fairhaven Supply",
+    "domain": "fairhaven.example.com",
+    "price": 133.88,
+    "delta_vs_current": -14.39
+   },
+   {
+    "name": "Pemberton Trade Group",
+    "domain": "pemberton.example.com",
+    "price": 130.24,
+    "delta_vs_current": -18.03
+   },
+   {
+    "name": "Granite & Co.",
+    "domain": "granite.example.com",
+    "price": 158.49,
+    "delta_vs_current": 10.22
+   }
+  ],
+  "competitorMedian": 158.49,
+  "msaMult": 1.0319,
+  "msaMode": "competition",
+  "demand": null,
+  "segment": "occasional",
+  "totalTransactions": 119,
+  "totalCompanies": 228,
+  "observedMin": 128.63,
+  "observedMax": 223.49
+ },
+ {
+  "item": "HRD118902",
+  "storeId": "100205",
+  "priceable": true,
+  "cost": 87.46,
+  "currentPrice": 150.42,
+  "optimalPrice": 166.37,
+  "aggressivePrice": 189.92,
+  "recommendedTier": "aggressive",
+  "floorPrice": 116.94,
+  "ceilingPrice": 193.18,
+  "peerQ1": 120.56,
+  "peerQ2": 137,
+  "peerQ3": 163.03,
+  "competitors": [
+   {
+    "name": "Northline Supply",
+    "domain": "northline.example.com",
+    "price": 169.22,
+    "delta_vs_current": 18.8
+   },
+   {
+    "name": "Castellan Trade",
+    "domain": "castellan.example.com",
+    "price": 128.72,
+    "delta_vs_current": -21.7
+   },
+   {
+    "name": "Redhawk Building Supply",
+    "domain": "redhawk.example.com",
+    "price": 163.71,
+    "delta_vs_current": 13.29
+   },
+   {
+    "name": "Vantage Wholesale",
+    "domain": "vantage.example.com",
+    "price": 130.76,
+    "delta_vs_current": -19.66
+   },
+   {
+    "name": "Ironbridge Industrial",
+    "domain": "ironbridge.example.com",
+    "price": 144.83,
+    "delta_vs_current": -5.59
+   },
+   {
+    "name": "Cobalt Depot",
+    "domain": "cobalt.example.com",
+    "price": 169.86,
+    "delta_vs_current": 19.44
+   }
+  ],
+  "competitorMedian": 163.71,
+  "msaMult": 1.0176,
+  "msaMode": "competition",
+  "demand": null,
+  "segment": "regular",
+  "totalTransactions": 182,
+  "totalCompanies": 228,
+  "observedMin": 129.91,
+  "observedMax": 246.85
+ },
+ {
+  "item": "HRD118902",
+  "storeId": "100933",
+  "priceable": true,
+  "cost": 87.46,
+  "currentPrice": 142.72,
+  "optimalPrice": 150.72,
+  "aggressivePrice": 161.02,
+  "recommendedTier": "optimal",
+  "floorPrice": 116.94,
+  "ceilingPrice": 183.36,
+  "peerQ1": 120.56,
+  "peerQ2": 137,
+  "peerQ3": 163.03,
+  "competitors": [
+   {
+    "name": "Northline Supply",
+    "domain": "northline.example.com",
+    "price": 155.39,
+    "delta_vs_current": 12.67
+   },
+   {
+    "name": "Castellan Trade",
+    "domain": "castellan.example.com",
+    "price": 170.29,
+    "delta_vs_current": 27.57
+   },
+   {
+    "name": "Redhawk Building Supply",
+    "domain": "redhawk.example.com",
+    "price": 127.68,
+    "delta_vs_current": -15.04
+   },
+   {
+    "name": "Vantage Wholesale",
+    "domain": "vantage.example.com",
+    "price": 132.46,
+    "delta_vs_current": -10.26
+   },
+   {
+    "name": "Ironbridge Industrial",
+    "domain": "ironbridge.example.com",
+    "price": 154.41,
+    "delta_vs_current": 11.69
+   },
+   {
+    "name": "Cobalt Depot",
+    "domain": "cobalt.example.com",
+    "price": 167.81,
+    "delta_vs_current": 25.09
+   },
+   {
+    "name": "Fairhaven Supply",
+    "domain": "fairhaven.example.com",
+    "price": 127.05,
+    "delta_vs_current": -15.67
+   },
+   {
+    "name": "Pemberton Trade Group",
+    "domain": "pemberton.example.com",
+    "price": 157.33,
+    "delta_vs_current": 14.61
+   }
+  ],
+  "competitorMedian": 155.39,
+  "msaMult": 0.9731,
+  "msaMode": "competition",
+  "demand": {
+   "level": "high",
+   "label": "High demand",
+   "index": 1.587,
+   "movePercent": 2.1,
+   "confidence": "medium",
+   "confWeight": 0.69,
+   "recentVelocity": 12.81,
+   "expectedVelocity": 8.07,
+   "maxAdjustmentPct": 3,
+   "trendDirection": "INCREASING",
+   "historyDays": 299
+  },
+  "segment": "occasional",
+  "totalTransactions": 84,
+  "totalCompanies": 228,
+  "observedMin": 121.19,
+  "observedMax": 171.68
+ },
+ {
+  "item": "HRD118902",
+  "storeId": "100571",
+  "priceable": true,
+  "cost": 87.46,
+  "currentPrice": 170.81,
+  "optimalPrice": 120.43,
+  "aggressivePrice": 138.36,
+  "recommendedTier": "optimal",
+  "floorPrice": 116.94,
+  "ceilingPrice": 192.38,
+  "peerQ1": 120.56,
+  "peerQ2": 137,
+  "peerQ3": 163.03,
+  "competitors": [],
+  "competitorMedian": null,
+  "msaMult": 1,
+  "msaMode": "competition",
+  "demand": {
+   "level": "low",
+   "label": "Low demand",
+   "index": 0.578,
+   "movePercent": -1.9,
+   "confidence": "medium",
+   "confWeight": 0.63,
+   "recentVelocity": 1.58,
+   "expectedVelocity": 2.74,
+   "maxAdjustmentPct": 3,
+   "trendDirection": "DECREASING",
+   "historyDays": 396
+  },
+  "segment": "occasional",
+  "totalTransactions": 239,
+  "totalCompanies": 228,
+  "observedMin": 89.76,
+  "observedMax": 212.16
+ },
+ {
+  "item": "HRD118902",
+  "storeId": "100959",
+  "priceable": true,
+  "cost": 87.46,
+  "currentPrice": 128.66,
+  "optimalPrice": 143.4,
+  "aggressivePrice": 157.68,
+  "recommendedTier": "aggressive",
+  "floorPrice": 116.94,
+  "ceilingPrice": 168.26,
+  "peerQ1": 120.56,
+  "peerQ2": 137,
+  "peerQ3": 163.03,
+  "competitors": [
+   {
+    "name": "Northline Supply",
+    "domain": "northline.example.com",
+    "price": 125.48,
+    "delta_vs_current": -3.18
+   },
+   {
+    "name": "Castellan Trade",
+    "domain": "castellan.example.com",
+    "price": 128.14,
+    "delta_vs_current": -0.52
+   },
+   {
+    "name": "Redhawk Building Supply",
+    "domain": "redhawk.example.com",
+    "price": 142.62,
+    "delta_vs_current": 13.96
+   },
+   {
+    "name": "Vantage Wholesale",
+    "domain": "vantage.example.com",
+    "price": 142.59,
+    "delta_vs_current": 13.93
+   },
+   {
+    "name": "Ironbridge Industrial",
+    "domain": "ironbridge.example.com",
+    "price": 147.12,
+    "delta_vs_current": 18.46
+   },
+   {
+    "name": "Cobalt Depot",
+    "domain": "cobalt.example.com",
+    "price": 152.62,
+    "delta_vs_current": 23.96
+   },
+   {
+    "name": "Fairhaven Supply",
+    "domain": "fairhaven.example.com",
+    "price": 138.44,
+    "delta_vs_current": 9.78
+   }
+  ],
+  "competitorMedian": 142.59,
+  "msaMult": 1.0022,
+  "msaMode": "competition",
+  "demand": {
+   "level": "high",
+   "label": "High demand",
+   "index": 1.259,
+   "movePercent": 1.1,
+   "confidence": "low",
+   "confWeight": 0.38,
+   "recentVelocity": 3.25,
+   "expectedVelocity": 2.58,
+   "maxAdjustmentPct": 3,
+   "trendDirection": "INCREASING",
+   "historyDays": 189
+  },
+  "segment": "regular",
+  "totalTransactions": 124,
+  "totalCompanies": 228,
+  "observedMin": 114.63,
+  "observedMax": 195.49
+ },
+ {
+  "item": "HRD772310",
+  "storeId": "100349",
+  "priceable": true,
+  "cost": 3.54,
+  "currentPrice": 5.12,
+  "optimalPrice": 5.44,
+  "aggressivePrice": 6.21,
+  "recommendedTier": "aggressive",
+  "floorPrice": 5.23,
+  "ceilingPrice": 7.29,
+  "peerQ1": 5.39,
+  "peerQ2": 6.13,
+  "peerQ3": 7.29,
+  "competitors": [
+   {
+    "name": "Northline Supply",
+    "domain": "northline.example.com",
+    "price": 5.89,
+    "delta_vs_current": 0.77
+   },
+   {
+    "name": "Castellan Trade",
+    "domain": "castellan.example.com",
+    "price": 4.48,
+    "delta_vs_current": -0.64
+   },
+   {
+    "name": "Redhawk Building Supply",
+    "domain": "redhawk.example.com",
+    "price": 4.58,
+    "delta_vs_current": -0.54
+   },
+   {
+    "name": "Vantage Wholesale",
+    "domain": "vantage.example.com",
+    "price": 6.21,
+    "delta_vs_current": 1.09
+   },
+   {
+    "name": "Ironbridge Industrial",
+    "domain": "ironbridge.example.com",
+    "price": 5.69,
+    "delta_vs_current": 0.57
+   }
+  ],
+  "competitorMedian": 5.69,
+  "msaMult": 0.9868,
+  "msaMode": "competition",
+  "demand": {
+   "level": "high",
+   "label": "High demand",
+   "index": 1.317,
+   "movePercent": 1.9,
+   "confidence": "medium",
+   "confWeight": 0.62,
+   "recentVelocity": 10.91,
+   "expectedVelocity": 8.28,
+   "maxAdjustmentPct": 3,
+   "trendDirection": "INCREASING",
+   "historyDays": 404
+  },
+  "segment": "regular",
+  "totalTransactions": 59,
+  "totalCompanies": 341,
+  "observedMin": 4.38,
+  "observedMax": 7.48
+ },
+ {
+  "item": "HRD772310",
+  "storeId": "100117",
+  "priceable": true,
+  "cost": 3.54,
+  "currentPrice": 7.36,
+  "optimalPrice": 7.44,
+  "aggressivePrice": 8.17,
+  "recommendedTier": "optimal",
+  "floorPrice": 5.23,
+  "ceilingPrice": 8.99,
+  "peerQ1": 5.39,
+  "peerQ2": 6.13,
+  "peerQ3": 7.29,
+  "competitors": [
+   {
+    "name": "Northline Supply",
+    "domain": "northline.example.com",
+    "price": 7.62,
+    "delta_vs_current": 0.26
+   },
+   {
+    "name": "Castellan Trade",
+    "domain": "castellan.example.com",
+    "price": 6.45,
+    "delta_vs_current": -0.91
+   },
+   {
+    "name": "Redhawk Building Supply",
+    "domain": "redhawk.example.com",
+    "price": 8.43,
+    "delta_vs_current": 1.07
+   },
+   {
+    "name": "Vantage Wholesale",
+    "domain": "vantage.example.com",
+    "price": 7.53,
+    "delta_vs_current": 0.17
+   }
+  ],
+  "competitorMedian": 7.62,
+  "msaMult": 1.016,
+  "msaMode": "competition",
+  "demand": null,
+  "segment": "occasional",
+  "totalTransactions": 221,
+  "totalCompanies": 341,
+  "observedMin": 5.56,
+  "observedMax": 8.89
+ },
+ {
+  "item": "HRD772310",
+  "storeId": "100649",
+  "priceable": true,
+  "cost": 3.54,
+  "currentPrice": 7.12,
+  "optimalPrice": 7.55,
+  "aggressivePrice": 8.43,
+  "recommendedTier": "aggressive",
+  "floorPrice": 5.23,
+  "ceilingPrice": 9.95,
+  "peerQ1": 5.39,
+  "peerQ2": 6.13,
+  "peerQ3": 7.29,
+  "competitors": [
+   {
+    "name": "Northline Supply",
+    "domain": "northline.example.com",
+    "price": 8.64,
+    "delta_vs_current": 1.52
+   },
+   {
+    "name": "Castellan Trade",
+    "domain": "castellan.example.com",
+    "price": 8.52,
+    "delta_vs_current": 1.4
+   },
+   {
+    "name": "Redhawk Building Supply",
+    "domain": "redhawk.example.com",
+    "price": 7.11,
+    "delta_vs_current": -0.01
+   },
+   {
+    "name": "Vantage Wholesale",
+    "domain": "vantage.example.com",
+    "price": 8.43,
+    "delta_vs_current": 1.31
+   },
+   {
+    "name": "Ironbridge Industrial",
+    "domain": "ironbridge.example.com",
+    "price": 6.47,
+    "delta_vs_current": -0.65
+   },
+   {
+    "name": "Cobalt Depot",
+    "domain": "cobalt.example.com",
+    "price": 6.69,
+    "delta_vs_current": -0.43
+   }
+  ],
+  "competitorMedian": 8.43,
+  "msaMult": 0.9379,
+  "msaMode": "competition",
+  "demand": {
+   "level": "medium",
+   "label": "Stable demand",
+   "index": 0.929,
+   "movePercent": 0,
+   "confidence": "medium",
+   "confWeight": 0.57,
+   "recentVelocity": 7.94,
+   "expectedVelocity": 8.55,
+   "maxAdjustmentPct": 3,
+   "trendDirection": "STABLE",
+   "historyDays": 145
+  },
+  "segment": "regular",
+  "totalTransactions": 161,
+  "totalCompanies": 341,
+  "observedMin": 6.36,
+  "observedMax": 9.37
+ },
+ {
+  "item": "HRD772310",
+  "storeId": "100812",
+  "priceable": true,
+  "cost": 3.54,
+  "currentPrice": 7.29,
+  "optimalPrice": 8.17,
+  "aggressivePrice": 9.54,
+  "recommendedTier": "optimal",
+  "floorPrice": 5.23,
+  "ceilingPrice": 9.57,
+  "peerQ1": 5.39,
+  "peerQ2": 6.13,
+  "peerQ3": 7.29,
+  "competitors": [
+   {
+    "name": "Northline Supply",
+    "domain": "northline.example.com",
+    "price": 8.33,
+    "delta_vs_current": 1.04
+   },
+   {
+    "name": "Castellan Trade",
+    "domain": "castellan.example.com",
+    "price": 6.87,
+    "delta_vs_current": -0.42
+   },
+   {
+    "name": "Redhawk Building Supply",
+    "domain": "redhawk.example.com",
+    "price": 7.1,
+    "delta_vs_current": -0.19
+   },
+   {
+    "name": "Vantage Wholesale",
+    "domain": "vantage.example.com",
+    "price": 8.11,
+    "delta_vs_current": 0.82
+   },
+   {
+    "name": "Ironbridge Industrial",
+    "domain": "ironbridge.example.com",
+    "price": 6.48,
+    "delta_vs_current": -0.81
+   },
+   {
+    "name": "Cobalt Depot",
+    "domain": "cobalt.example.com",
+    "price": 8.81,
+    "delta_vs_current": 1.52
+   }
+  ],
+  "competitorMedian": 8.11,
+  "msaMult": 1.0319,
+  "msaMode": "competition",
+  "demand": {
+   "level": "medium",
+   "label": "Stable demand",
+   "index": 0.946,
+   "movePercent": 0,
+   "confidence": "low",
+   "confWeight": 0.37,
+   "recentVelocity": 4.2,
+   "expectedVelocity": 4.44,
+   "maxAdjustmentPct": 3,
+   "trendDirection": "STABLE",
+   "historyDays": 291
+  },
+  "segment": "occasional",
+  "totalTransactions": 147,
+  "totalCompanies": 341,
+  "observedMin": 6.07,
+  "observedMax": 11.93
+ },
+ {
+  "item": "HRD772310",
+  "storeId": "100205",
+  "priceable": true,
+  "cost": 3.54,
+  "currentPrice": 6.62,
+  "optimalPrice": 6.54,
+  "aggressivePrice": 7.18,
+  "recommendedTier": "aggressive",
+  "floorPrice": 5.23,
+  "ceilingPrice": 7.55,
+  "peerQ1": 5.39,
+  "peerQ2": 6.13,
+  "peerQ3": 7.29,
+  "competitors": [
+   {
+    "name": "Northline Supply",
+    "domain": "northline.example.com",
+    "price": 5.51,
+    "delta_vs_current": -1.11
+   },
+   {
+    "name": "Castellan Trade",
+    "domain": "castellan.example.com",
+    "price": 6.4,
+    "delta_vs_current": -0.22
+   },
+   {
+    "name": "Redhawk Building Supply",
+    "domain": "redhawk.example.com",
+    "price": 5.58,
+    "delta_vs_current": -1.04
+   },
+   {
+    "name": "Vantage Wholesale",
+    "domain": "vantage.example.com",
+    "price": 7.45,
+    "delta_vs_current": 0.83
+   }
+  ],
+  "competitorMedian": 6.4,
+  "msaMult": 1.0176,
+  "msaMode": "competition",
+  "demand": {
+   "level": "medium",
+   "label": "Stable demand",
+   "index": 1.054,
+   "movePercent": 0,
+   "confidence": "medium",
+   "confWeight": 0.74,
+   "recentVelocity": 2.17,
+   "expectedVelocity": 2.06,
+   "maxAdjustmentPct": 3,
+   "trendDirection": "STABLE",
+   "historyDays": 434
+  },
+  "segment": "regular",
+  "totalTransactions": 204,
+  "totalCompanies": 341,
+  "observedMin": 5.62,
+  "observedMax": 9.5
+ },
+ {
+  "item": "HRD772310",
+  "storeId": "100571",
+  "priceable": true,
+  "cost": 3.54,
+  "currentPrice": 7.52,
+  "optimalPrice": 5.56,
+  "aggressivePrice": 6.11,
+  "recommendedTier": "optimal",
+  "floorPrice": 5.23,
+  "ceilingPrice": 8.6,
+  "peerQ1": 5.39,
+  "peerQ2": 6.13,
+  "peerQ3": 7.29,
+  "competitors": [],
+  "competitorMedian": null,
+  "msaMult": 1,
+  "msaMode": "competition",
+  "demand": null,
+  "segment": "occasional",
+  "totalTransactions": 49,
+  "totalCompanies": 341,
+  "observedMin": 4.43,
+  "observedMax": 9.23
+ },
+ {
+  "item": "HRD450871",
+  "storeId": "100349",
+  "priceable": true,
+  "cost": 7.04,
+  "currentPrice": 11.81,
+  "optimalPrice": 11.25,
+  "aggressivePrice": 13.21,
+  "recommendedTier": "aggressive",
+  "floorPrice": 11.13,
+  "ceilingPrice": 15.51,
+  "peerQ1": 11.47,
+  "peerQ2": 13.03,
+  "peerQ3": 15.51,
+  "competitors": [
+   {
+    "name": "Northline Supply",
+    "domain": "northline.example.com",
+    "price": 10.33,
+    "delta_vs_current": -1.48
+   },
+   {
+    "name": "Castellan Trade",
+    "domain": "castellan.example.com",
+    "price": 14.35,
+    "delta_vs_current": 2.54
+   },
+   {
+    "name": "Redhawk Building Supply",
+    "domain": "redhawk.example.com",
+    "price": 9.88,
+    "delta_vs_current": -1.93
+   },
+   {
+    "name": "Vantage Wholesale",
+    "domain": "vantage.example.com",
+    "price": 11.2,
+    "delta_vs_current": -0.61
+   },
+   {
+    "name": "Ironbridge Industrial",
+    "domain": "ironbridge.example.com",
+    "price": 12.99,
+    "delta_vs_current": 1.18
+   },
+   {
+    "name": "Cobalt Depot",
+    "domain": "cobalt.example.com",
+    "price": 14.37,
+    "delta_vs_current": 2.56
+   },
+   {
+    "name": "Fairhaven Supply",
+    "domain": "fairhaven.example.com",
+    "price": 10.14,
+    "delta_vs_current": -1.67
+   },
+   {
+    "name": "Pemberton Trade Group",
+    "domain": "pemberton.example.com",
+    "price": 11.51,
+    "delta_vs_current": -0.3
+   }
+  ],
+  "competitorMedian": 11.51,
+  "msaMult": 0.9868,
+  "msaMode": "competition",
+  "demand": {
+   "level": "medium",
+   "label": "Stable demand",
+   "index": 1.035,
+   "movePercent": 0,
+   "confidence": "medium",
+   "confWeight": 0.6,
+   "recentVelocity": 3.76,
+   "expectedVelocity": 3.63,
+   "maxAdjustmentPct": 3,
+   "trendDirection": "STABLE",
+   "historyDays": 108
+  },
+  "segment": "regular",
+  "totalTransactions": 170,
+  "totalCompanies": 285,
+  "observedMin": 10.07,
+  "observedMax": 14.03
+ },
+ {
+  "item": "HRD450871",
+  "storeId": "100047",
+  "priceable": true,
+  "cost": 7.04,
+  "currentPrice": 12.99,
+  "optimalPrice": 12.14,
+  "aggressivePrice": 13.88,
+  "recommendedTier": "aggressive",
+  "floorPrice": 11.13,
+  "ceilingPrice": 18.3,
+  "peerQ1": 11.47,
+  "peerQ2": 13.03,
+  "peerQ3": 15.51,
+  "competitors": [],
+  "competitorMedian": null,
+  "msaMult": 1.0567,
+  "msaMode": "competition",
+  "demand": {
+   "level": "medium",
+   "label": "Stable demand",
+   "index": 1.047,
+   "movePercent": 0,
+   "confidence": "low",
+   "confWeight": 0.39,
+   "recentVelocity": 3.72,
+   "expectedVelocity": 3.55,
+   "maxAdjustmentPct": 3,
+   "trendDirection": "STABLE",
+   "historyDays": 421
+  },
+  "segment": "regular",
+  "totalTransactions": 205,
+  "totalCompanies": 285,
+  "observedMin": 10.9,
+  "observedMax": 14.83
+ },
+ {
+  "item": "HRD450871",
+  "storeId": "100649",
+  "priceable": true,
+  "cost": 7.04,
+  "currentPrice": 10.05,
+  "optimalPrice": 11.44,
+  "aggressivePrice": 13.02,
+  "recommendedTier": "aggressive",
+  "floorPrice": 11.13,
+  "ceilingPrice": 15.51,
+  "peerQ1": 11.47,
+  "peerQ2": 13.03,
+  "peerQ3": 15.51,
+  "competitors": [
+   {
+    "name": "Northline Supply",
+    "domain": "northline.example.com",
+    "price": 10.5,
+    "delta_vs_current": 0.45
+   },
+   {
+    "name": "Castellan Trade",
+    "domain": "castellan.example.com",
+    "price": 11.57,
+    "delta_vs_current": 1.52
+   },
+   {
+    "name": "Redhawk Building Supply",
+    "domain": "redhawk.example.com",
+    "price": 11.94,
+    "delta_vs_current": 1.89
+   },
+   {
+    "name": "Vantage Wholesale",
+    "domain": "vantage.example.com",
+    "price": 12.34,
+    "delta_vs_current": 2.29
+   },
+   {
+    "name": "Ironbridge Industrial",
+    "domain": "ironbridge.example.com",
+    "price": 12.46,
+    "delta_vs_current": 2.41
+   }
+  ],
+  "competitorMedian": 11.94,
+  "msaMult": 0.9379,
+  "msaMode": "competition",
+  "demand": {
+   "level": "medium",
+   "label": "Stable demand",
+   "index": 0.997,
+   "movePercent": 0,
+   "confidence": "high",
+   "confWeight": 0.83,
+   "recentVelocity": 7.38,
+   "expectedVelocity": 7.4,
+   "maxAdjustmentPct": 3,
+   "trendDirection": "STABLE",
+   "historyDays": 302
+  },
+  "segment": "regular",
+  "totalTransactions": 84,
+  "totalCompanies": 285,
+  "observedMin": 7.66,
+  "observedMax": 16.58
+ },
+ {
+  "item": "HRD450871",
+  "storeId": "100812",
+  "priceable": true,
+  "cost": 7.04,
+  "currentPrice": 10.85,
+  "optimalPrice": 11.66,
+  "aggressivePrice": 13.58,
+  "recommendedTier": "optimal",
+  "floorPrice": 11.13,
+  "ceilingPrice": 15.51,
+  "peerQ1": 11.47,
+  "peerQ2": 13.03,
+  "peerQ3": 15.51,
+  "competitors": [
+   {
+    "name": "Northline Supply",
+    "domain": "northline.example.com",
+    "price": 11.45,
+    "delta_vs_current": 0.6
+   },
+   {
+    "name": "Castellan Trade",
+    "domain": "castellan.example.com",
+    "price": 11.09,
+    "delta_vs_current": 0.24
+   },
+   {
+    "name": "Redhawk Building Supply",
+    "domain": "redhawk.example.com",
+    "price": 9.97,
+    "delta_vs_current": -0.88
+   },
+   {
+    "name": "Vantage Wholesale",
+    "domain": "vantage.example.com",
+    "price": 9.92,
+    "delta_vs_current": -0.93
+   },
+   {
+    "name": "Ironbridge Industrial",
+    "domain": "ironbridge.example.com",
+    "price": 11.66,
+    "delta_vs_current": 0.81
+   }
+  ],
+  "competitorMedian": 11.09,
+  "msaMult": 1.0319,
+  "msaMode": "competition",
+  "demand": null,
+  "segment": "occasional",
+  "totalTransactions": 166,
+  "totalCompanies": 285,
+  "observedMin": 9.15,
+  "observedMax": 15.49
+ },
+ {
+  "item": "HRD450871",
+  "storeId": "100205",
+  "priceable": true,
+  "cost": 7.04,
+  "currentPrice": 13.65,
+  "optimalPrice": 13.08,
+  "aggressivePrice": 14.65,
+  "recommendedTier": "aggressive",
+  "floorPrice": 11.13,
+  "ceilingPrice": 15.51,
+  "peerQ1": 11.47,
+  "peerQ2": 13.03,
+  "peerQ3": 15.51,
+  "competitors": [
+   {
+    "name": "Northline Supply",
+    "domain": "northline.example.com",
+    "price": 12.1,
+    "delta_vs_current": -1.55
+   },
+   {
+    "name": "Castellan Trade",
+    "domain": "castellan.example.com",
+    "price": 12.9,
+    "delta_vs_current": -0.75
+   },
+   {
+    "name": "Redhawk Building Supply",
+    "domain": "redhawk.example.com",
+    "price": 14.05,
+    "delta_vs_current": 0.4
+   },
+   {
+    "name": "Vantage Wholesale",
+    "domain": "vantage.example.com",
+    "price": 12.87,
+    "delta_vs_current": -0.78
+   },
+   {
+    "name": "Ironbridge Industrial",
+    "domain": "ironbridge.example.com",
+    "price": 11.6,
+    "delta_vs_current": -2.05
+   },
+   {
+    "name": "Cobalt Depot",
+    "domain": "cobalt.example.com",
+    "price": 13.37,
+    "delta_vs_current": -0.28
+   },
+   {
+    "name": "Fairhaven Supply",
+    "domain": "fairhaven.example.com",
+    "price": 13.82,
+    "delta_vs_current": 0.17
+   },
+   {
+    "name": "Pemberton Trade Group",
+    "domain": "pemberton.example.com",
+    "price": 12.49,
+    "delta_vs_current": -1.16
+   }
+  ],
+  "competitorMedian": 12.9,
+  "msaMult": 1.0176,
+  "msaMode": "competition",
+  "demand": {
+   "level": "low",
+   "label": "Low demand",
+   "index": 0.74,
+   "movePercent": -1.6,
+   "confidence": "medium",
+   "confWeight": 0.53,
+   "recentVelocity": 4.93,
+   "expectedVelocity": 6.66,
+   "maxAdjustmentPct": 3,
+   "trendDirection": "DECREASING",
+   "historyDays": 129
+  },
+  "segment": "regular",
+  "totalTransactions": 92,
+  "totalCompanies": 285,
+  "observedMin": 9.9,
+  "observedMax": 17.19
+ },
+ {
+  "item": "HRD450871",
+  "storeId": "100933",
+  "priceable": true,
+  "cost": 7.04,
+  "currentPrice": 11.59,
+  "optimalPrice": 11.7,
+  "aggressivePrice": 12.93,
+  "recommendedTier": "optimal",
+  "floorPrice": 11.13,
+  "ceilingPrice": 15.51,
+  "peerQ1": 11.47,
+  "peerQ2": 13.03,
+  "peerQ3": 15.51,
+  "competitors": [
+   {
+    "name": "Northline Supply",
+    "domain": "northline.example.com",
+    "price": 11.89,
+    "delta_vs_current": 0.3
+   },
+   {
+    "name": "Castellan Trade",
+    "domain": "castellan.example.com",
+    "price": 10.64,
+    "delta_vs_current": -0.95
+   },
+   {
+    "name": "Redhawk Building Supply",
+    "domain": "redhawk.example.com",
+    "price": 13.75,
+    "delta_vs_current": 2.16
+   },
+   {
+    "name": "Vantage Wholesale",
+    "domain": "vantage.example.com",
+    "price": 11.62,
+    "delta_vs_current": 0.03
+   }
+  ],
+  "competitorMedian": 11.89,
+  "msaMult": 0.9731,
+  "msaMode": "competition",
+  "demand": {
+   "level": "high",
+   "label": "High demand",
+   "index": 1.896,
+   "movePercent": 2.5,
+   "confidence": "high",
+   "confWeight": 0.82,
+   "recentVelocity": 2.26,
+   "expectedVelocity": 1.19,
+   "maxAdjustmentPct": 3,
+   "trendDirection": "INCREASING",
+   "historyDays": 101
+  },
+  "segment": "occasional",
+  "totalTransactions": 160,
+  "totalCompanies": 285,
+  "observedMin": 8.44,
+  "observedMax": 16.73
+ },
+ {
+  "item": "HRD450871",
+  "storeId": "100571",
+  "priceable": true,
+  "cost": 7.04,
+  "currentPrice": 14.84,
+  "optimalPrice": 16.01,
+  "aggressivePrice": 18.91,
+  "recommendedTier": "optimal",
+  "floorPrice": 11.13,
+  "ceilingPrice": 18.54,
+  "peerQ1": 11.47,
+  "peerQ2": 13.03,
+  "peerQ3": 15.51,
+  "competitors": [
+   {
+    "name": "Northline Supply",
+    "domain": "northline.example.com",
+    "price": 16.48,
+    "delta_vs_current": 1.64
+   },
+   {
+    "name": "Castellan Trade",
+    "domain": "castellan.example.com",
+    "price": 12.4,
+    "delta_vs_current": -2.44
+   },
+   {
+    "name": "Redhawk Building Supply",
+    "domain": "redhawk.example.com",
+    "price": 15.71,
+    "delta_vs_current": 0.87
+   },
+   {
+    "name": "Vantage Wholesale",
+    "domain": "vantage.example.com",
+    "price": 16.53,
+    "delta_vs_current": 1.69
+   },
+   {
+    "name": "Ironbridge Industrial",
+    "domain": "ironbridge.example.com",
+    "price": 13.71,
+    "delta_vs_current": -1.13
+   },
+   {
+    "name": "Cobalt Depot",
+    "domain": "cobalt.example.com",
+    "price": 16.86,
+    "delta_vs_current": 2.02
+   },
+   {
+    "name": "Fairhaven Supply",
+    "domain": "fairhaven.example.com",
+    "price": 15.68,
+    "delta_vs_current": 0.84
+   },
+   {
+    "name": "Pemberton Trade Group",
+    "domain": "pemberton.example.com",
+    "price": 13.35,
+    "delta_vs_current": -1.49
+   }
+  ],
+  "competitorMedian": 15.71,
+  "msaMult": 1,
+  "msaMode": "competition",
+  "demand": null,
+  "segment": "occasional",
+  "totalTransactions": 23,
+  "totalCompanies": 285,
+  "observedMin": 12.94,
+  "observedMax": 22.97
+ },
+ {
+  "item": "HRD450871",
+  "storeId": "100959",
+  "priceable": true,
+  "cost": 7.04,
+  "currentPrice": 13.78,
+  "optimalPrice": 14.65,
+  "aggressivePrice": 16.29,
+  "recommendedTier": "aggressive",
+  "floorPrice": 11.13,
+  "ceilingPrice": 17.13,
+  "peerQ1": 11.47,
+  "peerQ2": 13.03,
+  "peerQ3": 15.51,
+  "competitors": [
+   {
+    "name": "Northline Supply",
+    "domain": "northline.example.com",
+    "price": 14.52,
+    "delta_vs_current": 0.74
+   },
+   {
+    "name": "Castellan Trade",
+    "domain": "castellan.example.com",
+    "price": 12.76,
+    "delta_vs_current": -1.02
+   },
+   {
+    "name": "Redhawk Building Supply",
+    "domain": "redhawk.example.com",
+    "price": 13.51,
+    "delta_vs_current": -0.27
+   },
+   {
+    "name": "Vantage Wholesale",
+    "domain": "vantage.example.com",
+    "price": 16.87,
+    "delta_vs_current": 3.09
+   },
+   {
+    "name": "Ironbridge Industrial",
+    "domain": "ironbridge.example.com",
+    "price": 17.02,
+    "delta_vs_current": 3.24
+   },
+   {
+    "name": "Cobalt Depot",
+    "domain": "cobalt.example.com",
+    "price": 16.39,
+    "delta_vs_current": 2.61
+   },
+   {
+    "name": "Fairhaven Supply",
+    "domain": "fairhaven.example.com",
+    "price": 13.11,
+    "delta_vs_current": -0.67
+   },
+   {
+    "name": "Pemberton Trade Group",
+    "domain": "pemberton.example.com",
+    "price": 11.3,
+    "delta_vs_current": -2.48
+   },
+   {
+    "name": "Granite & Co.",
+    "domain": "granite.example.com",
+    "price": 14.54,
+    "delta_vs_current": 0.76
+   }
+  ],
+  "competitorMedian": 14.52,
+  "msaMult": 1.0022,
+  "msaMode": "competition",
+  "demand": {
+   "level": "medium",
+   "label": "Stable demand",
+   "index": 0.984,
+   "movePercent": 0,
+   "confidence": "medium",
+   "confWeight": 0.71,
+   "recentVelocity": 1.91,
+   "expectedVelocity": 1.94,
+   "maxAdjustmentPct": 3,
+   "trendDirection": "STABLE",
+   "historyDays": 396
+  },
+  "segment": "regular",
+  "totalTransactions": 160,
+  "totalCompanies": 285,
+  "observedMin": 12.26,
+  "observedMax": 19.9
+ },
+ {
+  "item": "HRD290145",
+  "storeId": "100349",
+  "priceable": true,
+  "cost": 89.73,
+  "currentPrice": 185.67,
+  "optimalPrice": 187.01,
+  "aggressivePrice": 213.93,
+  "recommendedTier": "aggressive",
+  "floorPrice": 125.96,
+  "ceilingPrice": 219.79,
+  "peerQ1": 129.86,
+  "peerQ2": 147.57,
+  "peerQ3": 175.61,
+  "competitors": [
+   {
+    "name": "Northline Supply",
+    "domain": "northline.example.com",
+    "price": 166.91,
+    "delta_vs_current": -18.76
+   },
+   {
+    "name": "Castellan Trade",
+    "domain": "castellan.example.com",
+    "price": 215.19,
+    "delta_vs_current": 29.52
+   },
+   {
+    "name": "Redhawk Building Supply",
+    "domain": "redhawk.example.com",
+    "price": 158.5,
+    "delta_vs_current": -27.17
+   },
+   {
+    "name": "Vantage Wholesale",
+    "domain": "vantage.example.com",
+    "price": 216.85,
+    "delta_vs_current": 31.18
+   },
+   {
+    "name": "Ironbridge Industrial",
+    "domain": "ironbridge.example.com",
+    "price": 152.96,
+    "delta_vs_current": -32.71
+   },
+   {
+    "name": "Cobalt Depot",
+    "domain": "cobalt.example.com",
+    "price": 186.26,
+    "delta_vs_current": 0.59
+   },
+   {
+    "name": "Fairhaven Supply",
+    "domain": "fairhaven.example.com",
+    "price": 213.84,
+    "delta_vs_current": 28.17
+   },
+   {
+    "name": "Pemberton Trade Group",
+    "domain": "pemberton.example.com",
+    "price": 229.14,
+    "delta_vs_current": 43.47
+   },
+   {
+    "name": "Granite & Co.",
+    "domain": "granite.example.com",
+    "price": 162.53,
+    "delta_vs_current": -23.14
+   }
+  ],
+  "competitorMedian": 186.26,
+  "msaMult": 0.9868,
+  "msaMode": "competition",
+  "demand": {
+   "level": "high",
+   "label": "High demand",
+   "index": 1.683,
+   "movePercent": 2.4,
+   "confidence": "high",
+   "confWeight": 0.79,
+   "recentVelocity": 4.29,
+   "expectedVelocity": 2.55,
+   "maxAdjustmentPct": 3,
+   "trendDirection": "INCREASING",
+   "historyDays": 343
+  },
+  "segment": "regular",
+  "totalTransactions": 153,
+  "totalCompanies": 242,
+  "observedMin": 171.95,
+  "observedMax": 281.41
+ },
+ {
+  "item": "HRD290145",
+  "storeId": "100047",
+  "priceable": true,
+  "cost": 89.73,
+  "currentPrice": 160.37,
+  "optimalPrice": 194.88,
+  "aggressivePrice": 215.36,
+  "recommendedTier": "aggressive",
+  "floorPrice": 125.96,
+  "ceilingPrice": 219.31,
+  "peerQ1": 129.86,
+  "peerQ2": 147.57,
+  "peerQ3": 175.61,
+  "competitors": [
+   {
+    "name": "Northline Supply",
+    "domain": "northline.example.com",
+    "price": 189.27,
+    "delta_vs_current": 28.9
+   },
+   {
+    "name": "Castellan Trade",
+    "domain": "castellan.example.com",
+    "price": 185.2,
+    "delta_vs_current": 24.83
+   },
+   {
+    "name": "Redhawk Building Supply",
+    "domain": "redhawk.example.com",
+    "price": 170.07,
+    "delta_vs_current": 9.7
+   },
+   {
+    "name": "Vantage Wholesale",
+    "domain": "vantage.example.com",
+    "price": 197.35,
+    "delta_vs_current": 36.98
+   },
+   {
+    "name": "Ironbridge Industrial",
+    "domain": "ironbridge.example.com",
+    "price": 185.86,
+    "delta_vs_current": 25.49
+   },
+   {
+    "name": "Cobalt Depot",
+    "domain": "cobalt.example.com",
+    "price": 153.21,
+    "delta_vs_current": -7.16
+   }
+  ],
+  "competitorMedian": 185.86,
+  "msaMult": 1.0567,
+  "msaMode": "competition",
+  "demand": {
+   "level": "medium",
+   "label": "Stable demand",
+   "index": 1.046,
+   "movePercent": 0,
+   "confidence": "medium",
+   "confWeight": 0.58,
+   "recentVelocity": 4.89,
+   "expectedVelocity": 4.68,
+   "maxAdjustmentPct": 3,
+   "trendDirection": "STABLE",
+   "historyDays": 320
+  },
+  "segment": "regular",
+  "totalTransactions": 183,
+  "totalCompanies": 242,
+  "observedMin": 116.7,
+  "observedMax": 280.41
+ },
+ {
+  "item": "HRD290145",
+  "storeId": "100117",
+  "priceable": true,
+  "cost": 89.73,
+  "currentPrice": 130.18,
+  "optimalPrice": 130.52,
+  "aggressivePrice": 138.63,
+  "recommendedTier": "optimal",
+  "floorPrice": 125.96,
+  "ceilingPrice": 207.22,
+  "peerQ1": 129.86,
+  "peerQ2": 147.57,
+  "peerQ3": 175.61,
+  "competitors": [],
+  "competitorMedian": null,
+  "msaMult": 1.016,
+  "msaMode": "competition",
+  "demand": {
+   "level": "high",
+   "label": "High demand",
+   "index": 1.699,
+   "movePercent": 2.1,
+   "confidence": "medium",
+   "confWeight": 0.69,
+   "recentVelocity": 13.88,
+   "expectedVelocity": 8.17,
+   "maxAdjustmentPct": 3,
+   "trendDirection": "INCREASING",
+   "historyDays": 120
+  },
+  "segment": "occasional",
+  "totalTransactions": 127,
+  "totalCompanies": 242,
+  "observedMin": 105.02,
+  "observedMax": 185.11
+ },
+ {
+  "item": "HRD290145",
+  "storeId": "100649",
+  "priceable": true,
+  "cost": 89.73,
+  "currentPrice": 143.17,
+  "optimalPrice": 136.4,
+  "aggressivePrice": 152.12,
+  "recommendedTier": "aggressive",
+  "floorPrice": 125.96,
+  "ceilingPrice": 175.61,
+  "peerQ1": 129.86,
+  "peerQ2": 147.57,
+  "peerQ3": 175.61,
+  "competitors": [
+   {
+    "name": "Northline Supply",
+    "domain": "northline.example.com",
+    "price": 122.81,
+    "delta_vs_current": -20.36
+   },
+   {
+    "name": "Castellan Trade",
+    "domain": "castellan.example.com",
+    "price": 134.77,
+    "delta_vs_current": -8.4
+   },
+   {
+    "name": "Redhawk Building Supply",
+    "domain": "redhawk.example.com",
+    "price": 145.59,
+    "delta_vs_current": 2.42
+   },
+   {
+    "name": "Vantage Wholesale",
+    "domain": "vantage.example.com",
+    "price": 175.94,
+    "delta_vs_current": 32.77
+   },
+   {
+    "name": "Ironbridge Industrial",
+    "domain": "ironbridge.example.com",
+    "price": 176.16,
+    "delta_vs_current": 32.99
+   },
+   {
+    "name": "Cobalt Depot",
+    "domain": "cobalt.example.com",
+    "price": 125.74,
+    "delta_vs_current": -17.43
+   }
+  ],
+  "competitorMedian": 145.59,
+  "msaMult": 0.9379,
+  "msaMode": "competition",
+  "demand": {
+   "level": "high",
+   "label": "High demand",
+   "index": 1.79,
+   "movePercent": 2.4,
+   "confidence": "high",
+   "confWeight": 0.81,
+   "recentVelocity": 1.56,
+   "expectedVelocity": 0.87,
+   "maxAdjustmentPct": 3,
+   "trendDirection": "INCREASING",
+   "historyDays": 280
+  },
+  "segment": "regular",
+  "totalTransactions": 59,
+  "totalCompanies": 242,
+  "observedMin": 106.44,
+  "observedMax": 170.62
+ },
+ {
+  "item": "HRD290145",
+  "storeId": "100812",
+  "priceable": true,
+  "cost": 89.73,
+  "currentPrice": 165.43,
+  "optimalPrice": 170.99,
+  "aggressivePrice": 188.51,
+  "recommendedTier": "optimal",
+  "floorPrice": 125.96,
+  "ceilingPrice": 203.22,
+  "peerQ1": 129.86,
+  "peerQ2": 147.57,
+  "peerQ3": 175.61,
+  "competitors": [
+   {
+    "name": "Northline Supply",
+    "domain": "northline.example.com",
+    "price": 200.91,
+    "delta_vs_current": 35.48
+   },
+   {
+    "name": "Castellan Trade",
+    "domain": "castellan.example.com",
+    "price": 172.22,
+    "delta_vs_current": 6.79
+   },
+   {
+    "name": "Redhawk Building Supply",
+    "domain": "redhawk.example.com",
+    "price": 152.16,
+    "delta_vs_current": -13.27
+   },
+   {
+    "name": "Vantage Wholesale",
+    "domain": "vantage.example.com",
+    "price": 200.16,
+    "delta_vs_current": 34.73
+   },
+   {
+    "name": "Ironbridge Industrial",
+    "domain": "ironbridge.example.com",
+    "price": 148.73,
+    "delta_vs_current": -16.7
+   },
+   {
+    "name": "Cobalt Depot",
+    "domain": "cobalt.example.com",
+    "price": 156.84,
+    "delta_vs_current": -8.59
+   },
+   {
+    "name": "Fairhaven Supply",
+    "domain": "fairhaven.example.com",
+    "price": 185.52,
+    "delta_vs_current": 20.09
+   }
+  ],
+  "competitorMedian": 172.22,
+  "msaMult": 1.0319,
+  "msaMode": "competition",
+  "demand": {
+   "level": "low",
+   "label": "Low demand",
+   "index": 0.478,
+   "movePercent": -2.2,
+   "confidence": "medium",
+   "confWeight": 0.75,
+   "recentVelocity": 0.31,
+   "expectedVelocity": 0.65,
+   "maxAdjustmentPct": 3,
+   "trendDirection": "DECREASING",
+   "historyDays": 462
+  },
+  "segment": "occasional",
+  "totalTransactions": 207,
+  "totalCompanies": 242,
+  "observedMin": 138.27,
+  "observedMax": 233.83
+ },
+ {
+  "item": "HRD290145",
+  "storeId": "100205",
+  "priceable": true,
+  "cost": 89.73,
+  "currentPrice": 165.41,
+  "optimalPrice": 180.58,
+  "aggressivePrice": 203.42,
+  "recommendedTier": "aggressive",
+  "floorPrice": 125.96,
+  "ceilingPrice": 212.64,
+  "peerQ1": 129.86,
+  "peerQ2": 147.57,
+  "peerQ3": 175.61,
+  "competitors": [
+   {
+    "name": "Northline Supply",
+    "domain": "northline.example.com",
+    "price": 178.72,
+    "delta_vs_current": 13.31
+   },
+   {
+    "name": "Castellan Trade",
+    "domain": "castellan.example.com",
+    "price": 173.37,
+    "delta_vs_current": 7.96
+   },
+   {
+    "name": "Redhawk Building Supply",
+    "domain": "redhawk.example.com",
+    "price": 202.74,
+    "delta_vs_current": 37.33
+   },
+   {
+    "name": "Vantage Wholesale",
+    "domain": "vantage.example.com",
+    "price": 204.21,
+    "delta_vs_current": 38.8
+   },
+   {
+    "name": "Ironbridge Industrial",
+    "domain": "ironbridge.example.com",
+    "price": 180.2,
+    "delta_vs_current": 14.79
+   },
+   {
+    "name": "Cobalt Depot",
+    "domain": "cobalt.example.com",
+    "price": 184.7,
+    "delta_vs_current": 19.29
+   },
+   {
+    "name": "Fairhaven Supply",
+    "domain": "fairhaven.example.com",
+    "price": 167.22,
+    "delta_vs_current": 1.81
+   },
+   {
+    "name": "Pemberton Trade Group",
+    "domain": "pemberton.example.com",
+    "price": 138.75,
+    "delta_vs_current": -26.66
+   }
+  ],
+  "competitorMedian": 180.2,
+  "msaMult": 1.0176,
+  "msaMode": "competition",
+  "demand": {
+   "level": "high",
+   "label": "High demand",
+   "index": 1.757,
+   "movePercent": 2.2,
+   "confidence": "medium",
+   "confWeight": 0.74,
+   "recentVelocity": 12.81,
+   "expectedVelocity": 7.29,
+   "maxAdjustmentPct": 3,
+   "trendDirection": "INCREASING",
+   "historyDays": 373
+  },
+  "segment": "regular",
+  "totalTransactions": 70,
+  "totalCompanies": 242,
+  "observedMin": 141.63,
+  "observedMax": 229.38
+ },
+ {
+  "item": "HRD290145",
+  "storeId": "100933",
+  "priceable": true,
+  "cost": 89.73,
+  "currentPrice": 152.11,
+  "optimalPrice": 144.77,
+  "aggressivePrice": 163.41,
+  "recommendedTier": "optimal",
+  "floorPrice": 125.96,
+  "ceilingPrice": 176.74,
+  "peerQ1": 129.86,
+  "peerQ2": 147.57,
+  "peerQ3": 175.61,
+  "competitors": [
+   {
+    "name": "Northline Supply",
+    "domain": "northline.example.com",
+    "price": 149.78,
+    "delta_vs_current": -2.33
+   },
+   {
+    "name": "Castellan Trade",
+    "domain": "castellan.example.com",
+    "price": 147.6,
+    "delta_vs_current": -4.51
+   },
+   {
+    "name": "Redhawk Building Supply",
+    "domain": "redhawk.example.com",
+    "price": 137.4,
+    "delta_vs_current": -14.71
+   },
+   {
+    "name": "Vantage Wholesale",
+    "domain": "vantage.example.com",
+    "price": 136.04,
+    "delta_vs_current": -16.07
+   },
+   {
+    "name": "Ironbridge Industrial",
+    "domain": "ironbridge.example.com",
+    "price": 125.58,
+    "delta_vs_current": -26.53
+   },
+   {
+    "name": "Cobalt Depot",
+    "domain": "cobalt.example.com",
+    "price": 150.59,
+    "delta_vs_current": -1.52
+   },
+   {
+    "name": "Fairhaven Supply",
+    "domain": "fairhaven.example.com",
+    "price": 153.26,
+    "delta_vs_current": 1.15
+   },
+   {
+    "name": "Pemberton Trade Group",
+    "domain": "pemberton.example.com",
+    "price": 171.17,
+    "delta_vs_current": 19.06
+   }
+  ],
+  "competitorMedian": 149.78,
+  "msaMult": 0.9731,
+  "msaMode": "competition",
+  "demand": null,
+  "segment": "occasional",
+  "totalTransactions": 159,
+  "totalCompanies": 242,
+  "observedMin": 116.42,
+  "observedMax": 218.67
+ },
+ {
+  "item": "HRD661204",
+  "storeId": "100349",
+  "priceable": true,
+  "cost": 30.88,
+  "currentPrice": 58.72,
+  "optimalPrice": 63.93,
+  "aggressivePrice": 72.53,
+  "recommendedTier": "aggressive",
+  "floorPrice": 54.97,
+  "ceilingPrice": 76.64,
+  "peerQ1": 56.67,
+  "peerQ2": 64.4,
+  "peerQ3": 76.64,
+  "competitors": [
+   {
+    "name": "Northline Supply",
+    "domain": "northline.example.com",
+    "price": 62.07,
+    "delta_vs_current": 3.35
+   },
+   {
+    "name": "Castellan Trade",
+    "domain": "castellan.example.com",
+    "price": 71.36,
+    "delta_vs_current": 12.64
+   },
+   {
+    "name": "Redhawk Building Supply",
+    "domain": "redhawk.example.com",
+    "price": 72.46,
+    "delta_vs_current": 13.74
+   },
+   {
+    "name": "Vantage Wholesale",
+    "domain": "vantage.example.com",
+    "price": 72.5,
+    "delta_vs_current": 13.78
+   },
+   {
+    "name": "Ironbridge Industrial",
+    "domain": "ironbridge.example.com",
+    "price": 63.45,
+    "delta_vs_current": 4.73
+   },
+   {
+    "name": "Cobalt Depot",
+    "domain": "cobalt.example.com",
+    "price": 63.06,
+    "delta_vs_current": 4.34
+   },
+   {
+    "name": "Fairhaven Supply",
+    "domain": "fairhaven.example.com",
+    "price": 61.3,
+    "delta_vs_current": 2.58
+   },
+   {
+    "name": "Pemberton Trade Group",
+    "domain": "pemberton.example.com",
+    "price": 57.36,
+    "delta_vs_current": -1.36
+   }
+  ],
+  "competitorMedian": 63.45,
+  "msaMult": 0.9868,
+  "msaMode": "competition",
+  "demand": {
+   "level": "medium",
+   "label": "Stable demand",
+   "index": 0.934,
+   "movePercent": 0,
+   "confidence": "medium",
+   "confWeight": 0.61,
+   "recentVelocity": 1.58,
+   "expectedVelocity": 1.69,
+   "maxAdjustmentPct": 3,
+   "trendDirection": "STABLE",
+   "historyDays": 198
+  },
+  "segment": "regular",
+  "totalTransactions": 27,
+  "totalCompanies": 202,
+  "observedMin": 43.01,
+  "observedMax": 95.87
+ },
+ {
+  "item": "HRD661204",
+  "storeId": "100047",
+  "priceable": true,
+  "cost": 30.88,
+  "currentPrice": 45.56,
+  "optimalPrice": 52.1,
+  "aggressivePrice": 56.17,
+  "recommendedTier": "aggressive",
+  "floorPrice": 54.97,
+  "ceilingPrice": 76.64,
+  "peerQ1": 56.67,
+  "peerQ2": 64.4,
+  "peerQ3": 76.64,
+  "competitors": [
+   {
+    "name": "Northline Supply",
+    "domain": "northline.example.com",
+    "price": 55.28,
+    "delta_vs_current": 9.72
+   },
+   {
+    "name": "Castellan Trade",
+    "domain": "castellan.example.com",
+    "price": 56.23,
+    "delta_vs_current": 10.67
+   },
+   {
+    "name": "Redhawk Building Supply",
+    "domain": "redhawk.example.com",
+    "price": 51.76,
+    "delta_vs_current": 6.2
+   },
+   {
+    "name": "Vantage Wholesale",
+    "domain": "vantage.example.com",
+    "price": 47.83,
+    "delta_vs_current": 2.27
+   },
+   {
+    "name": "Ironbridge Industrial",
+    "domain": "ironbridge.example.com",
+    "price": 47.32,
+    "delta_vs_current": 1.76
+   },
+   {
+    "name": "Cobalt Depot",
+    "domain": "cobalt.example.com",
+    "price": 48.15,
+    "delta_vs_current": 2.59
+   }
+  ],
+  "competitorMedian": 51.76,
+  "msaMult": 1.0567,
+  "msaMode": "competition",
+  "demand": null,
+  "segment": "regular",
+  "totalTransactions": 147,
+  "totalCompanies": 202,
+  "observedMin": 35.12,
+  "observedMax": 60.65
+ },
+ {
+  "item": "HRD661204",
+  "storeId": "100117",
+  "priceable": true,
+  "cost": 30.88,
+  "currentPrice": 49.78,
+  "optimalPrice": 56.39,
+  "aggressivePrice": 62.98,
+  "recommendedTier": "optimal",
+  "floorPrice": 54.97,
+  "ceilingPrice": 76.64,
+  "peerQ1": 56.67,
+  "peerQ2": 64.4,
+  "peerQ3": 76.64,
+  "competitors": [
+   {
+    "name": "Northline Supply",
+    "domain": "northline.example.com",
+    "price": 42.07,
+    "delta_vs_current": -7.71
+   },
+   {
+    "name": "Castellan Trade",
+    "domain": "castellan.example.com",
+    "price": 61.14,
+    "delta_vs_current": 11.36
+   },
+   {
+    "name": "Redhawk Building Supply",
+    "domain": "redhawk.example.com",
+    "price": 54.2,
+    "delta_vs_current": 4.42
+   },
+   {
+    "name": "Vantage Wholesale",
+    "domain": "vantage.example.com",
+    "price": 55.11,
+    "delta_vs_current": 5.33
+   },
+   {
+    "name": "Ironbridge Industrial",
+    "domain": "ironbridge.example.com",
+    "price": 55.99,
+    "delta_vs_current": 6.21
+   }
+  ],
+  "competitorMedian": 55.11,
+  "msaMult": 1.016,
+  "msaMode": "competition",
+  "demand": {
+   "level": "high",
+   "label": "High demand",
+   "index": 1.686,
+   "movePercent": 2.6,
+   "confidence": "high",
+   "confWeight": 0.87,
+   "recentVelocity": 10.2,
+   "expectedVelocity": 6.05,
+   "maxAdjustmentPct": 3,
+   "trendDirection": "INCREASING",
+   "historyDays": 173
+  },
+  "segment": "occasional",
+  "totalTransactions": 169,
+  "totalCompanies": 202,
+  "observedMin": 44.89,
+  "observedMax": 76.14
+ },
+ {
+  "item": "HRD661204",
+  "storeId": "100649",
+  "priceable": true,
+  "cost": 30.88,
+  "currentPrice": 58.49,
+  "optimalPrice": 50.91,
+  "aggressivePrice": 58.07,
+  "recommendedTier": "aggressive",
+  "floorPrice": 54.97,
+  "ceilingPrice": 90.44,
+  "peerQ1": 56.67,
+  "peerQ2": 64.4,
+  "peerQ3": 76.64,
+  "competitors": [],
+  "competitorMedian": null,
+  "msaMult": 0.9379,
+  "msaMode": "competition",
+  "demand": {
+   "level": "medium",
+   "label": "Stable demand",
+   "index": 0.915,
+   "movePercent": 0,
+   "confidence": "high",
+   "confWeight": 0.93,
+   "recentVelocity": 2.36,
+   "expectedVelocity": 2.58,
+   "maxAdjustmentPct": 3,
+   "trendDirection": "STABLE",
+   "historyDays": 457
+  },
+  "segment": "regular",
+  "totalTransactions": 221,
+  "totalCompanies": 202,
+  "observedMin": 46.87,
+  "observedMax": 65.02
+ },
+ {
+  "item": "HRD661204",
+  "storeId": "100812",
+  "priceable": true,
+  "cost": 30.88,
+  "currentPrice": 42.71,
+  "optimalPrice": 41.43,
+  "aggressivePrice": 44.43,
+  "recommendedTier": "optimal",
+  "floorPrice": 54.97,
+  "ceilingPrice": 76.64,
+  "peerQ1": 56.67,
+  "peerQ2": 64.4,
+  "peerQ3": 76.64,
+  "competitors": [
+   {
+    "name": "Northline Supply",
+    "domain": "northline.example.com",
+    "price": 51.41,
+    "delta_vs_current": 8.7
+   },
+   {
+    "name": "Castellan Trade",
+    "domain": "castellan.example.com",
+    "price": 36.6,
+    "delta_vs_current": -6.11
+   },
+   {
+    "name": "Redhawk Building Supply",
+    "domain": "redhawk.example.com",
+    "price": 36.64,
+    "delta_vs_current": -6.07
+   },
+   {
+    "name": "Vantage Wholesale",
+    "domain": "vantage.example.com",
+    "price": 51.98,
+    "delta_vs_current": 9.27
+   },
+   {
+    "name": "Ironbridge Industrial",
+    "domain": "ironbridge.example.com",
+    "price": 37.11,
+    "delta_vs_current": -5.6
+   },
+   {
+    "name": "Cobalt Depot",
+    "domain": "cobalt.example.com",
+    "price": 51.43,
+    "delta_vs_current": 8.72
+   },
+   {
+    "name": "Fairhaven Supply",
+    "domain": "fairhaven.example.com",
+    "price": 40.85,
+    "delta_vs_current": -1.86
+   }
+  ],
+  "competitorMedian": 40.85,
+  "msaMult": 1.0319,
+  "msaMode": "competition",
+  "demand": {
+   "level": "high",
+   "label": "High demand",
+   "index": 1.494,
+   "movePercent": 1.8,
+   "confidence": "medium",
+   "confWeight": 0.61,
+   "recentVelocity": 9.57,
+   "expectedVelocity": 6.41,
+   "maxAdjustmentPct": 3,
+   "trendDirection": "INCREASING",
+   "historyDays": 133
+  },
+  "segment": "occasional",
+  "totalTransactions": 190,
+  "totalCompanies": 202,
+  "observedMin": 35.59,
+  "observedMax": 52.48
+ },
+ {
+  "item": "HRD661204",
+  "storeId": "100205",
+  "priceable": true,
+  "cost": 30.88,
+  "currentPrice": 45.82,
+  "optimalPrice": 54.29,
+  "aggressivePrice": 57.64,
+  "recommendedTier": "aggressive",
+  "floorPrice": 54.97,
+  "ceilingPrice": 76.64,
+  "peerQ1": 56.67,
+  "peerQ2": 64.4,
+  "peerQ3": 76.64,
+  "competitors": [
+   {
+    "name": "Northline Supply",
+    "domain": "northline.example.com",
+    "price": 52.76,
+    "delta_vs_current": 6.94
+   },
+   {
+    "name": "Castellan Trade",
+    "domain": "castellan.example.com",
+    "price": 53.19,
+    "delta_vs_current": 7.37
+   },
+   {
+    "name": "Redhawk Building Supply",
+    "domain": "redhawk.example.com",
+    "price": 39.36,
+    "delta_vs_current": -6.46
+   },
+   {
+    "name": "Vantage Wholesale",
+    "domain": "vantage.example.com",
+    "price": 42.14,
+    "delta_vs_current": -3.68
+   }
+  ],
+  "competitorMedian": 52.76,
+  "msaMult": 1.0176,
+  "msaMode": "competition",
+  "demand": {
+   "level": "low",
+   "label": "Low demand",
+   "index": 0.486,
+   "movePercent": -1.5,
+   "confidence": "low",
+   "confWeight": 0.49,
+   "recentVelocity": 4.03,
+   "expectedVelocity": 8.28,
+   "maxAdjustmentPct": 3,
+   "trendDirection": "DECREASING",
+   "historyDays": 513
+  },
+  "segment": "regular",
+  "totalTransactions": 43,
+  "totalCompanies": 202,
+  "observedMin": 35.71,
+  "observedMax": 70.13
+ },
+ {
+  "item": "HRD661204",
+  "storeId": "100933",
+  "priceable": true,
+  "cost": 30.88,
+  "currentPrice": 50.59,
+  "optimalPrice": 46.53,
+  "aggressivePrice": 51.84,
+  "recommendedTier": "optimal",
+  "floorPrice": 54.97,
+  "ceilingPrice": 76.64,
+  "peerQ1": 56.67,
+  "peerQ2": 64.4,
+  "peerQ3": 76.64,
+  "competitors": [
+   {
+    "name": "Northline Supply",
+    "domain": "northline.example.com",
+    "price": 56.1,
+    "delta_vs_current": 5.51
+   },
+   {
+    "name": "Castellan Trade",
+    "domain": "castellan.example.com",
+    "price": 49.66,
+    "delta_vs_current": -0.93
+   },
+   {
+    "name": "Redhawk Building Supply",
+    "domain": "redhawk.example.com",
+    "price": 50.52,
+    "delta_vs_current": -0.07
+   },
+   {
+    "name": "Vantage Wholesale",
+    "domain": "vantage.example.com",
+    "price": 46.32,
+    "delta_vs_current": -4.27
+   },
+   {
+    "name": "Ironbridge Industrial",
+    "domain": "ironbridge.example.com",
+    "price": 45.75,
+    "delta_vs_current": -4.84
+   },
+   {
+    "name": "Cobalt Depot",
+    "domain": "cobalt.example.com",
+    "price": 58.72,
+    "delta_vs_current": 8.13
+   },
+   {
+    "name": "Fairhaven Supply",
+    "domain": "fairhaven.example.com",
+    "price": 42.23,
+    "delta_vs_current": -8.36
+   },
+   {
+    "name": "Pemberton Trade Group",
+    "domain": "pemberton.example.com",
+    "price": 49.62,
+    "delta_vs_current": -0.97
+   }
+  ],
+  "competitorMedian": 49.66,
+  "msaMult": 0.9731,
+  "msaMode": "competition",
+  "demand": {
+   "level": "low",
+   "label": "Low demand",
+   "index": 0.622,
+   "movePercent": -2,
+   "confidence": "medium",
+   "confWeight": 0.68,
+   "recentVelocity": 0.79,
+   "expectedVelocity": 1.27,
+   "maxAdjustmentPct": 3,
+   "trendDirection": "DECREASING",
+   "historyDays": 121
+  },
+  "segment": "occasional",
+  "totalTransactions": 17,
+  "totalCompanies": 202,
+  "observedMin": 42.5,
+  "observedMax": 63.47
+ },
+ {
+  "item": "HRD661204",
+  "storeId": "100571",
+  "priceable": true,
+  "cost": 30.88,
+  "currentPrice": 44.01,
+  "optimalPrice": 41.17,
+  "aggressivePrice": 44.66,
+  "recommendedTier": "optimal",
+  "floorPrice": 54.97,
+  "ceilingPrice": 76.64,
+  "peerQ1": 56.67,
+  "peerQ2": 64.4,
+  "peerQ3": 76.64,
+  "competitors": [
+   {
+    "name": "Northline Supply",
+    "domain": "northline.example.com",
+    "price": 45.65,
+    "delta_vs_current": 1.64
+   },
+   {
+    "name": "Castellan Trade",
+    "domain": "castellan.example.com",
+    "price": 40.9,
+    "delta_vs_current": -3.11
+   },
+   {
+    "name": "Redhawk Building Supply",
+    "domain": "redhawk.example.com",
+    "price": 51.69,
+    "delta_vs_current": 7.68
+   },
+   {
+    "name": "Vantage Wholesale",
+    "domain": "vantage.example.com",
+    "price": 36.25,
+    "delta_vs_current": -7.76
+   },
+   {
+    "name": "Ironbridge Industrial",
+    "domain": "ironbridge.example.com",
+    "price": 41.2,
+    "delta_vs_current": -2.81
+   },
+   {
+    "name": "Cobalt Depot",
+    "domain": "cobalt.example.com",
+    "price": 37.12,
+    "delta_vs_current": -6.89
+   },
+   {
+    "name": "Fairhaven Supply",
+    "domain": "fairhaven.example.com",
+    "price": 50.96,
+    "delta_vs_current": 6.95
+   },
+   {
+    "name": "Pemberton Trade Group",
+    "domain": "pemberton.example.com",
+    "price": 44.22,
+    "delta_vs_current": 0.21
+   },
+   {
+    "name": "Granite & Co.",
+    "domain": "granite.example.com",
+    "price": 39.29,
+    "delta_vs_current": -4.72
+   }
+  ],
+  "competitorMedian": 41.2,
+  "msaMult": 1,
+  "msaMode": "competition",
+  "demand": {
+   "level": "low",
+   "label": "Low demand",
+   "index": 0.745,
+   "movePercent": -2.3,
+   "confidence": "high",
+   "confWeight": 0.77,
+   "recentVelocity": 4.32,
+   "expectedVelocity": 5.79,
+   "maxAdjustmentPct": 3,
+   "trendDirection": "DECREASING",
+   "historyDays": 175
+  },
+  "segment": "occasional",
+  "totalTransactions": 168,
+  "totalCompanies": 202,
+  "observedMin": 37.22,
+  "observedMax": 48.42
+ },
+ {
+  "item": "HRD661204",
+  "storeId": "100959",
+  "priceable": true,
+  "cost": 30.88,
+  "currentPrice": 41.42,
+  "optimalPrice": 54.28,
+  "aggressivePrice": 61.75,
+  "recommendedTier": "aggressive",
+  "floorPrice": 54.97,
+  "ceilingPrice": 90.44,
+  "peerQ1": 56.67,
+  "peerQ2": 64.4,
+  "peerQ3": 76.64,
+  "competitors": [],
+  "competitorMedian": null,
+  "msaMult": 1.0022,
+  "msaMode": "competition",
+  "demand": {
+   "level": "low",
+   "label": "Low demand",
+   "index": 0.806,
+   "movePercent": -2.8,
+   "confidence": "high",
+   "confWeight": 0.94,
+   "recentVelocity": 0.68,
+   "expectedVelocity": 0.84,
+   "maxAdjustmentPct": 3,
+   "trendDirection": "DECREASING",
+   "historyDays": 244
+  },
+  "segment": "regular",
+  "totalTransactions": 142,
+  "totalCompanies": 202,
+  "observedMin": 35.35,
+  "observedMax": 69.41
+ },
+ {
+  "item": "HRD983377",
+  "storeId": "100349",
+  "priceable": true,
+  "cost": 5.32,
+  "currentPrice": 8.82,
+  "optimalPrice": 8.96,
+  "aggressivePrice": 10.08,
+  "recommendedTier": "aggressive",
+  "floorPrice": 9.27,
+  "ceilingPrice": 12.92,
+  "peerQ1": 9.56,
+  "peerQ2": 10.86,
+  "peerQ3": 12.92,
+  "competitors": [
+   {
+    "name": "Northline Supply",
+    "domain": "northline.example.com",
+    "price": 9.82,
+    "delta_vs_current": 1
+   },
+   {
+    "name": "Castellan Trade",
+    "domain": "castellan.example.com",
+    "price": 8.76,
+    "delta_vs_current": -0.06
+   },
+   {
+    "name": "Redhawk Building Supply",
+    "domain": "redhawk.example.com",
+    "price": 8.01,
+    "delta_vs_current": -0.81
+   },
+   {
+    "name": "Vantage Wholesale",
+    "domain": "vantage.example.com",
+    "price": 8.44,
+    "delta_vs_current": -0.38
+   },
+   {
+    "name": "Ironbridge Industrial",
+    "domain": "ironbridge.example.com",
+    "price": 9.55,
+    "delta_vs_current": 0.73
+   },
+   {
+    "name": "Cobalt Depot",
+    "domain": "cobalt.example.com",
+    "price": 10.81,
+    "delta_vs_current": 1.99
+   },
+   {
+    "name": "Fairhaven Supply",
+    "domain": "fairhaven.example.com",
+    "price": 8.09,
+    "delta_vs_current": -0.73
+   },
+   {
+    "name": "Pemberton Trade Group",
+    "domain": "pemberton.example.com",
+    "price": 7.64,
+    "delta_vs_current": -1.18
+   }
+  ],
+  "competitorMedian": 8.76,
+  "msaMult": 0.9868,
+  "msaMode": "competition",
+  "demand": {
+   "level": "high",
+   "label": "High demand",
+   "index": 1.296,
+   "movePercent": 1.9,
+   "confidence": "medium",
+   "confWeight": 0.62,
+   "recentVelocity": 9.55,
+   "expectedVelocity": 7.37,
+   "maxAdjustmentPct": 3,
+   "trendDirection": "INCREASING",
+   "historyDays": 462
+  },
+  "segment": "regular",
+  "totalTransactions": 26,
+  "totalCompanies": 210,
+  "observedMin": 8.15,
+  "observedMax": 11.26
+ },
+ {
+  "item": "HRD983377",
+  "storeId": "100047",
+  "priceable": true,
+  "cost": 5.32,
+  "currentPrice": 7.03,
+  "optimalPrice": 8.15,
+  "aggressivePrice": 9.16,
+  "recommendedTier": "aggressive",
+  "floorPrice": 9.27,
+  "ceilingPrice": 12.92,
+  "peerQ1": 9.56,
+  "peerQ2": 10.86,
+  "peerQ3": 12.92,
+  "competitors": [
+   {
+    "name": "Northline Supply",
+    "domain": "northline.example.com",
+    "price": 7.95,
+    "delta_vs_current": 0.92
+   },
+   {
+    "name": "Castellan Trade",
+    "domain": "castellan.example.com",
+    "price": 7.51,
+    "delta_vs_current": 0.48
+   },
+   {
+    "name": "Redhawk Building Supply",
+    "domain": "redhawk.example.com",
+    "price": 7.92,
+    "delta_vs_current": 0.89
+   },
+   {
+    "name": "Vantage Wholesale",
+    "domain": "vantage.example.com",
+    "price": 7.96,
+    "delta_vs_current": 0.93
+   },
+   {
+    "name": "Ironbridge Industrial",
+    "domain": "ironbridge.example.com",
+    "price": 6.62,
+    "delta_vs_current": -0.41
+   },
+   {
+    "name": "Cobalt Depot",
+    "domain": "cobalt.example.com",
+    "price": 6.13,
+    "delta_vs_current": -0.9
+   }
+  ],
+  "competitorMedian": 7.92,
+  "msaMult": 1.0567,
+  "msaMode": "competition",
+  "demand": {
+   "level": "medium",
+   "label": "Stable demand",
+   "index": 0.992,
+   "movePercent": 0,
+   "confidence": "high",
+   "confWeight": 0.78,
+   "recentVelocity": 8.07,
+   "expectedVelocity": 8.14,
+   "maxAdjustmentPct": 3,
+   "trendDirection": "STABLE",
+   "historyDays": 287
+  },
+  "segment": "regular",
+  "totalTransactions": 148,
+  "totalCompanies": 210,
+  "observedMin": 5.65,
+  "observedMax": 11.06
+ },
+ {
+  "item": "HRD983377",
+  "storeId": "100117",
+  "priceable": true,
+  "cost": 5.32,
+  "currentPrice": 7.5,
+  "optimalPrice": 8.12,
+  "aggressivePrice": 9.2,
+  "recommendedTier": "optimal",
+  "floorPrice": 9.27,
+  "ceilingPrice": 12.92,
+  "peerQ1": 9.56,
+  "peerQ2": 10.86,
+  "peerQ3": 12.92,
+  "competitors": [
+   {
+    "name": "Northline Supply",
+    "domain": "northline.example.com",
+    "price": 9.2,
+    "delta_vs_current": 1.7
+   },
+   {
+    "name": "Castellan Trade",
+    "domain": "castellan.example.com",
+    "price": 8.24,
+    "delta_vs_current": 0.74
+   },
+   {
+    "name": "Redhawk Building Supply",
+    "domain": "redhawk.example.com",
+    "price": 8.86,
+    "delta_vs_current": 1.36
+   },
+   {
+    "name": "Vantage Wholesale",
+    "domain": "vantage.example.com",
+    "price": 8.24,
+    "delta_vs_current": 0.74
+   },
+   {
+    "name": "Ironbridge Industrial",
+    "domain": "ironbridge.example.com",
+    "price": 8.71,
+    "delta_vs_current": 1.21
+   },
+   {
+    "name": "Cobalt Depot",
+    "domain": "cobalt.example.com",
+    "price": 7.28,
+    "delta_vs_current": -0.22
+   },
+   {
+    "name": "Fairhaven Supply",
+    "domain": "fairhaven.example.com",
+    "price": 8.53,
+    "delta_vs_current": 1.03
+   },
+   {
+    "name": "Pemberton Trade Group",
+    "domain": "pemberton.example.com",
+    "price": 6.48,
+    "delta_vs_current": -1.02
+   },
+   {
+    "name": "Granite & Co.",
+    "domain": "granite.example.com",
+    "price": 7.9,
+    "delta_vs_current": 0.4
+   }
+  ],
+  "competitorMedian": 8.24,
+  "msaMult": 1.016,
+  "msaMode": "competition",
+  "demand": {
+   "level": "medium",
+   "label": "Stable demand",
+   "index": 0.925,
+   "movePercent": 0,
+   "confidence": "medium",
+   "confWeight": 0.75,
+   "recentVelocity": 6.82,
+   "expectedVelocity": 7.38,
+   "maxAdjustmentPct": 3,
+   "trendDirection": "STABLE",
+   "historyDays": 453
+  },
+  "segment": "occasional",
+  "totalTransactions": 57,
+  "totalCompanies": 210,
+  "observedMin": 6.19,
+  "observedMax": 10.18
+ },
+ {
+  "item": "HRD983377",
+  "storeId": "100812",
+  "priceable": true,
+  "cost": 5.32,
+  "currentPrice": 8.13,
+  "optimalPrice": 9.94,
+  "aggressivePrice": 11.62,
+  "recommendedTier": "optimal",
+  "floorPrice": 9.27,
+  "ceilingPrice": 15.25,
+  "peerQ1": 9.56,
+  "peerQ2": 10.86,
+  "peerQ3": 12.92,
+  "competitors": [],
+  "competitorMedian": null,
+  "msaMult": 1.0319,
+  "msaMode": "competition",
+  "demand": null,
+  "segment": "occasional",
+  "totalTransactions": 156,
+  "totalCompanies": 210,
+  "observedMin": 6.43,
+  "observedMax": 13.88
+ },
+ {
+  "item": "HRD983377",
+  "storeId": "100205",
+  "priceable": true,
+  "cost": 5.32,
+  "currentPrice": 10.47,
+  "optimalPrice": 11.87,
+  "aggressivePrice": 13.33,
+  "recommendedTier": "aggressive",
+  "floorPrice": 9.27,
+  "ceilingPrice": 14.2,
+  "peerQ1": 9.56,
+  "peerQ2": 10.86,
+  "peerQ3": 12.92,
+  "competitors": [
+   {
+    "name": "Northline Supply",
+    "domain": "northline.example.com",
+    "price": 10.42,
+    "delta_vs_current": -0.05
+   },
+   {
+    "name": "Castellan Trade",
+    "domain": "castellan.example.com",
+    "price": 8.82,
+    "delta_vs_current": -1.65
+   },
+   {
+    "name": "Redhawk Building Supply",
+    "domain": "redhawk.example.com",
+    "price": 12.03,
+    "delta_vs_current": 1.56
+   },
+   {
+    "name": "Vantage Wholesale",
+    "domain": "vantage.example.com",
+    "price": 12.77,
+    "delta_vs_current": 2.3
+   }
+  ],
+  "competitorMedian": 12.03,
+  "msaMult": 1.0176,
+  "msaMode": "competition",
+  "demand": {
+   "level": "low",
+   "label": "Low demand",
+   "index": 0.78,
+   "movePercent": -1.1,
+   "confidence": "low",
+   "confWeight": 0.36,
+   "recentVelocity": 0.78,
+   "expectedVelocity": 1,
+   "maxAdjustmentPct": 3,
+   "trendDirection": "DECREASING",
+   "historyDays": 346
+  },
+  "segment": "regular",
+  "totalTransactions": 235,
+  "totalCompanies": 210,
+  "observedMin": 7.95,
+  "observedMax": 15.08
+ },
+ {
+  "item": "HRD983377",
+  "storeId": "100933",
+  "priceable": true,
+  "cost": 5.32,
+  "currentPrice": 10.43,
+  "optimalPrice": 9.29,
+  "aggressivePrice": 10.68,
+  "recommendedTier": "optimal",
+  "floorPrice": 9.27,
+  "ceilingPrice": 15.25,
+  "peerQ1": 9.56,
+  "peerQ2": 10.86,
+  "peerQ3": 12.92,
+  "competitors": [],
+  "competitorMedian": null,
+  "msaMult": 0.9731,
+  "msaMode": "competition",
+  "demand": null,
+  "segment": "occasional",
+  "totalTransactions": 186,
+  "totalCompanies": 210,
+  "observedMin": 8.04,
+  "observedMax": 13.9
+ },
+ {
+  "item": "HRD512066",
+  "storeId": "100349",
+  "priceable": true,
+  "cost": 82.35,
+  "currentPrice": 120.93,
+  "optimalPrice": 109.8,
+  "aggressivePrice": 127.39,
+  "recommendedTier": "aggressive",
+  "floorPrice": 127.12,
+  "ceilingPrice": 177.21,
+  "peerQ1": 131.05,
+  "peerQ2": 148.92,
+  "peerQ3": 177.21,
+  "competitors": [
+   {
+    "name": "Northline Supply",
+    "domain": "northline.example.com",
+    "price": 105.59,
+    "delta_vs_current": -15.34
+   },
+   {
+    "name": "Castellan Trade",
+    "domain": "castellan.example.com",
+    "price": 107.04,
+    "delta_vs_current": -13.89
+   },
+   {
+    "name": "Redhawk Building Supply",
+    "domain": "redhawk.example.com",
+    "price": 107.64,
+    "delta_vs_current": -13.29
+   },
+   {
+    "name": "Vantage Wholesale",
+    "domain": "vantage.example.com",
+    "price": 133,
+    "delta_vs_current": 12.07
+   },
+   {
+    "name": "Ironbridge Industrial",
+    "domain": "ironbridge.example.com",
+    "price": 116.41,
+    "delta_vs_current": -4.52
+   }
+  ],
+  "competitorMedian": 107.64,
+  "msaMult": 0.9868,
+  "msaMode": "competition",
+  "demand": {
+   "level": "high",
+   "label": "High demand",
+   "index": 1.872,
+   "movePercent": 1.9,
+   "confidence": "medium",
+   "confWeight": 0.62,
+   "recentVelocity": 11.05,
+   "expectedVelocity": 5.9,
+   "maxAdjustmentPct": 3,
+   "trendDirection": "INCREASING",
+   "historyDays": 288
+  },
+  "segment": "regular",
+  "totalTransactions": 199,
+  "totalCompanies": 32,
+  "observedMin": 100.23,
+  "observedMax": 164.48
+ },
+ {
+  "item": "HRD512066",
+  "storeId": "100047",
+  "priceable": true,
+  "cost": 82.35,
+  "currentPrice": 121.94,
+  "optimalPrice": 127.84,
+  "aggressivePrice": 149.6,
+  "recommendedTier": "aggressive",
+  "floorPrice": 127.12,
+  "ceilingPrice": 177.21,
+  "peerQ1": 131.05,
+  "peerQ2": 148.92,
+  "peerQ3": 177.21,
+  "competitors": [
+   {
+    "name": "Northline Supply",
+    "domain": "northline.example.com",
+    "price": 121.6,
+    "delta_vs_current": -0.34
+   },
+   {
+    "name": "Castellan Trade",
+    "domain": "castellan.example.com",
+    "price": 128.61,
+    "delta_vs_current": 6.67
+   },
+   {
+    "name": "Redhawk Building Supply",
+    "domain": "redhawk.example.com",
+    "price": 105.95,
+    "delta_vs_current": -15.99
+   },
+   {
+    "name": "Vantage Wholesale",
+    "domain": "vantage.example.com",
+    "price": 134.3,
+    "delta_vs_current": 12.36
+   },
+   {
+    "name": "Ironbridge Industrial",
+    "domain": "ironbridge.example.com",
+    "price": 102.99,
+    "delta_vs_current": -18.95
+   },
+   {
+    "name": "Cobalt Depot",
+    "domain": "cobalt.example.com",
+    "price": 112.35,
+    "delta_vs_current": -9.59
+   }
+  ],
+  "competitorMedian": 121.6,
+  "msaMult": 1.0567,
+  "msaMode": "competition",
+  "demand": {
+   "level": "high",
+   "label": "High demand",
+   "index": 1.635,
+   "movePercent": 1,
+   "confidence": "low",
+   "confWeight": 0.35,
+   "recentVelocity": 12.13,
+   "expectedVelocity": 7.42,
+   "maxAdjustmentPct": 3,
+   "trendDirection": "INCREASING",
+   "historyDays": 115
+  },
+  "segment": "regular",
+  "totalTransactions": 27,
+  "totalCompanies": 32,
+  "observedMin": 99.02,
+  "observedMax": 169.72
+ },
+ {
+  "item": "HRD512066",
+  "storeId": "100117",
+  "priceable": true,
+  "cost": 82.35,
+  "currentPrice": 173.79,
+  "optimalPrice": 168.12,
+  "aggressivePrice": 182.29,
+  "recommendedTier": "optimal",
+  "floorPrice": 127.12,
+  "ceilingPrice": 201.39,
+  "peerQ1": 131.05,
+  "peerQ2": 148.92,
+  "peerQ3": 177.21,
+  "competitors": [
+   {
+    "name": "Northline Supply",
+    "domain": "northline.example.com",
+    "price": 161.05,
+    "delta_vs_current": -12.74
+   },
+   {
+    "name": "Castellan Trade",
+    "domain": "castellan.example.com",
+    "price": 197.55,
+    "delta_vs_current": 23.76
+   },
+   {
+    "name": "Redhawk Building Supply",
+    "domain": "redhawk.example.com",
+    "price": 170.67,
+    "delta_vs_current": -3.12
+   },
+   {
+    "name": "Vantage Wholesale",
+    "domain": "vantage.example.com",
+    "price": 166.46,
+    "delta_vs_current": -7.33
+   },
+   {
+    "name": "Ironbridge Industrial",
+    "domain": "ironbridge.example.com",
+    "price": 142.95,
+    "delta_vs_current": -30.84
+   },
+   {
+    "name": "Cobalt Depot",
+    "domain": "cobalt.example.com",
+    "price": 211.54,
+    "delta_vs_current": 37.75
+   }
+  ],
+  "competitorMedian": 170.67,
+  "msaMult": 1.016,
+  "msaMode": "competition",
+  "demand": null,
+  "segment": "occasional",
+  "totalTransactions": 151,
+  "totalCompanies": 32,
+  "observedMin": 136.34,
+  "observedMax": 202.03
+ },
+ {
+  "item": "HRD512066",
+  "storeId": "100933",
+  "priceable": true,
+  "cost": 82.35,
+  "currentPrice": 168.67,
+  "optimalPrice": 186.89,
+  "aggressivePrice": 213.01,
+  "recommendedTier": "optimal",
+  "floorPrice": 127.12,
+  "ceilingPrice": 236.13,
+  "peerQ1": 131.05,
+  "peerQ2": 148.92,
+  "peerQ3": 177.21,
+  "competitors": [
+   {
+    "name": "Northline Supply",
+    "domain": "northline.example.com",
+    "price": 158.28,
+    "delta_vs_current": -10.39
+   },
+   {
+    "name": "Castellan Trade",
+    "domain": "castellan.example.com",
+    "price": 195.23,
+    "delta_vs_current": 26.56
+   },
+   {
+    "name": "Redhawk Building Supply",
+    "domain": "redhawk.example.com",
+    "price": 206.73,
+    "delta_vs_current": 38.06
+   },
+   {
+    "name": "Vantage Wholesale",
+    "domain": "vantage.example.com",
+    "price": 200.11,
+    "delta_vs_current": 31.44
+   }
+  ],
+  "competitorMedian": 200.11,
+  "msaMult": 0.9731,
+  "msaMode": "competition",
+  "demand": {
+   "level": "medium",
+   "label": "Stable demand",
+   "index": 1.055,
+   "movePercent": 0,
+   "confidence": "medium",
+   "confWeight": 0.58,
+   "recentVelocity": 4.77,
+   "expectedVelocity": 4.52,
+   "maxAdjustmentPct": 3,
+   "trendDirection": "STABLE",
+   "historyDays": 261
+  },
+  "segment": "occasional",
+  "totalTransactions": 63,
+  "totalCompanies": 32,
+  "observedMin": 147.64,
+  "observedMax": 233.89
+ },
+ {
+  "item": "HRD512066",
+  "storeId": "100571",
+  "priceable": true,
+  "cost": 82.35,
+  "currentPrice": 122.85,
+  "optimalPrice": 119.52,
+  "aggressivePrice": 136.62,
+  "recommendedTier": "optimal",
+  "floorPrice": 127.12,
+  "ceilingPrice": 177.21,
+  "peerQ1": 131.05,
+  "peerQ2": 148.92,
+  "peerQ3": 177.21,
+  "competitors": [
+   {
+    "name": "Northline Supply",
+    "domain": "northline.example.com",
+    "price": 132.89,
+    "delta_vs_current": 10.04
+   },
+   {
+    "name": "Castellan Trade",
+    "domain": "castellan.example.com",
+    "price": 104.72,
+    "delta_vs_current": -18.13
+   },
+   {
+    "name": "Redhawk Building Supply",
+    "domain": "redhawk.example.com",
+    "price": 138.43,
+    "delta_vs_current": 15.58
+   },
+   {
+    "name": "Vantage Wholesale",
+    "domain": "vantage.example.com",
+    "price": 126.38,
+    "delta_vs_current": 3.53
+   },
+   {
+    "name": "Ironbridge Industrial",
+    "domain": "ironbridge.example.com",
+    "price": 108.19,
+    "delta_vs_current": -14.66
+   },
+   {
+    "name": "Cobalt Depot",
+    "domain": "cobalt.example.com",
+    "price": 122.83,
+    "delta_vs_current": -0.02
+   }
+  ],
+  "competitorMedian": 126.38,
+  "msaMult": 1,
+  "msaMode": "competition",
+  "demand": {
+   "level": "low",
+   "label": "Low demand",
+   "index": 0.645,
+   "movePercent": -2.3,
+   "confidence": "high",
+   "confWeight": 0.76,
+   "recentVelocity": 2.01,
+   "expectedVelocity": 3.11,
+   "maxAdjustmentPct": 3,
+   "trendDirection": "DECREASING",
+   "historyDays": 274
+  },
+  "segment": "occasional",
+  "totalTransactions": 222,
+  "totalCompanies": 32,
+  "observedMin": 101.08,
+  "observedMax": 176.49
+ },
+ {
+  "item": "HRD512066",
+  "storeId": "100959",
+  "priceable": true,
+  "cost": 82.35,
+  "currentPrice": 137.7,
+  "optimalPrice": 140.6,
+  "aggressivePrice": 164.55,
+  "recommendedTier": "aggressive",
+  "floorPrice": 127.12,
+  "ceilingPrice": 177.21,
+  "peerQ1": 131.05,
+  "peerQ2": 148.92,
+  "peerQ3": 177.21,
+  "competitors": [
+   {
+    "name": "Northline Supply",
+    "domain": "northline.example.com",
+    "price": 134.07,
+    "delta_vs_current": -3.63
+   },
+   {
+    "name": "Castellan Trade",
+    "domain": "castellan.example.com",
+    "price": 137.23,
+    "delta_vs_current": -0.47
+   },
+   {
+    "name": "Redhawk Building Supply",
+    "domain": "redhawk.example.com",
+    "price": 140.91,
+    "delta_vs_current": 3.21
+   },
+   {
+    "name": "Vantage Wholesale",
+    "domain": "vantage.example.com",
+    "price": 141.82,
+    "delta_vs_current": 4.12
+   },
+   {
+    "name": "Ironbridge Industrial",
+    "domain": "ironbridge.example.com",
+    "price": 126.96,
+    "delta_vs_current": -10.74
+   },
+   {
+    "name": "Cobalt Depot",
+    "domain": "cobalt.example.com",
+    "price": 134.87,
+    "delta_vs_current": -2.83
+   }
+  ],
+  "competitorMedian": 137.23,
+  "msaMult": 1.0022,
+  "msaMode": "competition",
+  "demand": {
+   "level": "high",
+   "label": "High demand",
+   "index": 1.5,
+   "movePercent": 1.2,
+   "confidence": "low",
+   "confWeight": 0.4,
+   "recentVelocity": 12.42,
+   "expectedVelocity": 8.28,
+   "maxAdjustmentPct": 3,
+   "trendDirection": "INCREASING",
+   "historyDays": 508
+  },
+  "segment": "regular",
+  "totalTransactions": 83,
+  "totalCompanies": 32,
+  "observedMin": 121.88,
+  "observedMax": 195.57
+ },
+ {
+  "item": "HRD874019",
+  "storeId": "100349",
+  "priceable": true,
+  "cost": 54.88,
+  "currentPrice": 90.55,
+  "optimalPrice": 78.25,
+  "aggressivePrice": 88.8,
+  "recommendedTier": "aggressive",
+  "floorPrice": 79.7,
+  "ceilingPrice": 131.1,
+  "peerQ1": 82.16,
+  "peerQ2": 93.36,
+  "peerQ3": 111.1,
+  "competitors": [],
+  "competitorMedian": null,
+  "msaMult": 0.9868,
+  "msaMode": "competition",
+  "demand": {
+   "level": "medium",
+   "label": "Stable demand",
+   "index": 0.901,
+   "movePercent": 0,
+   "confidence": "high",
+   "confWeight": 0.81,
+   "recentVelocity": 4.75,
+   "expectedVelocity": 5.27,
+   "maxAdjustmentPct": 3,
+   "trendDirection": "STABLE",
+   "historyDays": 457
+  },
+  "segment": "regular",
+  "totalTransactions": 115,
+  "totalCompanies": 186,
+  "observedMin": 56.49,
+  "observedMax": 116.56
+ },
+ {
+  "item": "HRD874019",
+  "storeId": "100047",
+  "priceable": true,
+  "cost": 54.88,
+  "currentPrice": 89.2,
+  "optimalPrice": 88.68,
+  "aggressivePrice": 100.53,
+  "recommendedTier": "aggressive",
+  "floorPrice": 79.7,
+  "ceilingPrice": 131.1,
+  "peerQ1": 82.16,
+  "peerQ2": 93.36,
+  "peerQ3": 111.1,
+  "competitors": [],
+  "competitorMedian": null,
+  "msaMult": 1.0567,
+  "msaMode": "competition",
+  "demand": null,
+  "segment": "regular",
+  "totalTransactions": 155,
+  "totalCompanies": 186,
+  "observedMin": 80.28,
+  "observedMax": 115.61
+ },
+ {
+  "item": "HRD874019",
+  "storeId": "100649",
+  "priceable": true,
+  "cost": 54.88,
+  "currentPrice": 81.03,
+  "optimalPrice": 88.11,
+  "aggressivePrice": 96.53,
+  "recommendedTier": "aggressive",
+  "floorPrice": 79.7,
+  "ceilingPrice": 114.05,
+  "peerQ1": 82.16,
+  "peerQ2": 93.36,
+  "peerQ3": 111.1,
+  "competitors": [
+   {
+    "name": "Northline Supply",
+    "domain": "northline.example.com",
+    "price": 85.48,
+    "delta_vs_current": 4.45
+   },
+   {
+    "name": "Castellan Trade",
+    "domain": "castellan.example.com",
+    "price": 71.43,
+    "delta_vs_current": -9.6
+   },
+   {
+    "name": "Redhawk Building Supply",
+    "domain": "redhawk.example.com",
+    "price": 83.3,
+    "delta_vs_current": 2.27
+   },
+   {
+    "name": "Vantage Wholesale",
+    "domain": "vantage.example.com",
+    "price": 100.08,
+    "delta_vs_current": 19.05
+   },
+   {
+    "name": "Ironbridge Industrial",
+    "domain": "ironbridge.example.com",
+    "price": 96.65,
+    "delta_vs_current": 15.62
+   },
+   {
+    "name": "Cobalt Depot",
+    "domain": "cobalt.example.com",
+    "price": 98.46,
+    "delta_vs_current": 17.43
+   },
+   {
+    "name": "Fairhaven Supply",
+    "domain": "fairhaven.example.com",
+    "price": 97.16,
+    "delta_vs_current": 16.13
+   },
+   {
+    "name": "Pemberton Trade Group",
+    "domain": "pemberton.example.com",
+    "price": 81.45,
+    "delta_vs_current": 0.42
+   }
+  ],
+  "competitorMedian": 96.65,
+  "msaMult": 0.9379,
+  "msaMode": "competition",
+  "demand": {
+   "level": "medium",
+   "label": "Stable demand",
+   "index": 0.907,
+   "movePercent": 0,
+   "confidence": "low",
+   "confWeight": 0.4,
+   "recentVelocity": 3.3,
+   "expectedVelocity": 3.64,
+   "maxAdjustmentPct": 3,
+   "trendDirection": "STABLE",
+   "historyDays": 201
+  },
+  "segment": "regular",
+  "totalTransactions": 146,
+  "totalCompanies": 186,
+  "observedMin": 64.88,
+  "observedMax": 110.2
+ },
+ {
+  "item": "HRD874019",
+  "storeId": "100571",
+  "priceable": true,
+  "cost": 54.88,
+  "currentPrice": 117.14,
+  "optimalPrice": 113.04,
+  "aggressivePrice": 130.06,
+  "recommendedTier": "optimal",
+  "floorPrice": 79.7,
+  "ceilingPrice": 130.08,
+  "peerQ1": 82.16,
+  "peerQ2": 93.36,
+  "peerQ3": 111.1,
+  "competitors": [
+   {
+    "name": "Northline Supply",
+    "domain": "northline.example.com",
+    "price": 140.8,
+    "delta_vs_current": 23.66
+   },
+   {
+    "name": "Castellan Trade",
+    "domain": "castellan.example.com",
+    "price": 100.18,
+    "delta_vs_current": -16.96
+   },
+   {
+    "name": "Redhawk Building Supply",
+    "domain": "redhawk.example.com",
+    "price": 110.24,
+    "delta_vs_current": -6.9
+   },
+   {
+    "name": "Vantage Wholesale",
+    "domain": "vantage.example.com",
+    "price": 97.16,
+    "delta_vs_current": -19.98
+   }
+  ],
+  "competitorMedian": 110.24,
+  "msaMult": 1,
+  "msaMode": "competition",
+  "demand": {
+   "level": "medium",
+   "label": "Stable demand",
+   "index": 1.04,
+   "movePercent": 0,
+   "confidence": "low",
+   "confWeight": 0.44,
+   "recentVelocity": 8.96,
+   "expectedVelocity": 8.62,
+   "maxAdjustmentPct": 3,
+   "trendDirection": "STABLE",
+   "historyDays": 509
+  },
+  "segment": "occasional",
+  "totalTransactions": 16,
+  "totalCompanies": 186,
+  "observedMin": 99.8,
+  "observedMax": 163.66
+ },
+ {
+  "item": "HRD874019",
+  "storeId": "100959",
+  "priceable": true,
+  "cost": 54.88,
+  "currentPrice": 103.04,
+  "optimalPrice": 78.57,
+  "aggressivePrice": 90.75,
+  "recommendedTier": "aggressive",
+  "floorPrice": 79.7,
+  "ceilingPrice": 131.1,
+  "peerQ1": 82.16,
+  "peerQ2": 93.36,
+  "peerQ3": 111.1,
+  "competitors": [],
+  "competitorMedian": null,
+  "msaMult": 1.0022,
+  "msaMode": "competition",
+  "demand": null,
+  "segment": "regular",
+  "totalTransactions": 139,
+  "totalCompanies": 186,
+  "observedMin": 70.62,
+  "observedMax": 124.15
+ },
+ {
+  "item": "HRD335590",
+  "storeId": "100349",
+  "priceable": true,
+  "cost": 11.31,
+  "currentPrice": 17.42,
+  "optimalPrice": 17.35,
+  "aggressivePrice": 19.44,
+  "recommendedTier": "aggressive",
+  "floorPrice": 15.08,
+  "ceilingPrice": 20.82,
+  "peerQ1": 15.08,
+  "peerQ2": 17.14,
+  "peerQ3": 20.4,
+  "competitors": [
+   {
+    "name": "Northline Supply",
+    "domain": "northline.example.com",
+    "price": 20.03,
+    "delta_vs_current": 2.61
+   },
+   {
+    "name": "Castellan Trade",
+    "domain": "castellan.example.com",
+    "price": 15.03,
+    "delta_vs_current": -2.39
+   },
+   {
+    "name": "Redhawk Building Supply",
+    "domain": "redhawk.example.com",
+    "price": 19.24,
+    "delta_vs_current": 1.82
+   },
+   {
+    "name": "Vantage Wholesale",
+    "domain": "vantage.example.com",
+    "price": 14.68,
+    "delta_vs_current": -2.74
+   },
+   {
+    "name": "Ironbridge Industrial",
+    "domain": "ironbridge.example.com",
+    "price": 16.1,
+    "delta_vs_current": -1.32
+   },
+   {
+    "name": "Cobalt Depot",
+    "domain": "cobalt.example.com",
+    "price": 19.98,
+    "delta_vs_current": 2.56
+   },
+   {
+    "name": "Fairhaven Supply",
+    "domain": "fairhaven.example.com",
+    "price": 17.64,
+    "delta_vs_current": 0.22
+   },
+   {
+    "name": "Pemberton Trade Group",
+    "domain": "pemberton.example.com",
+    "price": 20.31,
+    "delta_vs_current": 2.89
+   },
+   {
+    "name": "Granite & Co.",
+    "domain": "granite.example.com",
+    "price": 14.78,
+    "delta_vs_current": -2.64
+   }
+  ],
+  "competitorMedian": 17.64,
+  "msaMult": 0.9868,
+  "msaMode": "competition",
+  "demand": {
+   "level": "high",
+   "label": "High demand",
+   "index": 1.722,
+   "movePercent": 1.2,
+   "confidence": "low",
+   "confWeight": 0.39,
+   "recentVelocity": 13.06,
+   "expectedVelocity": 7.58,
+   "maxAdjustmentPct": 3,
+   "trendDirection": "INCREASING",
+   "historyDays": 421
+  },
+  "segment": "regular",
+  "totalTransactions": 70,
+  "totalCompanies": 196,
+  "observedMin": 15.86,
+  "observedMax": 22.58
+ },
+ {
+  "item": "HRD335590",
+  "storeId": "100047",
+  "priceable": true,
+  "cost": 11.31,
+  "currentPrice": 22.58,
+  "optimalPrice": 24.17,
+  "aggressivePrice": 26.47,
+  "recommendedTier": "aggressive",
+  "floorPrice": 15.08,
+  "ceilingPrice": 28.07,
+  "peerQ1": 15.08,
+  "peerQ2": 17.14,
+  "peerQ3": 20.4,
+  "competitors": [
+   {
+    "name": "Northline Supply",
+    "domain": "northline.example.com",
+    "price": 24.32,
+    "delta_vs_current": 1.74
+   },
+   {
+    "name": "Castellan Trade",
+    "domain": "castellan.example.com",
+    "price": 26.66,
+    "delta_vs_current": 4.08
+   },
+   {
+    "name": "Redhawk Building Supply",
+    "domain": "redhawk.example.com",
+    "price": 26.64,
+    "delta_vs_current": 4.06
+   },
+   {
+    "name": "Vantage Wholesale",
+    "domain": "vantage.example.com",
+    "price": 19.3,
+    "delta_vs_current": -3.28
+   },
+   {
+    "name": "Ironbridge Industrial",
+    "domain": "ironbridge.example.com",
+    "price": 20.72,
+    "delta_vs_current": -1.86
+   },
+   {
+    "name": "Cobalt Depot",
+    "domain": "cobalt.example.com",
+    "price": 20.14,
+    "delta_vs_current": -2.44
+   },
+   {
+    "name": "Fairhaven Supply",
+    "domain": "fairhaven.example.com",
+    "price": 23.79,
+    "delta_vs_current": 1.21
+   },
+   {
+    "name": "Pemberton Trade Group",
+    "domain": "pemberton.example.com",
+    "price": 21.29,
+    "delta_vs_current": -1.29
+   }
+  ],
+  "competitorMedian": 23.79,
+  "msaMult": 1.0567,
+  "msaMode": "competition",
+  "demand": {
+   "level": "medium",
+   "label": "Stable demand",
+   "index": 0.96,
+   "movePercent": 0,
+   "confidence": "medium",
+   "confWeight": 0.68,
+   "recentVelocity": 2.55,
+   "expectedVelocity": 2.66,
+   "maxAdjustmentPct": 3,
+   "trendDirection": "STABLE",
+   "historyDays": 90
+  },
+  "segment": "regular",
+  "totalTransactions": 221,
+  "totalCompanies": 196,
+  "observedMin": 17.42,
+  "observedMax": 30.38
+ },
+ {
+  "item": "HRD335590",
+  "storeId": "100117",
+  "priceable": true,
+  "cost": 11.31,
+  "currentPrice": 16.41,
+  "optimalPrice": 17.99,
+  "aggressivePrice": 20.3,
+  "recommendedTier": "optimal",
+  "floorPrice": 15.08,
+  "ceilingPrice": 20.76,
+  "peerQ1": 15.08,
+  "peerQ2": 17.14,
+  "peerQ3": 20.4,
+  "competitors": [
+   {
+    "name": "Northline Supply",
+    "domain": "northline.example.com",
+    "price": 20.06,
+    "delta_vs_current": 3.65
+   },
+   {
+    "name": "Castellan Trade",
+    "domain": "castellan.example.com",
+    "price": 18.3,
+    "delta_vs_current": 1.89
+   },
+   {
+    "name": "Redhawk Building Supply",
+    "domain": "redhawk.example.com",
+    "price": 14.07,
+    "delta_vs_current": -2.34
+   },
+   {
+    "name": "Vantage Wholesale",
+    "domain": "vantage.example.com",
+    "price": 14.97,
+    "delta_vs_current": -1.44
+   },
+   {
+    "name": "Ironbridge Industrial",
+    "domain": "ironbridge.example.com",
+    "price": 17.59,
+    "delta_vs_current": 1.18
+   }
+  ],
+  "competitorMedian": 17.59,
+  "msaMult": 1.016,
+  "msaMode": "competition",
+  "demand": {
+   "level": "high",
+   "label": "High demand",
+   "index": 1.533,
+   "movePercent": 1.5,
+   "confidence": "low",
+   "confWeight": 0.49,
+   "recentVelocity": 6.06,
+   "expectedVelocity": 3.95,
+   "maxAdjustmentPct": 3,
+   "trendDirection": "INCREASING",
+   "historyDays": 106
+  },
+  "segment": "occasional",
+  "totalTransactions": 81,
+  "totalCompanies": 196,
+  "observedMin": 13.12,
+  "observedMax": 24.38
+ },
+ {
+  "item": "HRD335590",
+  "storeId": "100649",
+  "priceable": true,
+  "cost": 11.31,
+  "currentPrice": 16.15,
+  "optimalPrice": 16.65,
+  "aggressivePrice": 19.04,
+  "recommendedTier": "aggressive",
+  "floorPrice": 15.08,
+  "ceilingPrice": 20.65,
+  "peerQ1": 15.08,
+  "peerQ2": 17.14,
+  "peerQ3": 20.4,
+  "competitors": [
+   {
+    "name": "Northline Supply",
+    "domain": "northline.example.com",
+    "price": 18.75,
+    "delta_vs_current": 2.6
+   },
+   {
+    "name": "Castellan Trade",
+    "domain": "castellan.example.com",
+    "price": 17.1,
+    "delta_vs_current": 0.95
+   },
+   {
+    "name": "Redhawk Building Supply",
+    "domain": "redhawk.example.com",
+    "price": 13.54,
+    "delta_vs_current": -2.61
+   },
+   {
+    "name": "Vantage Wholesale",
+    "domain": "vantage.example.com",
+    "price": 19.45,
+    "delta_vs_current": 3.3
+   },
+   {
+    "name": "Ironbridge Industrial",
+    "domain": "ironbridge.example.com",
+    "price": 17.88,
+    "delta_vs_current": 1.73
+   },
+   {
+    "name": "Cobalt Depot",
+    "domain": "cobalt.example.com",
+    "price": 17.32,
+    "delta_vs_current": 1.17
+   },
+   {
+    "name": "Fairhaven Supply",
+    "domain": "fairhaven.example.com",
+    "price": 17.5,
+    "delta_vs_current": 1.35
+   },
+   {
+    "name": "Pemberton Trade Group",
+    "domain": "pemberton.example.com",
+    "price": 18.73,
+    "delta_vs_current": 2.58
+   },
+   {
+    "name": "Granite & Co.",
+    "domain": "granite.example.com",
+    "price": 16.4,
+    "delta_vs_current": 0.25
+   }
+  ],
+  "competitorMedian": 17.5,
+  "msaMult": 0.9379,
+  "msaMode": "competition",
+  "demand": {
+   "level": "high",
+   "label": "High demand",
+   "index": 1.883,
+   "movePercent": 2.3,
+   "confidence": "high",
+   "confWeight": 0.78,
+   "recentVelocity": 16.22,
+   "expectedVelocity": 8.61,
+   "maxAdjustmentPct": 3,
+   "trendDirection": "INCREASING",
+   "historyDays": 241
+  },
+  "segment": "regular",
+  "totalTransactions": 192,
+  "totalCompanies": 196,
+  "observedMin": 12.37,
+  "observedMax": 21.68
+ },
+ {
+  "item": "HRD335590",
+  "storeId": "100812",
+  "priceable": true,
+  "cost": 11.31,
+  "currentPrice": 19.74,
+  "optimalPrice": 19.62,
+  "aggressivePrice": 23.12,
+  "recommendedTier": "optimal",
+  "floorPrice": 15.08,
+  "ceilingPrice": 23.39,
+  "peerQ1": 15.08,
+  "peerQ2": 17.14,
+  "peerQ3": 20.4,
+  "competitors": [
+   {
+    "name": "Northline Supply",
+    "domain": "northline.example.com",
+    "price": 16.59,
+    "delta_vs_current": -3.15
+   },
+   {
+    "name": "Castellan Trade",
+    "domain": "castellan.example.com",
+    "price": 19.82,
+    "delta_vs_current": 0.08
+   },
+   {
+    "name": "Redhawk Building Supply",
+    "domain": "redhawk.example.com",
+    "price": 22.88,
+    "delta_vs_current": 3.14
+   },
+   {
+    "name": "Vantage Wholesale",
+    "domain": "vantage.example.com",
+    "price": 18.48,
+    "delta_vs_current": -1.26
+   },
+   {
+    "name": "Ironbridge Industrial",
+    "domain": "ironbridge.example.com",
+    "price": 23.61,
+    "delta_vs_current": 3.87
+   }
+  ],
+  "competitorMedian": 19.82,
+  "msaMult": 1.0319,
+  "msaMode": "competition",
+  "demand": null,
+  "segment": "occasional",
+  "totalTransactions": 101,
+  "totalCompanies": 196,
+  "observedMin": 16.19,
+  "observedMax": 25.96
+ },
+ {
+  "item": "HRD335590",
+  "storeId": "100205",
+  "priceable": true,
+  "cost": 11.31,
+  "currentPrice": 16.65,
+  "optimalPrice": 18.01,
+  "aggressivePrice": 20.81,
+  "recommendedTier": "aggressive",
+  "floorPrice": 15.08,
+  "ceilingPrice": 20.4,
+  "peerQ1": 15.08,
+  "peerQ2": 17.14,
+  "peerQ3": 20.4,
+  "competitors": [
+   {
+    "name": "Northline Supply",
+    "domain": "northline.example.com",
+    "price": 14.97,
+    "delta_vs_current": -1.68
+   },
+   {
+    "name": "Castellan Trade",
+    "domain": "castellan.example.com",
+    "price": 14.77,
+    "delta_vs_current": -1.88
+   },
+   {
+    "name": "Redhawk Building Supply",
+    "domain": "redhawk.example.com",
+    "price": 18.91,
+    "delta_vs_current": 2.26
+   },
+   {
+    "name": "Vantage Wholesale",
+    "domain": "vantage.example.com",
+    "price": 20.08,
+    "delta_vs_current": 3.43
+   },
+   {
+    "name": "Ironbridge Industrial",
+    "domain": "ironbridge.example.com",
+    "price": 17.02,
+    "delta_vs_current": 0.37
+   },
+   {
+    "name": "Cobalt Depot",
+    "domain": "cobalt.example.com",
+    "price": 16.87,
+    "delta_vs_current": 0.22
+   },
+   {
+    "name": "Fairhaven Supply",
+    "domain": "fairhaven.example.com",
+    "price": 17.41,
+    "delta_vs_current": 0.76
+   },
+   {
+    "name": "Pemberton Trade Group",
+    "domain": "pemberton.example.com",
+    "price": 16.85,
+    "delta_vs_current": 0.2
+   }
+  ],
+  "competitorMedian": 17.02,
+  "msaMult": 1.0176,
+  "msaMode": "competition",
+  "demand": null,
+  "segment": "regular",
+  "totalTransactions": 70,
+  "totalCompanies": 196,
+  "observedMin": 12.6,
+  "observedMax": 23.62
+ },
+ {
+  "item": "HRD335590",
+  "storeId": "100933",
+  "priceable": true,
+  "cost": 11.31,
+  "currentPrice": 24.25,
+  "optimalPrice": 24.43,
+  "aggressivePrice": 28.28,
+  "recommendedTier": "optimal",
+  "floorPrice": 15.08,
+  "ceilingPrice": 31.53,
+  "peerQ1": 15.08,
+  "peerQ2": 17.14,
+  "peerQ3": 20.4,
+  "competitors": [
+   {
+    "name": "Northline Supply",
+    "domain": "northline.example.com",
+    "price": 23.48,
+    "delta_vs_current": -0.77
+   },
+   {
+    "name": "Castellan Trade",
+    "domain": "castellan.example.com",
+    "price": 23.98,
+    "delta_vs_current": -0.27
+   },
+   {
+    "name": "Redhawk Building Supply",
+    "domain": "redhawk.example.com",
+    "price": 27.33,
+    "delta_vs_current": 3.08
+   },
+   {
+    "name": "Vantage Wholesale",
+    "domain": "vantage.example.com",
+    "price": 24.95,
+    "delta_vs_current": 0.7
+   },
+   {
+    "name": "Ironbridge Industrial",
+    "domain": "ironbridge.example.com",
+    "price": 20.33,
+    "delta_vs_current": -3.92
+   },
+   {
+    "name": "Cobalt Depot",
+    "domain": "cobalt.example.com",
+    "price": 29.94,
+    "delta_vs_current": 5.69
+   },
+   {
+    "name": "Fairhaven Supply",
+    "domain": "fairhaven.example.com",
+    "price": 29.5,
+    "delta_vs_current": 5.25
+   },
+   {
+    "name": "Pemberton Trade Group",
+    "domain": "pemberton.example.com",
+    "price": 30.04,
+    "delta_vs_current": 5.79
+   },
+   {
+    "name": "Granite & Co.",
+    "domain": "granite.example.com",
+    "price": 26.72,
+    "delta_vs_current": 2.47
+   }
+  ],
+  "competitorMedian": 26.72,
+  "msaMult": 0.9731,
+  "msaMode": "competition",
+  "demand": {
+   "level": "low",
+   "label": "Low demand",
+   "index": 0.517,
+   "movePercent": -1.2,
+   "confidence": "low",
+   "confWeight": 0.39,
+   "recentVelocity": 3.29,
+   "expectedVelocity": 6.36,
+   "maxAdjustmentPct": 3,
+   "trendDirection": "DECREASING",
+   "historyDays": 262
+  },
+  "segment": "occasional",
+  "totalTransactions": 36,
+  "totalCompanies": 196,
+  "observedMin": 22.48,
+  "observedMax": 37.48
+ },
+ {
+  "item": "HRD335590",
+  "storeId": "100571",
+  "priceable": true,
+  "cost": 11.31,
+  "currentPrice": 20.42,
+  "optimalPrice": 19.91,
+  "aggressivePrice": 22.43,
+  "recommendedTier": "optimal",
+  "floorPrice": 15.08,
+  "ceilingPrice": 22.63,
+  "peerQ1": 15.08,
+  "peerQ2": 17.14,
+  "peerQ3": 20.4,
+  "competitors": [
+   {
+    "name": "Northline Supply",
+    "domain": "northline.example.com",
+    "price": 19.18,
+    "delta_vs_current": -1.24
+   },
+   {
+    "name": "Castellan Trade",
+    "domain": "castellan.example.com",
+    "price": 18.87,
+    "delta_vs_current": -1.55
+   },
+   {
+    "name": "Redhawk Building Supply",
+    "domain": "redhawk.example.com",
+    "price": 18.91,
+    "delta_vs_current": -1.51
+   },
+   {
+    "name": "Vantage Wholesale",
+    "domain": "vantage.example.com",
+    "price": 17.3,
+    "delta_vs_current": -3.12
+   },
+   {
+    "name": "Ironbridge Industrial",
+    "domain": "ironbridge.example.com",
+    "price": 24.33,
+    "delta_vs_current": 3.91
+   },
+   {
+    "name": "Cobalt Depot",
+    "domain": "cobalt.example.com",
+    "price": 23.84,
+    "delta_vs_current": 3.42
+   },
+   {
+    "name": "Fairhaven Supply",
+    "domain": "fairhaven.example.com",
+    "price": 21.85,
+    "delta_vs_current": 1.43
+   }
+  ],
+  "competitorMedian": 19.18,
+  "msaMult": 1,
+  "msaMode": "competition",
+  "demand": null,
+  "segment": "occasional",
+  "totalTransactions": 156,
+  "totalCompanies": 196,
+  "observedMin": 16.18,
+  "observedMax": 26.96
+ },
+ {
+  "item": "HRD107744",
+  "storeId": "100117",
+  "priceable": true,
+  "cost": 26.06,
+  "currentPrice": 46.55,
+  "optimalPrice": 46.34,
+  "aggressivePrice": 49.79,
+  "recommendedTier": "optimal",
+  "floorPrice": 41.89,
+  "ceilingPrice": 58.41,
+  "peerQ1": 43.19,
+  "peerQ2": 49.08,
+  "peerQ3": 58.41,
+  "competitors": [
+   {
+    "name": "Northline Supply",
+    "domain": "northline.example.com",
+    "price": 42.43,
+    "delta_vs_current": -4.12
+   },
+   {
+    "name": "Castellan Trade",
+    "domain": "castellan.example.com",
+    "price": 41.87,
+    "delta_vs_current": -4.68
+   },
+   {
+    "name": "Redhawk Building Supply",
+    "domain": "redhawk.example.com",
+    "price": 39.15,
+    "delta_vs_current": -7.4
+   },
+   {
+    "name": "Vantage Wholesale",
+    "domain": "vantage.example.com",
+    "price": 53.48,
+    "delta_vs_current": 6.93
+   },
+   {
+    "name": "Ironbridge Industrial",
+    "domain": "ironbridge.example.com",
+    "price": 40.5,
+    "delta_vs_current": -6.05
+   },
+   {
+    "name": "Cobalt Depot",
+    "domain": "cobalt.example.com",
+    "price": 50.18,
+    "delta_vs_current": 3.63
+   },
+   {
+    "name": "Fairhaven Supply",
+    "domain": "fairhaven.example.com",
+    "price": 49.27,
+    "delta_vs_current": 2.72
+   },
+   {
+    "name": "Pemberton Trade Group",
+    "domain": "pemberton.example.com",
+    "price": 46.53,
+    "delta_vs_current": -0.02
+   },
+   {
+    "name": "Granite & Co.",
+    "domain": "granite.example.com",
+    "price": 50.47,
+    "delta_vs_current": 3.92
+   }
+  ],
+  "competitorMedian": 46.53,
+  "msaMult": 1.016,
+  "msaMode": "competition",
+  "demand": null,
+  "segment": "occasional",
+  "totalTransactions": 91,
+  "totalCompanies": 73,
+  "observedMin": 37.78,
+  "observedMax": 57.13
+ },
+ {
+  "item": "HRD107744",
+  "storeId": "100649",
+  "priceable": true,
+  "cost": 26.06,
+  "currentPrice": 45.96,
+  "optimalPrice": 50.26,
+  "aggressivePrice": 57.07,
+  "recommendedTier": "aggressive",
+  "floorPrice": 41.89,
+  "ceilingPrice": 62.19,
+  "peerQ1": 43.19,
+  "peerQ2": 49.08,
+  "peerQ3": 58.41,
+  "competitors": [
+   {
+    "name": "Northline Supply",
+    "domain": "northline.example.com",
+    "price": 51.22,
+    "delta_vs_current": 5.26
+   },
+   {
+    "name": "Castellan Trade",
+    "domain": "castellan.example.com",
+    "price": 45.88,
+    "delta_vs_current": -0.08
+   },
+   {
+    "name": "Redhawk Building Supply",
+    "domain": "redhawk.example.com",
+    "price": 55.89,
+    "delta_vs_current": 9.93
+   },
+   {
+    "name": "Vantage Wholesale",
+    "domain": "vantage.example.com",
+    "price": 52.7,
+    "delta_vs_current": 6.74
+   },
+   {
+    "name": "Ironbridge Industrial",
+    "domain": "ironbridge.example.com",
+    "price": 52.49,
+    "delta_vs_current": 6.53
+   },
+   {
+    "name": "Cobalt Depot",
+    "domain": "cobalt.example.com",
+    "price": 54.63,
+    "delta_vs_current": 8.67
+   }
+  ],
+  "competitorMedian": 52.7,
+  "msaMult": 0.9379,
+  "msaMode": "competition",
+  "demand": null,
+  "segment": "regular",
+  "totalTransactions": 102,
+  "totalCompanies": 73,
+  "observedMin": 36.66,
+  "observedMax": 61.98
+ },
+ {
+  "item": "HRD107744",
+  "storeId": "100812",
+  "priceable": true,
+  "cost": 26.06,
+  "currentPrice": 36.18,
+  "optimalPrice": 46.05,
+  "aggressivePrice": 53.23,
+  "recommendedTier": "optimal",
+  "floorPrice": 41.89,
+  "ceilingPrice": 68.92,
+  "peerQ1": 43.19,
+  "peerQ2": 49.08,
+  "peerQ3": 58.41,
+  "competitors": [],
+  "competitorMedian": null,
+  "msaMult": 1.0319,
+  "msaMode": "competition",
+  "demand": {
+   "level": "high",
+   "label": "High demand",
+   "index": 1.201,
+   "movePercent": 1.4,
+   "confidence": "low",
+   "confWeight": 0.48,
+   "recentVelocity": 9.18,
+   "expectedVelocity": 7.64,
+   "maxAdjustmentPct": 3,
+   "trendDirection": "INCREASING",
+   "historyDays": 510
+  },
+  "segment": "occasional",
+  "totalTransactions": 158,
+  "totalCompanies": 73,
+  "observedMin": 31.01,
+  "observedMax": 67.19
+ },
+ {
+  "item": "HRD107744",
+  "storeId": "100205",
+  "priceable": true,
+  "cost": 26.06,
+  "currentPrice": 47.87,
+  "optimalPrice": 51.91,
+  "aggressivePrice": 59.59,
+  "recommendedTier": "aggressive",
+  "floorPrice": 41.89,
+  "ceilingPrice": 59.63,
+  "peerQ1": 43.19,
+  "peerQ2": 49.08,
+  "peerQ3": 58.41,
+  "competitors": [
+   {
+    "name": "Northline Supply",
+    "domain": "northline.example.com",
+    "price": 55.41,
+    "delta_vs_current": 7.54
+   },
+   {
+    "name": "Castellan Trade",
+    "domain": "castellan.example.com",
+    "price": 54.57,
+    "delta_vs_current": 6.7
+   },
+   {
+    "name": "Redhawk Building Supply",
+    "domain": "redhawk.example.com",
+    "price": 45.71,
+    "delta_vs_current": -2.16
+   },
+   {
+    "name": "Vantage Wholesale",
+    "domain": "vantage.example.com",
+    "price": 47.68,
+    "delta_vs_current": -0.19
+   },
+   {
+    "name": "Ironbridge Industrial",
+    "domain": "ironbridge.example.com",
+    "price": 50.53,
+    "delta_vs_current": 2.66
+   },
+   {
+    "name": "Cobalt Depot",
+    "domain": "cobalt.example.com",
+    "price": 47.67,
+    "delta_vs_current": -0.2
+   },
+   {
+    "name": "Fairhaven Supply",
+    "domain": "fairhaven.example.com",
+    "price": 52.46,
+    "delta_vs_current": 4.59
+   },
+   {
+    "name": "Pemberton Trade Group",
+    "domain": "pemberton.example.com",
+    "price": 42.13,
+    "delta_vs_current": -5.74
+   }
+  ],
+  "competitorMedian": 50.53,
+  "msaMult": 1,
+  "msaMode": "off",
+  "demand": {
+   "level": "high",
+   "label": "High demand",
+   "index": 1.623,
+   "movePercent": 2.1,
+   "confidence": "medium",
+   "confWeight": 0.7,
+   "recentVelocity": 12.08,
+   "expectedVelocity": 7.44,
+   "maxAdjustmentPct": 3,
+   "trendDirection": "INCREASING",
+   "historyDays": 417
+  },
+  "segment": "regular",
+  "totalTransactions": 221,
+  "totalCompanies": 73,
+  "observedMin": 42.57,
+  "observedMax": 67.53
+ },
+ {
+  "item": "HRD107744",
+  "storeId": "100933",
+  "priceable": true,
+  "cost": 26.06,
+  "currentPrice": 51.1,
+  "optimalPrice": 47.59,
+  "aggressivePrice": 53.04,
+  "recommendedTier": "optimal",
+  "floorPrice": 41.89,
+  "ceilingPrice": 58.86,
+  "peerQ1": 43.19,
+  "peerQ2": 49.08,
+  "peerQ3": 58.41,
+  "competitors": [
+   {
+    "name": "Northline Supply",
+    "domain": "northline.example.com",
+    "price": 50.68,
+    "delta_vs_current": -0.42
+   },
+   {
+    "name": "Castellan Trade",
+    "domain": "castellan.example.com",
+    "price": 44.48,
+    "delta_vs_current": -6.62
+   },
+   {
+    "name": "Redhawk Building Supply",
+    "domain": "redhawk.example.com",
+    "price": 49.88,
+    "delta_vs_current": -1.22
+   },
+   {
+    "name": "Vantage Wholesale",
+    "domain": "vantage.example.com",
+    "price": 55.19,
+    "delta_vs_current": 4.09
+   },
+   {
+    "name": "Ironbridge Industrial",
+    "domain": "ironbridge.example.com",
+    "price": 58.67,
+    "delta_vs_current": 7.57
+   },
+   {
+    "name": "Cobalt Depot",
+    "domain": "cobalt.example.com",
+    "price": 44.21,
+    "delta_vs_current": -6.89
+   },
+   {
+    "name": "Fairhaven Supply",
+    "domain": "fairhaven.example.com",
+    "price": 47.53,
+    "delta_vs_current": -3.57
+   }
+  ],
+  "competitorMedian": 49.88,
+  "msaMult": 0.9731,
+  "msaMode": "competition",
+  "demand": {
+   "level": "low",
+   "label": "Low demand",
+   "index": 0.697,
+   "movePercent": -1.6,
+   "confidence": "medium",
+   "confWeight": 0.54,
+   "recentVelocity": 0.7,
+   "expectedVelocity": 1.01,
+   "maxAdjustmentPct": 3,
+   "trendDirection": "DECREASING",
+   "historyDays": 130
+  },
+  "segment": "occasional",
+  "totalTransactions": 140,
+  "totalCompanies": 73,
+  "observedMin": 39.86,
+  "observedMax": 65.57
+ },
+ {
+  "item": "HRD248813",
+  "storeId": "100349",
+  "priceable": true,
+  "cost": 901.78,
+  "currentPrice": 1761.43,
+  "optimalPrice": 2036.62,
+  "aggressivePrice": 2285.48,
+  "recommendedTier": "aggressive",
+  "floorPrice": 1564.19,
+  "ceilingPrice": 2312.09,
+  "peerQ1": 1612.57,
+  "peerQ2": 1832.47,
+  "peerQ3": 2180.64,
+  "competitors": [
+   {
+    "name": "Northline Supply",
+    "domain": "northline.example.com",
+    "price": 1953.43,
+    "delta_vs_current": 192
+   },
+   {
+    "name": "Castellan Trade",
+    "domain": "castellan.example.com",
+    "price": 2015.4,
+    "delta_vs_current": 253.97
+   },
+   {
+    "name": "Redhawk Building Supply",
+    "domain": "redhawk.example.com",
+    "price": 1959.4,
+    "delta_vs_current": 197.97
+   },
+   {
+    "name": "Vantage Wholesale",
+    "domain": "vantage.example.com",
+    "price": 2106.19,
+    "delta_vs_current": 344.76
+   },
+   {
+    "name": "Ironbridge Industrial",
+    "domain": "ironbridge.example.com",
+    "price": 1776.51,
+    "delta_vs_current": 15.08
+   },
+   {
+    "name": "Cobalt Depot",
+    "domain": "cobalt.example.com",
+    "price": 1993.63,
+    "delta_vs_current": 232.2
+   },
+   {
+    "name": "Fairhaven Supply",
+    "domain": "fairhaven.example.com",
+    "price": 1732.03,
+    "delta_vs_current": -29.4
+   }
+  ],
+  "competitorMedian": 1959.4,
+  "msaMult": 1,
+  "msaMode": "off",
+  "demand": {
+   "level": "high",
+   "label": "High demand",
+   "index": 1.357,
+   "movePercent": 2.7,
+   "confidence": "high",
+   "confWeight": 0.89,
+   "recentVelocity": 9.12,
+   "expectedVelocity": 6.72,
+   "maxAdjustmentPct": 3,
+   "trendDirection": "INCREASING",
+   "historyDays": 328
+  },
+  "segment": "regular",
+  "totalTransactions": 16,
+  "totalCompanies": 367,
+  "observedMin": 1513.7,
+  "observedMax": 2957.43
+ },
+ {
+  "item": "HRD248813",
+  "storeId": "100117",
+  "priceable": true,
+  "cost": 901.78,
+  "currentPrice": 1460.04,
+  "optimalPrice": 1466.13,
+  "aggressivePrice": 1613.05,
+  "recommendedTier": "optimal",
+  "floorPrice": 1564.19,
+  "ceilingPrice": 2180.64,
+  "peerQ1": 1612.57,
+  "peerQ2": 1832.47,
+  "peerQ3": 2180.64,
+  "competitors": [
+   {
+    "name": "Northline Supply",
+    "domain": "northline.example.com",
+    "price": 1582.42,
+    "delta_vs_current": 122.38
+   },
+   {
+    "name": "Castellan Trade",
+    "domain": "castellan.example.com",
+    "price": 1531.61,
+    "delta_vs_current": 71.57
+   },
+   {
+    "name": "Redhawk Building Supply",
+    "domain": "redhawk.example.com",
+    "price": 1370.28,
+    "delta_vs_current": -89.76
+   },
+   {
+    "name": "Vantage Wholesale",
+    "domain": "vantage.example.com",
+    "price": 1542.5,
+    "delta_vs_current": 82.46
+   },
+   {
+    "name": "Ironbridge Industrial",
+    "domain": "ironbridge.example.com",
+    "price": 1509.77,
+    "delta_vs_current": 49.73
+   },
+   {
+    "name": "Cobalt Depot",
+    "domain": "cobalt.example.com",
+    "price": 1612.24,
+    "delta_vs_current": 152.2
+   },
+   {
+    "name": "Fairhaven Supply",
+    "domain": "fairhaven.example.com",
+    "price": 1441.88,
+    "delta_vs_current": -18.16
+   },
+   {
+    "name": "Pemberton Trade Group",
+    "domain": "pemberton.example.com",
+    "price": 1251.23,
+    "delta_vs_current": -208.81
+   }
+  ],
+  "competitorMedian": 1531.61,
+  "msaMult": 1.016,
+  "msaMode": "competition",
+  "demand": {
+   "level": "low",
+   "label": "Low demand",
+   "index": 0.639,
+   "movePercent": -1.4,
+   "confidence": "low",
+   "confWeight": 0.47,
+   "recentVelocity": 4.18,
+   "expectedVelocity": 6.55,
+   "maxAdjustmentPct": 3,
+   "trendDirection": "DECREASING",
+   "historyDays": 255
+  },
+  "segment": "occasional",
+  "totalTransactions": 232,
+  "totalCompanies": 367,
+  "observedMin": 1164.64,
+  "observedMax": 1980.46
+ },
+ {
+  "item": "HRD248813",
+  "storeId": "100649",
+  "priceable": true,
+  "cost": 901.78,
+  "currentPrice": 1764.75,
+  "optimalPrice": 1805.03,
+  "aggressivePrice": 2146.33,
+  "recommendedTier": "aggressive",
+  "floorPrice": 1564.19,
+  "ceilingPrice": 2266.72,
+  "peerQ1": 1612.57,
+  "peerQ2": 1832.47,
+  "peerQ3": 2180.64,
+  "competitors": [
+   {
+    "name": "Northline Supply",
+    "domain": "northline.example.com",
+    "price": 1920.95,
+    "delta_vs_current": 156.2
+   },
+   {
+    "name": "Castellan Trade",
+    "domain": "castellan.example.com",
+    "price": 1940.01,
+    "delta_vs_current": 175.26
+   },
+   {
+    "name": "Redhawk Building Supply",
+    "domain": "redhawk.example.com",
+    "price": 1561.79,
+    "delta_vs_current": -202.96
+   },
+   {
+    "name": "Vantage Wholesale",
+    "domain": "vantage.example.com",
+    "price": 1651.83,
+    "delta_vs_current": -112.92
+   },
+   {
+    "name": "Ironbridge Industrial",
+    "domain": "ironbridge.example.com",
+    "price": 1956.91,
+    "delta_vs_current": 192.16
+   },
+   {
+    "name": "Cobalt Depot",
+    "domain": "cobalt.example.com",
+    "price": 1538.3,
+    "delta_vs_current": -226.45
+   },
+   {
+    "name": "Fairhaven Supply",
+    "domain": "fairhaven.example.com",
+    "price": 1988.83,
+    "delta_vs_current": 224.08
+   },
+   {
+    "name": "Pemberton Trade Group",
+    "domain": "pemberton.example.com",
+    "price": 1731,
+    "delta_vs_current": -33.75
+   }
+  ],
+  "competitorMedian": 1920.95,
+  "msaMult": 0.9379,
+  "msaMode": "competition",
+  "demand": {
+   "level": "high",
+   "label": "High demand",
+   "index": 1.659,
+   "movePercent": 2.3,
+   "confidence": "high",
+   "confWeight": 0.76,
+   "recentVelocity": 9.36,
+   "expectedVelocity": 5.64,
+   "maxAdjustmentPct": 3,
+   "trendDirection": "INCREASING",
+   "historyDays": 416
+  },
+  "segment": "regular",
+  "totalTransactions": 128,
+  "totalCompanies": 367,
+  "observedMin": 1410.95,
+  "observedMax": 2839.93
+ },
+ {
+  "item": "HRD248813",
+  "storeId": "100812",
+  "priceable": true,
+  "cost": 901.78,
+  "currentPrice": 1521.48,
+  "optimalPrice": 1441.31,
+  "aggressivePrice": 1687.7,
+  "recommendedTier": "optimal",
+  "floorPrice": 1564.19,
+  "ceilingPrice": 2180.64,
+  "peerQ1": 1612.57,
+  "peerQ2": 1832.47,
+  "peerQ3": 2180.64,
+  "competitors": [
+   {
+    "name": "Northline Supply",
+    "domain": "northline.example.com",
+    "price": 1794.71,
+    "delta_vs_current": 273.23
+   },
+   {
+    "name": "Castellan Trade",
+    "domain": "castellan.example.com",
+    "price": 1430.12,
+    "delta_vs_current": -91.36
+   },
+   {
+    "name": "Redhawk Building Supply",
+    "domain": "redhawk.example.com",
+    "price": 1395.33,
+    "delta_vs_current": -126.15
+   },
+   {
+    "name": "Vantage Wholesale",
+    "domain": "vantage.example.com",
+    "price": 1838.99,
+    "delta_vs_current": 317.51
+   },
+   {
+    "name": "Ironbridge Industrial",
+    "domain": "ironbridge.example.com",
+    "price": 1316.28,
+    "delta_vs_current": -205.2
+   }
+  ],
+  "competitorMedian": 1430.12,
+  "msaMult": 1.0319,
+  "msaMode": "competition",
+  "demand": {
+   "level": "low",
+   "label": "Low demand",
+   "index": 0.657,
+   "movePercent": -2.2,
+   "confidence": "medium",
+   "confWeight": 0.75,
+   "recentVelocity": 3.51,
+   "expectedVelocity": 5.34,
+   "maxAdjustmentPct": 3,
+   "trendDirection": "DECREASING",
+   "historyDays": 480
+  },
+  "segment": "occasional",
+  "totalTransactions": 98,
+  "totalCompanies": 367,
+  "observedMin": 1173.21,
+  "observedMax": 1968.62
+ },
+ {
+  "item": "HRD248813",
+  "storeId": "100205",
+  "priceable": true,
+  "cost": 901.78,
+  "currentPrice": 1543.26,
+  "optimalPrice": 1514.25,
+  "aggressivePrice": 1753.41,
+  "recommendedTier": "aggressive",
+  "floorPrice": 1564.19,
+  "ceilingPrice": 2180.64,
+  "peerQ1": 1612.57,
+  "peerQ2": 1832.47,
+  "peerQ3": 2180.64,
+  "competitors": [
+   {
+    "name": "Northline Supply",
+    "domain": "northline.example.com",
+    "price": 1638.98,
+    "delta_vs_current": 95.72
+   },
+   {
+    "name": "Castellan Trade",
+    "domain": "castellan.example.com",
+    "price": 1294.85,
+    "delta_vs_current": -248.41
+   },
+   {
+    "name": "Redhawk Building Supply",
+    "domain": "redhawk.example.com",
+    "price": 1610.75,
+    "delta_vs_current": 67.49
+   },
+   {
+    "name": "Vantage Wholesale",
+    "domain": "vantage.example.com",
+    "price": 1522.52,
+    "delta_vs_current": -20.74
+   },
+   {
+    "name": "Ironbridge Industrial",
+    "domain": "ironbridge.example.com",
+    "price": 1464.14,
+    "delta_vs_current": -79.12
+   },
+   {
+    "name": "Cobalt Depot",
+    "domain": "cobalt.example.com",
+    "price": 1530.06,
+    "delta_vs_current": -13.2
+   },
+   {
+    "name": "Fairhaven Supply",
+    "domain": "fairhaven.example.com",
+    "price": 1633.83,
+    "delta_vs_current": 90.57
+   }
+  ],
+  "competitorMedian": 1530.06,
+  "msaMult": 1.0176,
+  "msaMode": "competition",
+  "demand": {
+   "level": "medium",
+   "label": "Stable demand",
+   "index": 0.914,
+   "movePercent": 0,
+   "confidence": "low",
+   "confWeight": 0.35,
+   "recentVelocity": 3.07,
+   "expectedVelocity": 3.36,
+   "maxAdjustmentPct": 3,
+   "trendDirection": "STABLE",
+   "historyDays": 317
+  },
+  "segment": "regular",
+  "totalTransactions": 79,
+  "totalCompanies": 367,
+  "observedMin": 1146.07,
+  "observedMax": 2108.79
+ },
+ {
+  "item": "HRD248813",
+  "storeId": "100571",
+  "priceable": true,
+  "cost": 901.78,
+  "currentPrice": 1462.68,
+  "optimalPrice": 1470.98,
+  "aggressivePrice": 1618.69,
+  "recommendedTier": "optimal",
+  "floorPrice": 1564.19,
+  "ceilingPrice": 2180.64,
+  "peerQ1": 1612.57,
+  "peerQ2": 1832.47,
+  "peerQ3": 2180.64,
+  "competitors": [
+   {
+    "name": "Northline Supply",
+    "domain": "northline.example.com",
+    "price": 1256.41,
+    "delta_vs_current": -206.27
+   },
+   {
+    "name": "Castellan Trade",
+    "domain": "castellan.example.com",
+    "price": 1293.56,
+    "delta_vs_current": -169.12
+   },
+   {
+    "name": "Redhawk Building Supply",
+    "domain": "redhawk.example.com",
+    "price": 1225.37,
+    "delta_vs_current": -237.31
+   },
+   {
+    "name": "Vantage Wholesale",
+    "domain": "vantage.example.com",
+    "price": 1670.12,
+    "delta_vs_current": 207.44
+   },
+   {
+    "name": "Ironbridge Industrial",
+    "domain": "ironbridge.example.com",
+    "price": 1598.13,
+    "delta_vs_current": 135.45
+   },
+   {
+    "name": "Cobalt Depot",
+    "domain": "cobalt.example.com",
+    "price": 1542.03,
+    "delta_vs_current": 79.35
+   },
+   {
+    "name": "Fairhaven Supply",
+    "domain": "fairhaven.example.com",
+    "price": 1534.52,
+    "delta_vs_current": 71.84
+   }
+  ],
+  "competitorMedian": 1534.52,
+  "msaMult": 1,
+  "msaMode": "competition",
+  "demand": {
+   "level": "medium",
+   "label": "Stable demand",
+   "index": 1.078,
+   "movePercent": 0,
+   "confidence": "medium",
+   "confWeight": 0.59,
+   "recentVelocity": 8.3,
+   "expectedVelocity": 7.7,
+   "maxAdjustmentPct": 3,
+   "trendDirection": "STABLE",
+   "historyDays": 349
+  },
+  "segment": "occasional",
+  "totalTransactions": 80,
+  "totalCompanies": 367,
+  "observedMin": 1286.88,
+  "observedMax": 1956.8
+ },
+ {
+  "item": "HRD248813",
+  "storeId": "100959",
+  "priceable": true,
+  "cost": 901.78,
+  "currentPrice": 1557.33,
+  "optimalPrice": 1804.97,
+  "aggressivePrice": 2129.67,
+  "recommendedTier": "aggressive",
+  "floorPrice": 1564.19,
+  "ceilingPrice": 2202.32,
+  "peerQ1": 1612.57,
+  "peerQ2": 1832.47,
+  "peerQ3": 2180.64,
+  "competitors": [
+   {
+    "name": "Northline Supply",
+    "domain": "northline.example.com",
+    "price": 1645.56,
+    "delta_vs_current": 88.23
+   },
+   {
+    "name": "Castellan Trade",
+    "domain": "castellan.example.com",
+    "price": 1866.37,
+    "delta_vs_current": 309.04
+   },
+   {
+    "name": "Redhawk Building Supply",
+    "domain": "redhawk.example.com",
+    "price": 1665.15,
+    "delta_vs_current": 107.82
+   },
+   {
+    "name": "Vantage Wholesale",
+    "domain": "vantage.example.com",
+    "price": 1873.15,
+    "delta_vs_current": 315.82
+   }
+  ],
+  "competitorMedian": 1866.37,
+  "msaMult": 1.0022,
+  "msaMode": "competition",
+  "demand": {
+   "level": "medium",
+   "label": "Stable demand",
+   "index": 0.965,
+   "movePercent": 0,
+   "confidence": "high",
+   "confWeight": 0.91,
+   "recentVelocity": 4.55,
+   "expectedVelocity": 4.71,
+   "maxAdjustmentPct": 3,
+   "trendDirection": "STABLE",
+   "historyDays": 357
+  },
+  "segment": "regular",
+  "totalTransactions": 131,
+  "totalCompanies": 367,
+  "observedMin": 1331.18,
+  "observedMax": 2305.54
+ }
+]

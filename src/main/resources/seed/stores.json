@@ -1,0 +1,313 @@
+{
+  "US": [
+    {
+      "store_id": "100349",
+      "company_number": "00570",
+      "legal_name": "Phoenix Branch",
+      "state": "AZ",
+      "msa_name": "Phoenix-Mesa-Chandler",
+      "rpp": 102.4,
+      "txns": 18432,
+      "item_count": 2140,
+      "segment": "regular",
+      "country": "US",
+      "regionKey": "west",
+      "map": {
+        "x": 215,
+        "y": 340
+      }
+    },
+    {
+      "store_id": "100047",
+      "company_number": "00118",
+      "legal_name": "Dayton Branch",
+      "state": "OH",
+      "msa_name": "Dayton-Kettering",
+      "rpp": 89.7,
+      "txns": 24907,
+      "item_count": 3115,
+      "segment": "regular",
+      "country": "US",
+      "regionKey": "north",
+      "map": {
+        "x": 655,
+        "y": 212
+      }
+    },
+    {
+      "store_id": "100117",
+      "company_number": "00291",
+      "legal_name": "Austin Branch",
+      "state": "TX",
+      "msa_name": "Austin-Round Rock-Georgetown",
+      "rpp": 97.1,
+      "txns": 12088,
+      "item_count": 1876,
+      "segment": "occasional",
+      "country": "US",
+      "regionKey": "south",
+      "map": {
+        "x": 462,
+        "y": 412
+      }
+    },
+    {
+      "store_id": "100649",
+      "company_number": "00834",
+      "legal_name": "Seattle Branch",
+      "state": "WA",
+      "msa_name": "Seattle-Tacoma-Bellevue",
+      "rpp": 111.3,
+      "txns": 9654,
+      "item_count": 1502,
+      "segment": "regular",
+      "country": "US",
+      "regionKey": "west",
+      "map": {
+        "x": 110,
+        "y": 72
+      }
+    },
+    {
+      "store_id": "100812",
+      "company_number": "01044",
+      "legal_name": "Nashville Branch",
+      "state": "TN",
+      "msa_name": "Nashville-Davidson-Murfreesboro",
+      "rpp": 94.2,
+      "txns": 15221,
+      "item_count": 2308,
+      "segment": "occasional",
+      "country": "US",
+      "regionKey": "south",
+      "map": {
+        "x": 612,
+        "y": 300
+      }
+    },
+    {
+      "store_id": "100205",
+      "company_number": "00402",
+      "legal_name": "Charlotte Branch",
+      "state": "NC",
+      "msa_name": "Charlotte-Concord-Gastonia",
+      "rpp": 96.8,
+      "txns": 11043,
+      "item_count": 1955,
+      "segment": "regular",
+      "country": "US",
+      "regionKey": "east",
+      "map": {
+        "x": 716,
+        "y": 292
+      }
+    },
+    {
+      "store_id": "100933",
+      "company_number": "01190",
+      "legal_name": "Denver Branch",
+      "state": "CO",
+      "msa_name": "Denver-Aurora-Lakewood",
+      "rpp": 104.9,
+      "txns": 8410,
+      "item_count": 1364,
+      "segment": "occasional",
+      "country": "US",
+      "regionKey": "west",
+      "map": {
+        "x": 318,
+        "y": 236
+      }
+    },
+    {
+      "store_id": "100571",
+      "company_number": "00745",
+      "legal_name": "Elkhart Branch",
+      "state": "IN",
+      "msa_name": null,
+      "rpp": null,
+      "txns": 5127,
+      "item_count": 903,
+      "segment": "occasional",
+      "country": "US",
+      "regionKey": "north",
+      "map": {
+        "x": 620,
+        "y": 176
+      }
+    },
+    {
+      "store_id": "100959",
+      "company_number": "00104",
+      "legal_name": "Dallas Branch",
+      "state": "TX",
+      "msa_name": "Dallas-Fort Worth-Arlington",
+      "rpp": 99.6,
+      "txns": 21380,
+      "item_count": 2790,
+      "segment": "regular",
+      "country": "US",
+      "regionKey": "south",
+      "map": {
+        "x": 478,
+        "y": 372
+      }
+    }
+  ],
+  "UK": [
+    {
+      "store_id": "100349",
+      "company_number": "00570",
+      "legal_name": "Manchester Branch",
+      "state": "NW",
+      "msa_name": "Manchester-Salford",
+      "rpp": 102.4,
+      "txns": 18432,
+      "item_count": 2140,
+      "segment": "regular",
+      "country": "UK",
+      "regionKey": "north",
+      "map": {
+        "x": 515,
+        "y": 310
+      }
+    },
+    {
+      "store_id": "100047",
+      "company_number": "00118",
+      "legal_name": "Leeds Branch",
+      "state": "YH",
+      "msa_name": "Leeds-Bradford",
+      "rpp": 89.7,
+      "txns": 24907,
+      "item_count": 3115,
+      "segment": "regular",
+      "country": "UK",
+      "regionKey": "north",
+      "map": {
+        "x": 539,
+        "y": 292
+      }
+    },
+    {
+      "store_id": "100117",
+      "company_number": "00291",
+      "legal_name": "Belfast Branch",
+      "state": "NI",
+      "msa_name": "Belfast-Lisburn",
+      "rpp": 97.1,
+      "txns": 12088,
+      "item_count": 1876,
+      "segment": "occasional",
+      "country": "UK",
+      "regionKey": "west",
+      "map": {
+        "x": 382,
+        "y": 248
+      }
+    },
+    {
+      "store_id": "100649",
+      "company_number": "00834",
+      "legal_name": "Glasgow Branch",
+      "state": "SCT",
+      "msa_name": "Glasgow-Paisley",
+      "rpp": 111.3,
+      "txns": 9654,
+      "item_count": 1502,
+      "segment": "regular",
+      "country": "UK",
+      "regionKey": "north",
+      "map": {
+        "x": 442,
+        "y": 179
+      }
+    },
+    {
+      "store_id": "100812",
+      "company_number": "01044",
+      "legal_name": "Bristol Branch",
+      "state": "SW",
+      "msa_name": "Bristol-Bath",
+      "rpp": 94.2,
+      "txns": 15221,
+      "item_count": 2308,
+      "segment": "occasional",
+      "country": "UK",
+      "regionKey": "south",
+      "map": {
+        "x": 502,
+        "y": 421
+      }
+    },
+    {
+      "store_id": "100205",
+      "company_number": "00402",
+      "legal_name": "Birmingham Branch",
+      "state": "WM",
+      "msa_name": "Birmingham-Solihull",
+      "rpp": 96.8,
+      "txns": 11043,
+      "item_count": 1955,
+      "segment": "regular",
+      "country": "UK",
+      "regionKey": "west",
+      "map": {
+        "x": 527,
+        "y": 365
+      }
+    },
+    {
+      "store_id": "100933",
+      "company_number": "01190",
+      "legal_name": "Cardiff Branch",
+      "state": "WLS",
+      "msa_name": "Cardiff-Newport",
+      "rpp": 104.9,
+      "txns": 8410,
+      "item_count": 1364,
+      "segment": "occasional",
+      "country": "UK",
+      "regionKey": "west",
+      "map": {
+        "x": 481,
+        "y": 420,
+        "anchor": "end"
+      }
+    },
+    {
+      "store_id": "100571",
+      "company_number": "00745",
+      "legal_name": "Nottingham Branch",
+      "state": "EM",
+      "msa_name": null,
+      "rpp": null,
+      "txns": 5127,
+      "item_count": 903,
+      "segment": "occasional",
+      "country": "UK",
+      "regionKey": "east",
+      "map": {
+        "x": 554,
+        "y": 339
+      }
+    },
+    {
+      "store_id": "100959",
+      "company_number": "00104",
+      "legal_name": "London Branch",
+      "state": "LDN",
+      "msa_name": "London-Greater London",
+      "rpp": 99.6,
+      "txns": 21380,
+      "item_count": 2790,
+      "segment": "regular",
+      "country": "UK",
+      "regionKey": "south",
+      "map": {
+        "x": 591,
+        "y": 419
+      }
+    }
+  ]
+}

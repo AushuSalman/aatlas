@@ -1,0 +1,322 @@
+[
+  {
+    "code": "US",
+    "name": "United States",
+    "flag": "🇺🇸",
+    "currency": "USD",
+    "subdivisionNoun": "State",
+    "subdivisionNounPlural": "States",
+    "regionNoun": "Region",
+    "mapLabel": "United States",
+    "regions": [
+      {
+        "key": "west",
+        "label": "West",
+        "short": "West",
+        "subdivisions": [
+          {
+            "code": "WA",
+            "name": "Washington"
+          },
+          {
+            "code": "OR",
+            "name": "Oregon"
+          },
+          {
+            "code": "CA",
+            "name": "California"
+          },
+          {
+            "code": "NV",
+            "name": "Nevada"
+          },
+          {
+            "code": "AZ",
+            "name": "Arizona"
+          },
+          {
+            "code": "UT",
+            "name": "Utah"
+          },
+          {
+            "code": "CO",
+            "name": "Colorado"
+          },
+          {
+            "code": "ID",
+            "name": "Idaho"
+          },
+          {
+            "code": "MT",
+            "name": "Montana"
+          },
+          {
+            "code": "WY",
+            "name": "Wyoming"
+          },
+          {
+            "code": "NM",
+            "name": "New Mexico"
+          }
+        ]
+      },
+      {
+        "key": "north",
+        "label": "North",
+        "short": "North",
+        "subdivisions": [
+          {
+            "code": "OH",
+            "name": "Ohio"
+          },
+          {
+            "code": "IN",
+            "name": "Indiana"
+          },
+          {
+            "code": "IL",
+            "name": "Illinois"
+          },
+          {
+            "code": "MI",
+            "name": "Michigan"
+          },
+          {
+            "code": "WI",
+            "name": "Wisconsin"
+          },
+          {
+            "code": "MN",
+            "name": "Minnesota"
+          },
+          {
+            "code": "IA",
+            "name": "Iowa"
+          },
+          {
+            "code": "MO",
+            "name": "Missouri"
+          },
+          {
+            "code": "ND",
+            "name": "North Dakota"
+          },
+          {
+            "code": "SD",
+            "name": "South Dakota"
+          },
+          {
+            "code": "NE",
+            "name": "Nebraska"
+          },
+          {
+            "code": "KS",
+            "name": "Kansas"
+          }
+        ]
+      },
+      {
+        "key": "south",
+        "label": "South",
+        "short": "South",
+        "subdivisions": [
+          {
+            "code": "TX",
+            "name": "Texas"
+          },
+          {
+            "code": "OK",
+            "name": "Oklahoma"
+          },
+          {
+            "code": "LA",
+            "name": "Louisiana"
+          },
+          {
+            "code": "AR",
+            "name": "Arkansas"
+          },
+          {
+            "code": "TN",
+            "name": "Tennessee"
+          },
+          {
+            "code": "MS",
+            "name": "Mississippi"
+          },
+          {
+            "code": "AL",
+            "name": "Alabama"
+          },
+          {
+            "code": "GA",
+            "name": "Georgia"
+          },
+          {
+            "code": "FL",
+            "name": "Florida"
+          },
+          {
+            "code": "KY",
+            "name": "Kentucky"
+          }
+        ]
+      },
+      {
+        "key": "east",
+        "label": "East",
+        "short": "East",
+        "subdivisions": [
+          {
+            "code": "NC",
+            "name": "North Carolina"
+          },
+          {
+            "code": "SC",
+            "name": "South Carolina"
+          },
+          {
+            "code": "VA",
+            "name": "Virginia"
+          },
+          {
+            "code": "WV",
+            "name": "West Virginia"
+          },
+          {
+            "code": "MD",
+            "name": "Maryland"
+          },
+          {
+            "code": "DE",
+            "name": "Delaware"
+          },
+          {
+            "code": "PA",
+            "name": "Pennsylvania"
+          },
+          {
+            "code": "NJ",
+            "name": "New Jersey"
+          },
+          {
+            "code": "NY",
+            "name": "New York"
+          },
+          {
+            "code": "CT",
+            "name": "Connecticut"
+          },
+          {
+            "code": "MA",
+            "name": "Massachusetts"
+          },
+          {
+            "code": "VT",
+            "name": "Vermont"
+          },
+          {
+            "code": "NH",
+            "name": "New Hampshire"
+          },
+          {
+            "code": "ME",
+            "name": "Maine"
+          },
+          {
+            "code": "RI",
+            "name": "Rhode Island"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "code": "UK",
+    "name": "United Kingdom",
+    "flag": "🇬🇧",
+    "currency": "GBP",
+    "subdivisionNoun": "Region",
+    "subdivisionNounPlural": "Regions",
+    "regionNoun": "Territory",
+    "mapLabel": "United Kingdom",
+    "regions": [
+      {
+        "key": "north",
+        "label": "North & Scotland",
+        "short": "North",
+        "subdivisions": [
+          {
+            "code": "SCT",
+            "name": "Scotland"
+          },
+          {
+            "code": "NE",
+            "name": "North East"
+          },
+          {
+            "code": "NW",
+            "name": "North West"
+          },
+          {
+            "code": "YH",
+            "name": "Yorkshire & Humber"
+          }
+        ]
+      },
+      {
+        "key": "west",
+        "label": "West & Wales",
+        "short": "West",
+        "subdivisions": [
+          {
+            "code": "WLS",
+            "name": "Wales"
+          },
+          {
+            "code": "WM",
+            "name": "West Midlands"
+          },
+          {
+            "code": "NI",
+            "name": "Northern Ireland"
+          }
+        ]
+      },
+      {
+        "key": "east",
+        "label": "East & Midlands",
+        "short": "East",
+        "subdivisions": [
+          {
+            "code": "EM",
+            "name": "East Midlands"
+          },
+          {
+            "code": "EE",
+            "name": "East of England"
+          }
+        ]
+      },
+      {
+        "key": "south",
+        "label": "South & London",
+        "short": "South",
+        "subdivisions": [
+          {
+            "code": "LDN",
+            "name": "London"
+          },
+          {
+            "code": "SE",
+            "name": "South East"
+          },
+          {
+            "code": "SW",
+            "name": "South West"
+          }
+        ]
+      }
+    ]
+  }
+]

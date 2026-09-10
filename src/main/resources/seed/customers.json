@@ -1,0 +1,90 @@
+[
+  {
+    "id": "c-0",
+    "name": "Walk-in / no account",
+    "segment": "walk-in",
+    "tier": "C",
+    "agreedDiscountPct": 0,
+    "typicalQty": 4,
+    "note": "No agreement. Full recommended price applies.",
+    "profile": "value",
+    "slaDays": 14
+  },
+  {
+    "id": "c-1",
+    "name": "Halloran Mechanical",
+    "segment": "contractor",
+    "tier": "A",
+    "agreedDiscountPct": 8.5,
+    "typicalQty": 240,
+    "note": "Largest contractor account. Buys weekly, shops the market on commodity lines.",
+    "profile": "repeat",
+    "slaDays": 5
+  },
+  {
+    "id": "c-2",
+    "name": "Ridgeline Plumbing Co.",
+    "segment": "contractor",
+    "tier": "B",
+    "agreedDiscountPct": 5,
+    "typicalQty": 60,
+    "note": "Steady mid-size contractor. Price-aware but rarely switches supplier.",
+    "profile": "repeat",
+    "slaDays": 7
+  },
+  {
+    "id": "c-3",
+    "name": "Fairmont Health System",
+    "segment": "institutional",
+    "tier": "A",
+    "agreedDiscountPct": 11,
+    "typicalQty": 120,
+    "note": "Bid-award contract. Pricing is held for the contract term.",
+    "profile": "enterprise",
+    "slaDays": 2
+  },
+  {
+    "id": "c-4",
+    "name": "Delta Ridge Industrial",
+    "segment": "industrial",
+    "tier": "A",
+    "agreedDiscountPct": 9.5,
+    "typicalQty": 500,
+    "note": "Blanket agreement, high volume, long lead times accepted.",
+    "profile": "value",
+    "slaDays": 21
+  },
+  {
+    "id": "c-5",
+    "name": "Grayson HVAC Services",
+    "segment": "contractor",
+    "tier": "C",
+    "agreedDiscountPct": 2,
+    "typicalQty": 18,
+    "note": "Small jobbing account. Buys on availability more than price.",
+    "profile": "urgent",
+    "slaDays": 1
+  },
+  {
+    "id": "c-6",
+    "name": "Westport Unified Schools",
+    "segment": "institutional",
+    "tier": "B",
+    "agreedDiscountPct": 7,
+    "typicalQty": 90,
+    "note": "Public body. Requires a written quote and rarely negotiates after it.",
+    "profile": "enterprise",
+    "slaDays": 7
+  },
+  {
+    "id": "c-7",
+    "name": "Sable Creek Refining",
+    "segment": "industrial",
+    "tier": "B",
+    "agreedDiscountPct": 6,
+    "typicalQty": 300,
+    "note": "MRO spend. Downtime costs more than the part, so lead time beats price.",
+    "profile": "repeat",
+    "slaDays": 5
+  }
+]

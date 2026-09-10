@@ -1,0 +1,136 @@
+[
+  {
+    "key": "sales-rep",
+    "title": "Sales rep",
+    "side": "sell",
+    "level": "rep",
+    "modules": [
+      "sell",
+      "products",
+      "history"
+    ],
+    "bulk": false,
+    "guardrails": false,
+    "blurb": "Quotes one customer at a time. Sees the price to charge and why."
+  },
+  {
+    "key": "seller",
+    "title": "Sales manager",
+    "side": "sell",
+    "level": "manager",
+    "modules": [
+      "sell",
+      "insights",
+      "stores",
+      "products",
+      "history"
+    ],
+    "bulk": true,
+    "guardrails": false,
+    "blurb": "Prices, bulk repricing and the branch view."
+  },
+  {
+    "key": "sales-head",
+    "title": "Head of sales",
+    "side": "sell",
+    "level": "head",
+    "modules": [
+      "sell",
+      "insights",
+      "stores",
+      "products",
+      "history"
+    ],
+    "bulk": true,
+    "guardrails": true,
+    "blurb": "Everything sales, plus the guardrails the team prices inside."
+  },
+  {
+    "key": "purchase-manager",
+    "title": "Purchase manager",
+    "side": "buy",
+    "level": "manager",
+    "modules": [
+      "buy",
+      "suppliers",
+      "insights",
+      "products",
+      "history"
+    ],
+    "bulk": false,
+    "guardrails": false,
+    "approveLimit": 50000,
+    "approver": "Head of purchasing",
+    "blurb": "Sources one order at a time, runs RFQs; larger orders go up for approval."
+  },
+  {
+    "key": "buyer",
+    "title": "Category buyer",
+    "side": "buy",
+    "level": "manager",
+    "modules": [
+      "buy",
+      "suppliers",
+      "insights",
+      "stores",
+      "products",
+      "history"
+    ],
+    "bulk": true,
+    "guardrails": false,
+    "approveLimit": 150000,
+    "approver": "Head of purchasing",
+    "blurb": "Owns a category: orders, baskets, suppliers; the largest orders go up for approval."
+  },
+  {
+    "key": "purchase-head",
+    "title": "Head of purchasing",
+    "side": "buy",
+    "level": "head",
+    "modules": [
+      "buy",
+      "suppliers",
+      "insights",
+      "stores",
+      "products",
+      "history"
+    ],
+    "bulk": true,
+    "guardrails": true,
+    "blurb": "Everything procurement, supplier panel, approvals without limit."
+  },
+  {
+    "key": "finance",
+    "title": "Finance",
+    "side": "none",
+    "level": "exec",
+    "modules": [
+      "suppliers",
+      "insights",
+      "stores",
+      "products",
+      "history"
+    ],
+    "bulk": false,
+    "guardrails": true,
+    "blurb": "Reads the numbers and the decisions; sets the margin floor. Does not price or buy."
+  },
+  {
+    "key": "both",
+    "title": "Commercial director",
+    "side": "both",
+    "level": "exec",
+    "modules": [
+      "sell",
+      "buy",
+      "suppliers",
+      "insights",
+      "stores",
+      "products",
+      "history"
+    ],
+    "bulk": true,
+    "guardrails": true,
+    "blurb": "The full platform, both sides."
+  }
+]

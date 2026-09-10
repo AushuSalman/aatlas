@@ -1,0 +1,85 @@
+{
+  "asOf": "2026-09-01",
+  "currencies": [
+    {
+      "code": "USD",
+      "symbol": "$",
+      "name": "US dollar",
+      "locale": "en-US",
+      "perUsd": 1,
+      "dp": 2
+    },
+    {
+      "code": "GBP",
+      "symbol": "£",
+      "name": "Pound sterling",
+      "locale": "en-GB",
+      "perUsd": 0.78,
+      "dp": 2
+    },
+    {
+      "code": "EUR",
+      "symbol": "€",
+      "name": "Euro",
+      "locale": "de-DE",
+      "perUsd": 0.91,
+      "dp": 2
+    },
+    {
+      "code": "CAD",
+      "symbol": "CA$",
+      "name": "Canadian dollar",
+      "locale": "en-CA",
+      "perUsd": 1.36,
+      "dp": 2
+    },
+    {
+      "code": "AUD",
+      "symbol": "A$",
+      "name": "Australian dollar",
+      "locale": "en-AU",
+      "perUsd": 1.52,
+      "dp": 2
+    },
+    {
+      "code": "INR",
+      "symbol": "₹",
+      "name": "Indian rupee",
+      "locale": "en-IN",
+      "perUsd": 84.2,
+      "dp": 0
+    },
+    {
+      "code": "MXN",
+      "symbol": "MX$",
+      "name": "Mexican peso",
+      "locale": "es-MX",
+      "perUsd": 18.4,
+      "dp": 2
+    },
+    {
+      "code": "CNY",
+      "symbol": "CN¥",
+      "name": "Chinese yuan",
+      "locale": "zh-CN",
+      "perUsd": 7.18,
+      "dp": 2
+    },
+    {
+      "code": "VND",
+      "symbol": "₫",
+      "name": "Vietnamese dong",
+      "locale": "vi-VN",
+      "perUsd": 25100,
+      "dp": 0
+    },
+    {
+      "code": "JPY",
+      "symbol": "¥",
+      "name": "Japanese yen",
+      "locale": "ja-JP",
+      "perUsd": 148,
+      "dp": 0
+    }
+  ]
+}
