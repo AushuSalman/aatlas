@@ -1,7 +1,7 @@
 package com.aatlas.suppliers.internal;
 
+import com.aatlas.ingest.SampleDataConnected;
 import com.aatlas.suppliers.SupplierPanelSeeder;
-import com.aatlas.suppliers.SuppliersSeedRequested;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.modulith.events.ApplicationModuleListener;
@@ -10,8 +10,10 @@ import org.springframework.stereotype.Component;
 /**
  * Seeds a tenant's supplier panel when the sample data source is connected.
  *
- * <p>TODO(merge): retarget this listener at {@code com.aatlas.ingest.SampleDataConnected}
- * (published by the ingest module) and delete {@link SuppliersSeedRequested}.
+ * <p>Listens for {@code ingest}'s real event (retargeted at merge time from a local
+ * stand-in written before the {@code ingest} module existed in this worktree).
+ * {@code POST /api/v1/suppliers/seed}, which calls {@link SupplierPanelSeeder} directly,
+ * stays available to re-seed a tenant by hand.
  */
 @Component
 class SuppliersSeedListener {
@@ -25,8 +27,8 @@ class SuppliersSeedListener {
     }
 
     @ApplicationModuleListener
-    void on(SuppliersSeedRequested event) {
+    void on(SampleDataConnected event) {
         int added = seeder.seedForTenant(event.tenantId());
-        log.info("Suppliers seeded for tenant {} after SuppliersSeedRequested: {} added", event.tenantId(), added);
+        log.info("Suppliers seeded for tenant {} after SampleDataConnected: {} added", event.tenantId(), added);
     }
 }

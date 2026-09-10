@@ -4,7 +4,8 @@ import com.aatlas.common.error.ApiException;
 import com.aatlas.common.seed.Seeded;
 import com.aatlas.common.tenant.TenantContext;
 import com.aatlas.common.time.AatlasClock;
-import com.aatlas.identity.SeatRole;
+import com.aatlas.policy.Persona;
+import com.aatlas.policy.PolicyReader;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
@@ -45,6 +46,7 @@ class SuppliersService {
     private final SupplierLookupRepository lookups;
     private final ObjectMapper json;
     private final AatlasClock clock;
+    private final PolicyReader policy;
 
     SuppliersService(
             SupplierRepository suppliers,
@@ -55,7 +57,8 @@ class SuppliersService {
             SupplierPerformanceMonthRepository performance,
             SupplierLookupRepository lookups,
             ObjectMapper json,
-            AatlasClock clock) {
+            AatlasClock clock,
+            PolicyReader policy) {
         this.suppliers = suppliers;
         this.terms = terms;
         this.ratings = ratings;
@@ -65,6 +68,7 @@ class SuppliersService {
         this.lookups = lookups;
         this.json = json;
         this.clock = clock;
+        this.policy = policy;
     }
 
     // -- Reads ----------------------------------------------------------------------------------
@@ -357,27 +361,30 @@ class SuppliersService {
     }
 
     /** Buy seats (purchase manager, buyer, purchase head) and the commercial director. */
-    private static void requireBuySeatOrDirector() {
-        String role = TenantContext.current().map(TenantContext.Actor::role).orElse(null);
-        SeatRole seat = parseSeat(role);
-        if (seat.side() != SeatRole.Side.BUY && seat != SeatRole.BOTH) {
+    private void requireBuySeatOrDirector() {
+        String role = currentRole();
+        if ("both".equals(role)) {
+            return;
+        }
+        Persona persona = policy.personaFor(TenantContext.requireTenantId(), role);
+        if (persona.side() != Persona.Side.BUY) {
             throw notAllowed();
         }
     }
 
-    static void requireDirector() {
-        String role = TenantContext.current().map(TenantContext.Actor::role).orElse(null);
-        if (parseSeat(role) != SeatRole.BOTH) {
+    /** The commercial director alone - the seat whose wire value is {@code both}. */
+    void requireDirector() {
+        if (!"both".equals(currentRole())) {
             throw notAllowed();
         }
     }
 
-    private static SeatRole parseSeat(String role) {
-        try {
-            return SeatRole.from(role);
-        } catch (IllegalArgumentException e) {
+    private static String currentRole() {
+        String role = TenantContext.current().map(TenantContext.Actor::role).orElse(null);
+        if (role == null) {
             throw notAllowed();
         }
+        return role;
     }
 
     private static ApiException notAllowed() {

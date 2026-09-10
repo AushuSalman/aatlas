@@ -143,7 +143,7 @@ class SuppliersController {
                     + "exercised directly.")
     @PostMapping("/seed")
     SeedResponse seed() {
-        SuppliersService.requireDirector();
+        service.requireDirector();
         int added = seeder.seedForTenant(TenantContext.requireTenantId());
         return new SeedResponse(added);
     }

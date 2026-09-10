@@ -20,11 +20,11 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping(path = "/api/v1/reference", produces = MediaType.APPLICATION_JSON_VALUE)
 @Tag(name = "Reference", description = "Data identical for every tenant. No token required.")
-class ReferenceController {
+class LogisticsReferenceController {
 
     private final CatalogService catalog;
 
-    ReferenceController(CatalogService catalog) {
+    LogisticsReferenceController(CatalogService catalog) {
         this.catalog = catalog;
     }
 
