@@ -40,6 +40,14 @@
 		{
 			"key": "resetToken",
 			"value": ""
+		},
+		{
+			"key": "buyManagerEmail",
+			"value": ""
+		},
+		{
+			"key": "buyManagerToken",
+			"value": ""
 		}
 	],
 	"item": [
@@ -2298,6 +2306,811 @@
 				},
 				"description": "Only a supplier added from a lookup can be removed; sup-2 (Cascade Copper Mills) is part of the seeded panel."
 			}
+		},
+		{
+			"name": "Wave 2 — Buy",
+			"description": "Landed cost, buy intel, procurement plan and its what-ifs, negotiation, and select. Runs at the end of the collection so it can reuse the tenant \"Data sources — connect the sample dataset\" already seeded (catalogue) and \"Suppliers — Seed the panel\" already seeded (supplier panel) earlier in the sequence - run the collection top to bottom the first time.",
+			"item": [
+				{
+					"name": "Buy — GET /buy/recommendation (flagship Copper Tube at Dallas)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('200 OK', () => pm.response.to.have.status(200));",
+									"const body = pm.response.json();",
+									"pm.test('landed-cost panel for the flagship item into Dallas', () => {",
+									"  pm.expect(body.itemNumber).to.eql('HRD118902');",
+									"  pm.expect(body.destinationId).to.eql('100959');",
+									"  pm.expect(body.quotes).to.have.lengthOf(8);",
+									"  pm.expect(body.lane).to.have.property('routeNote');",
+									"  pm.expect(body.marketLow).to.be.at.most(body.marketHigh);",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/buy/recommendation?item=HRD118902&destination=100959",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"buy",
+								"recommendation"
+							],
+							"query": [
+								{
+									"key": "item",
+									"value": "HRD118902"
+								},
+								{
+									"key": "destination",
+									"value": "100959"
+								}
+							]
+						},
+						"description": "buildBuyRecommendation. Runs after the top-of-collection signup and \"Data sources — connect the sample dataset\", which already seeded this tenant's catalogue; no supplier panel is needed for this endpoint alone (it reads suppliers directly)."
+					}
+				},
+				{
+					"name": "Buy — GET /buy/recommendation with a supplier override",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('200 OK', () => pm.response.to.have.status(200));",
+									"const body = pm.response.json();",
+									"pm.test('the override is evaluated, the incumbent is unchanged', () => {",
+									"  pm.expect(body.supplierId).to.eql('sup-2');",
+									"  pm.expect(body.supplierName).to.eql('Cascade Copper Mills');",
+									"  pm.expect(body.isOverride).to.be.true;",
+									"  pm.expect(body.incumbentSupplierId).to.not.eql('sup-2');",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/buy/recommendation?item=HRD118902&destination=100959&supplier=sup-2",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"buy",
+								"recommendation"
+							],
+							"query": [
+								{
+									"key": "item",
+									"value": "HRD118902"
+								},
+								{
+									"key": "destination",
+									"value": "100959"
+								},
+								{
+									"key": "supplier",
+									"value": "sup-2"
+								}
+							]
+						},
+						"description": "\"What if this line moved to Cascade Copper Mills?\" — isOverride flips to true and the incumbent fields still name whoever the line actually sits with today."
+					}
+				},
+				{
+					"name": "404 — GET /buy/recommendation, unknown item number",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('404 not_found', () => pm.response.to.have.status(404));",
+									"pm.test('problem+json code', () => pm.expect(pm.response.json().code).to.eql('not_found'));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/buy/recommendation?item=NOPE-000&destination=100959",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"buy",
+								"recommendation"
+							],
+							"query": [
+								{
+									"key": "item",
+									"value": "NOPE-000"
+								},
+								{
+									"key": "destination",
+									"value": "100959"
+								}
+							]
+						},
+						"description": ""
+					}
+				},
+				{
+					"name": "401 — GET /buy/recommendation without a token",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('401', () => pm.response.to.have.status(401));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/buy/recommendation?item=HRD118902&destination=100959",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"buy",
+								"recommendation"
+							],
+							"query": [
+								{
+									"key": "item",
+									"value": "HRD118902"
+								},
+								{
+									"key": "destination",
+									"value": "100959"
+								}
+							]
+						},
+						"description": ""
+					}
+				},
+				{
+					"name": "Buy — GET /buy/intel (flagship, South region, qty 2400)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('200 OK', () => pm.response.to.have.status(200));",
+									"const body = pm.response.json();",
+									"pm.test('effective cost per supplier, now-vs-wait and a negotiation letter', () => {",
+									"  pm.expect(body.destinationId).to.eql('100959');",
+									"  pm.expect(body.suppliers).to.have.lengthOf(8);",
+									"  pm.expect(body.incumbent.name).to.be.a('string');",
+									"  pm.expect(['now', 'wait']).to.include(body.nowVsWait.recommendation);",
+									"  pm.expect(body.negotiation.message).to.include(body.incumbent.name);",
+									"  pm.expect(body.final).to.have.property('price');",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/buy/intel?item=HRD118902&region=south&qty=2400",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"buy",
+								"intel"
+							],
+							"query": [
+								{
+									"key": "item",
+									"value": "HRD118902"
+								},
+								{
+									"key": "region",
+									"value": "south"
+								},
+								{
+									"key": "qty",
+									"value": "2400"
+								}
+							]
+						},
+						"description": "getBuyIntel. destination omitted -> lands at the region's busiest branch (Dallas #100959)."
+					}
+				},
+				{
+					"name": "400 — GET /buy/intel, missing required qty",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('400', () => pm.response.to.have.status(400));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/buy/intel?item=HRD118902&region=south",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"buy",
+								"intel"
+							],
+							"query": [
+								{
+									"key": "item",
+									"value": "HRD118902"
+								},
+								{
+									"key": "region",
+									"value": "south"
+								}
+							]
+						},
+						"description": ""
+					}
+				},
+				{
+					"name": "Buy — GET /buy/compare (the supplier panel, ranked)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('200 OK', () => pm.response.to.have.status(200));",
+									"const rows = pm.response.json();",
+									"pm.test('eight rows, sorted by effective cost ascending, one recommended', () => {",
+									"  pm.expect(rows).to.have.lengthOf(8);",
+									"  for (let i = 1; i < rows.length; i++) pm.expect(rows[i - 1].effective).to.be.at.most(rows[i].effective);",
+									"  pm.expect(rows.filter((r) => r.recommended)).to.have.lengthOf(1);",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/buy/compare?item=HRD118902&region=south&qty=2400",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"buy",
+								"compare"
+							],
+							"query": [
+								{
+									"key": "item",
+									"value": "HRD118902"
+								},
+								{
+									"key": "region",
+									"value": "south"
+								},
+								{
+									"key": "qty",
+									"value": "2400"
+								}
+							]
+						},
+						"description": "BuyIntel.suppliers alone, for the side-by-side compare tab."
+					}
+				},
+				{
+					"name": "Buy — GET /buy/plan, urgent priority — the flagship story",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('200 OK', () => pm.response.to.have.status(200));",
+									"const plan = pm.response.json();",
+									"pm.test('urgent, Cascade recommended from stock, Gulf States cheapest on paper', () => {",
+									"  pm.expect(plan.urgency).to.eql('urgent');",
+									"  pm.expect(plan.recommended.suppliers[0].name).to.eql('Cascade Copper Mills');",
+									"  pm.expect(plan.recommended.suppliers[0].route).to.eql('From stock, 1 day');",
+									"  pm.expect(plan.options[0].key).to.eql('cost');",
+									"  pm.expect(plan.options[0].suppliers[0].name).to.eql('Gulf States Polymer');",
+									"  pm.expect(plan.options[0].unitCost).to.be.below(plan.recommended.unitCost);",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/buy/plan?item=HRD118902&region=south&qty=2400&requiredDays=2&priority=balanced",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"buy",
+								"plan"
+							],
+							"query": [
+								{
+									"key": "item",
+									"value": "HRD118902"
+								},
+								{
+									"key": "region",
+									"value": "south"
+								},
+								{
+									"key": "qty",
+									"value": "2400"
+								},
+								{
+									"key": "requiredDays",
+									"value": "2"
+								},
+								{
+									"key": "priority",
+									"value": "balanced"
+								}
+							]
+						},
+						"description": "The brief's flagship case: urgent (2-day) priority recommends Cascade Copper Mills from stock, even though Gulf States Polymer is the cheapest quote on paper."
+					}
+				},
+				{
+					"name": "Buy — GET /buy/plan, not urgent (30 days) — notInAHurry appears",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('200 OK', () => pm.response.to.have.status(200));",
+									"const plan = pm.response.json();",
+									"pm.test('a 30-day window surfaces the calm, cheap option', () => {",
+									"  pm.expect(plan.urgency).to.eql('flexible');",
+									"  pm.expect(plan.notInAHurry).to.not.be.null;",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/buy/plan?item=HRD118902&region=south&qty=2400&requiredDays=30&priority=cost",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"buy",
+								"plan"
+							],
+							"query": [
+								{
+									"key": "item",
+									"value": "HRD118902"
+								},
+								{
+									"key": "region",
+									"value": "south"
+								},
+								{
+									"key": "qty",
+									"value": "2400"
+								},
+								{
+									"key": "requiredDays",
+									"value": "30"
+								},
+								{
+									"key": "priority",
+									"value": "cost"
+								}
+							]
+						},
+						"description": ""
+					}
+				},
+				{
+					"name": "Buy — POST /buy/what-if (supplier raises price 3%)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('200 OK', () => pm.response.to.have.status(200));",
+									"const body = pm.response.json();",
+									"pm.test('rows explain the new unit cost and whether the recommendation still holds', () => {",
+									"  pm.expect(body.rows.map((r) => r.label)).to.include('Still the recommendation?');",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/buy/what-if",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"buy",
+								"what-if"
+							]
+						},
+						"description": "buyWhatIf against the same plan as the flagship story above.",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"item\": \"HRD118902\",\n  \"region\": \"south\",\n  \"qty\": 2400,\n  \"requiredDays\": 2,\n  \"priority\": \"balanced\",\n  \"scenario\": \"supplier-up-3\"\n}"
+						}
+					}
+				},
+				{
+					"name": "Buy — GET /buy/negotiation",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('200 OK', () => pm.response.to.have.status(200));",
+									"const body = pm.response.json();",
+									"pm.test('a drafted letter with the levers behind it', () => {",
+									"  pm.expect(body.message).to.include('Subject:');",
+									"  pm.expect(body.levers.length).to.be.at.least(1);",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/buy/negotiation?item=HRD118902&region=south&qty=2400",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"buy",
+								"negotiation"
+							],
+							"query": [
+								{
+									"key": "item",
+									"value": "HRD118902"
+								},
+								{
+									"key": "region",
+									"value": "south"
+								},
+								{
+									"key": "qty",
+									"value": "2400"
+								}
+							]
+						},
+						"description": ""
+					}
+				},
+				{
+					"name": "Buy — Signup a purchase manager seat (for approval limit checks)",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.collectionVariables.set('buyManagerEmail', 'buy-manager-' + Date.now() + '@kestrelsupply.com');"
+								]
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('201 Created', () => pm.response.to.have.status(201));",
+									"pm.collectionVariables.set('buyManagerToken', pm.response.json().accessToken);"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/auth/signup",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"auth",
+								"signup"
+							]
+						},
+						"description": "A fresh tenant, not the one the collection has been building on - approveLimit is what matters here, not the catalogue. purchase-manager's approveLimit is 50,000 (seed/personas.json).",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"fullName\": \"Marcus Reyes\",\n  \"email\": \"{{buyManagerEmail}}\",\n  \"password\": \"{{password}}\",\n  \"company\": \"Kestrel Supply Co.\",\n  \"country\": \"US\",\n  \"role\": \"purchase-manager\"\n}"
+						}
+					}
+				},
+				{
+					"name": "Buy — POST /buy/select, under the approval limit (ok: true)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('200 OK', () => pm.response.to.have.status(200));",
+									"pm.test('goes straight through', () => {",
+									"  const body = pm.response.json();",
+									"  pm.expect(body.ok).to.be.true;",
+									"  pm.expect(body.pending).to.not.be.true;",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{buyManagerToken}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/buy/select",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"buy",
+								"select"
+							]
+						},
+						"description": "",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"itemNumber\": \"HRD118902\",\n  \"regionKey\": \"south\",\n  \"destinationId\": \"100959\",\n  \"optionKey\": \"cost\",\n  \"orderValue\": 10000\n}"
+						}
+					}
+				},
+				{
+					"name": "Buy — POST /buy/select, over the approval limit (pending)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('200 OK', () => pm.response.to.have.status(200));",
+									"pm.test('sent up for approval', () => {",
+									"  const body = pm.response.json();",
+									"  pm.expect(body.ok).to.be.false;",
+									"  pm.expect(body.pending).to.be.true;",
+									"  pm.expect(body.limit).to.eql(50000);",
+									"  pm.expect(body.approver).to.eql('Head of purchasing');",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{buyManagerToken}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/buy/select",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"buy",
+								"select"
+							]
+						},
+						"description": "purchase-manager's limit is 50,000; this order (the flagship plan's recommended total) is well over it.",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"itemNumber\": \"HRD118902\",\n  \"regionKey\": \"south\",\n  \"destinationId\": \"100959\",\n  \"optionKey\": \"speed\",\n  \"orderValue\": 261648\n}"
+						}
+					}
+				},
+				{
+					"name": "400 — POST /buy/select, missing required field",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('400', () => pm.response.to.have.status(400));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/buy/select",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"buy",
+								"select"
+							]
+						},
+						"description": "",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"itemNumber\": \"HRD118902\",\n  \"regionKey\": \"south\",\n  \"destinationId\": \"100959\"\n}"
+						}
+					}
+				}
+			]
 		}
 	]
 }
