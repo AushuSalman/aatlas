@@ -169,3 +169,98 @@ Ports `intel/suppliers.ts`, `intel/terms.ts` and `intel/buy2.ts`'s `supplierRisk
 **Test-only clock override in `SuppliersIT`.** `application-test.yml` freezes `AatlasClock` at 2026-09-01 for golden-file determinism; `TokenService` stamps a JWT's `iat`/`exp` from that clock, but the `JwtDecoder` bean validates them against the real system clock. In this sandbox the real clock has since passed 2026-09-01 plus the 15-minute access-token TTL, so any token minted under the frozen test clock decodes as already expired — reproducible from a clean checkout with `-Dit.test=SignupIT` alone (no suppliers code involved): `SignupIT.tokenCarriesTenantAndRole` fails the same way, as does `SignupIT.duplicateEmailIsRejected` on an unrelated pre-existing issue. Neither is caused by this module, and neither is touched by it; `SuppliersIT` instead overrides `aatlas.clock.fixed=false` for its own Spring context via `@TestPropertySource`, which is why its own token-authenticated calls work in the same run. Fixed centrally since: `wave1-auth`'s `JwtConfig.jwtDecoder` now binds `JwtTimestampValidator` to `AatlasClock` (see "Wave 1: `identity`..." above), so `SuppliersIT`'s own `@TestPropertySource` override is redundant after this merge but harmless.
 
 **Order-mechanics columns (`moq`, `order_multiple`, `quality_ppm`, `response_hours`) are populated but not on the wire.** The seeded panel gets them from `seed/suppliers.json`'s `record`; a supplier added from a lookup gets simple deterministic defaults (`moq`/`order_multiple` = 1, `quality_ppm` derived from the defect rate, `response_hours` seeded). None of the four are part of `CommercialTerms` in `intel/terms.ts`, so `GET /{id}/terms` does not return them — they are there for whichever module builds the Buy-side compare next.
+
+---
+
+## Wave 2: `sell` (no `V9` migration)
+
+Ports `mock/pricing.ts`, `intel/sell.ts`, `intel/sell2.ts`, `intel/score.ts`,
+`platform/forecast.ts`, `platform/elasticity.ts` and `platform/deal.ts`'s deal maths to
+`com.aatlas.sell`. See the README's "Sell (wave 2, `sell`)" section for the endpoint table
+and the stand-ins in one place; this entry is the reasoning behind the choices that were not
+obvious.
+
+**No new table, and `V9` is unused.** WAVE2-BRIEF reserves migration `V9` for this track "if
+genuinely needed." It was not: every engine here is a pure function of an item, a store and
+`Seeded`, over rows `catalog`'s `V7` migration already owns. The one thing this track writes
+— a decision and a deal, from `POST /sell/apply`/`POST /sell/quotes` — is explicitly named
+in API-BRIEF as belonging to the `decisions` module's real tables (`decision`, `deal`), not
+this one's, so standing up a `sell`-owned table for them would be building a second, wrong
+copy of another track's schema rather than a stand-in for it. `DecisionRecorder`'s
+implementation is in-memory instead (see below) for exactly that reason: a demo-only table
+under a name like `sell_decision_log` would look, from the merge side, like this track
+claiming ownership of data `decisions` is about to define its own schema for.
+
+**Two of WAVE2-BRIEF's cross-track claims did not hold, and the fix is the standard one.**
+The brief says to depend on `catalog`'s "product/store/customer rows (read-only, its public
+API)" and on a policy-module guardrails reader that "already exists and is real, not a
+stand-in." Neither is true of the code as merged onto `salman`: `catalog`'s package root has
+only `CatalogSeeding` (a write seam for `ingest`); `policy`'s has `PolicyReader` (seat
+personas) and `GuardrailsChanged` (an event fired on save/reset, not a query), with
+`GuardrailsService`/`GuardrailsView`/`GuardrailsEntity` all package-private in
+`policy.internal`. Importing either would fail `ModularityTests`. Rather than block on it or
+guess at a shape neither module has committed to, `CatalogGateway` and `GuardrailsGateway`
+(`sell.internal.catalog`, `sell.internal.policy`) read the same tables those modules' own
+services read, directly over `JdbcTemplate`, tenant-scoped exactly like
+`ReferenceDataRepository` does — real rows, not reimplemented logic, with a `TODO(merge)`
+on each naming the public reader it should retarget to once one exists. This is the same
+"stand-in now, retarget at merge" rule the brief gives for the genuine cross-track gaps
+(`BuySupplierGateway`, `DecisionRecorder`), applied to two cases the brief itself did not
+expect to need it.
+
+**`OpportunityScores` sits at the package root, not `internal`.** WAVE2-BRIEF names `sell` as `score.ts`'s canonical owner, with Products and Overview expected to depend on the same score this module shows as a chip. `com.aatlas.sell.OpportunityScores` and `OpportunityScoreView` are public for exactly that reason — the one type in this module genuinely meant for another module to call directly once it exists in this tree, rather than through a stand-in.
+
+**`ArchitectureRulesTest.noFloatingPointMoney` reaches further than a first read suggests.**
+The rule text says "money is BigDecimal," which reads as a constraint on money fields; the
+rule ArchUnit actually enforces is "no class under `com.aatlas.sell`/`buy`/`engine` may
+depend on `java.lang.Double`" — full stop, checked at the bytecode level. That catches more
+than a `Double`-typed field: `String.format("%.1f", someDouble)` autoboxes the primitive
+into the varargs `Object[]`, which is a real `Double.valueOf` call in the generated bytecode
+and fails the rule exactly like a field would. `Fmt.fixed`/`Fmt.jsNum`
+(`sell.internal.engine`) exist because of this — they reimplement `.toFixed(n)` and bare
+`${n}` template interpolation with `java.text.DecimalFormat`, whose `format(double)` overload
+takes the primitive and never boxes, rather than with `String.format`. Every engine still
+computes in primitive `double` throughout (matching the JavaScript engine's arithmetic
+exactly, per `golden/README.md`'s rounding notes); only the wire DTOs are `BigDecimal`,
+converted at the boundary (`Wire.bd`/`bdOrNull`). A "number | null" TypeScript field
+(a competitor price when there are none scraped, `GuardrailCheck.limit` when nothing bound)
+is `BigDecimal` for this reason too, not `Double` — `BigDecimal` is a reference type and
+therefore nullable on its own, so there is no need for a boxed wrapper anywhere in the
+package.
+
+**Golden tests are pure unit tests with an in-memory catalogue, not `@SpringBootTest` IT.**
+`SupplierEngineGoldenTest` set this pattern in wave 1 — call the engine's methods directly
+with literal inputs, no Spring context, no database — and it carries over cleanly once an
+engine needs a small `CatalogGateway` (products, stores, regions, commodities, customers)
+rather than only primitives. `FixtureCatalog`/`FixtureSuppliers`
+(`sell.internal.support`, test sources) hold the frontend's own fixture data — the 15
+products, 9 US branches, 4 regions, 7 commodities, 8 customers, 8 suppliers — in memory,
+including `tenantsSellingItem`'s hash rule reimplemented inline (not a `catalog.internal`
+import even from a test). The five `*GoldenTest` classes together run in a few seconds with
+no Docker; `SellIT` (real Postgres, real JWT, `MockMvc`) covers the wiring — that reading
+through `CatalogGateway`/`GuardrailsGateway` against the actual seeded tables produces the
+same shapes — separately.
+
+**`allocateInventory`'s golden rows are knowingly not reproduced.** `GET /sell/atp` needs a
+supplier panel and an incumbent; the real `allocateInventory` gets both from
+`getBuyIntel(...).incumbent`/`.suppliers`, which is landed cost — ex-works quote, freight,
+duty on the chosen lane, commercial terms — computed by `buildBuyRecommendation` in
+`platform/api.ts`. That is Track Buy's whole engine, not a function this track's file list
+names. `AtpEngine` picks the incumbent the same deterministic way
+(`currentSupplierFor(item)`: rank the panel by price index, seed-pick a half) and
+approximates "next-best" lots by on-time percent instead of the full effective-cost sort;
+the order-allocation logic on top (SLA priority, reliable stock to tight SLAs, the reserve
+from the least reliable lot) is a faithful, line-for-line port. `Sell2EngineGoldenTest`
+counts `allocateInventory`'s 84 golden rows (so a change to the golden file's row count is
+still caught) but does not assert their contents, and says why in its own doc comment.
+
+**`platform/deal.ts` is ported even though WAVE2-BRIEF's file list for this track does not
+name it.** `POST /sell/quote` — explicitly this track's endpoint — needs `quoteForDeal`
+(volume breaks compounding with the customer's standing discount, floored at the margin
+floor) to turn an item recommendation into a deal price for a quantity and a customer; there
+is no other reasonable owner for it once `/sell/quote` exists. `DealEngine.quoteForDeal`
+takes the four fields it actually reads (`optimalPrice`, `aggressivePrice`, `marginFloor`,
+`recommendedTier`) rather than a whole `SellRecommendation`-shaped DTO, because the frontend
+quotes against the **guardrail-adjusted** optimal price — `{...rec.optimal, price:
+intel.recommended}` in `sell-quote.tsx` — not the raw engine number, and patching one field
+of an immutable Java record is more ceremony than the alternative for four values.
