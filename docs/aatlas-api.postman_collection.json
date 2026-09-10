@@ -1,7 +1,7 @@
 {
   "info": {
-    "name": "Aatlas API — Auth",
-    "description": "Signup for the Aatlas platform. Local defaults target http://localhost:8080.\n\nThe happy-path request stores accessToken, refreshToken and tenant/user ids into collection variables, so later requests can use {{accessToken}} without copying anything by hand.\n\nEach email is randomised at send time, because the address is globally unique — a fixed one would 409 on the second run.",
+    "name": "Aatlas API — Auth, tenant, policy and guardrails",
+    "description": "Signup, sign-in, tenant/settings, roles and pricing guardrails for the Aatlas platform. Local defaults target http://localhost:8080.\n\nThe happy-path requests store tokens, ids and a spent refresh token into collection variables, so later requests can use {{accessToken}} etc. without copying anything by hand. Run the folder top to bottom the first time — several requests depend on ones above them having run first.\n\nEach email is randomised at send time, because the address is globally unique — a fixed one would 409 on the second run.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -9,8 +9,11 @@
     { "key": "password", "value": "Zephyr!42Bridge" },
     { "key": "accessToken", "value": "" },
     { "key": "refreshToken", "value": "" },
+    { "key": "spentRefreshToken", "value": "" },
     { "key": "userId", "value": "" },
-    { "key": "takenEmail", "value": "" }
+    { "key": "takenEmail", "value": "" },
+    { "key": "nonGuardrailToken", "value": "" },
+    { "key": "resetToken", "value": "" }
   ],
   "item": [
     {
@@ -104,7 +107,10 @@
               "pm.test('a blank company falls back rather than failing the form', () =>",
               "  pm.expect(body.session.company).to.eql('Northwind Industrial'));",
               "pm.test('the title comes from the seat, never from input', () =>",
-              "  pm.expect(body.session.user.title).to.eql('Purchase manager'));"
+              "  pm.expect(body.session.user.title).to.eql('Purchase manager'));",
+              "",
+              "// purchase-manager's persona has guardrails: false — reused below for the 403 checks.",
+              "pm.collectionVariables.set('nonGuardrailToken', body.accessToken);"
             ]
           }
         }
@@ -247,6 +253,581 @@
           "raw": "{\n  \"fullName\": \"\",\n  \"email\": \"not-an-email\",\n  \"password\": \"short\",\n  \"company\": \"Kestrel Supply Co.\",\n  \"country\": \"US\",\n  \"role\": \"both\"\n}"
         },
         "description": "Three violations at once. The response body carries a `fields` map keyed by field name."
+      }
+    },
+    {
+      "name": "Login — happy path",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('200 OK', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.test('same shape as signup', () => {",
+              "  pm.expect(body.accessToken).to.be.a('string').and.not.empty;",
+              "  pm.expect(body.session.isNewAccount).to.be.false;",
+              "});",
+              "pm.collectionVariables.set('accessToken', body.accessToken);",
+              "pm.collectionVariables.set('refreshToken', body.refreshToken);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": { "raw": "{{baseUrl}}/api/v1/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "login"] },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{takenEmail}}\",\n  \"password\": \"{{password}}\"\n}"
+        },
+        "description": "Run the first Signup request before this one — it reuses the address it registered. Replaces the tokens from signup with fresh ones."
+      }
+    },
+    {
+      "name": "401 — wrong password",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('401 Unauthorized', () => pm.response.to.have.status(401));",
+              "pm.test('one message for a wrong password and an unknown email', () =>",
+              "  pm.expect(pm.response.json().code).to.eql('invalid_credentials'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": { "raw": "{{baseUrl}}/api/v1/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "login"] },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{takenEmail}}\",\n  \"password\": \"NotTheRightOne1\"\n}"
+        }
+      }
+    },
+    {
+      "name": "GET /me",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('200 OK', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.test('user, tenant and persona in one round trip', () => {",
+              "  pm.expect(body.user.email).to.eql(pm.collectionVariables.get('takenEmail'));",
+              "  pm.expect(body.persona.key).to.eql('both');",
+              "  pm.expect(body.persona.guardrails).to.be.true;",
+              "});",
+              "pm.test('a fresh tenant has no data source', () => pm.expect(body.dataSource == null).to.be.true);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": { "raw": "{{baseUrl}}/api/v1/me", "host": ["{{baseUrl}}"], "path": ["api", "v1", "me"] }
+      }
+    },
+    {
+      "name": "401 — /me without a token",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": ["pm.test('401 Unauthorized', () => pm.response.to.have.status(401));"]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": { "raw": "{{baseUrl}}/api/v1/me", "host": ["{{baseUrl}}"], "path": ["api", "v1", "me"] }
+      }
+    },
+    {
+      "name": "GET /roles",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('200 OK', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.test('the eight personas, seat-picker order', () => {",
+              "  pm.expect(body).to.have.lengthOf(8);",
+              "  pm.expect(body.map(p => p.key)).to.eql(['sales-rep','seller','sales-head','purchase-manager','buyer','purchase-head','finance','both']);",
+              "});",
+              "pm.test('approval limits match the seed', () => {",
+              "  pm.expect(body.find(p => p.key === 'purchase-manager').approveLimit).to.eql(50000);",
+              "  pm.expect(body.find(p => p.key === 'purchase-head').approveLimit).to.be.undefined;",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": { "raw": "{{baseUrl}}/api/v1/roles", "host": ["{{baseUrl}}"], "path": ["api", "v1", "roles"] }
+      }
+    },
+    {
+      "name": "GET /guardrails (platform defaults)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('200 OK', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.test('a fresh tenant is on the seed defaults', () => {",
+              "  pm.expect(body.minMarginPct).to.eql(25);",
+              "  pm.expect(body.maxDiscountPct).to.eql(15);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": { "raw": "{{baseUrl}}/api/v1/guardrails", "host": ["{{baseUrl}}"], "path": ["api", "v1", "guardrails"] }
+      }
+    },
+    {
+      "name": "PUT /guardrails (director can save)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('200 OK', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.test('saved and stamped', () => {",
+              "  pm.expect(body.minMarginPct).to.eql(30);",
+              "  pm.expect(body.updatedBy).to.eql(pm.collectionVariables.get('userId'));",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": { "raw": "{{baseUrl}}/api/v1/guardrails", "host": ["{{baseUrl}}"], "path": ["api", "v1", "guardrails"] },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"minMarginPct\": 30,\n  \"maxDiscountPct\": 12,\n  \"maxSpeedPremiumPct\": 6,\n  \"maxMarketDeviationPct\": 9\n}"
+        },
+        "description": "The happy-path signup used role 'both' (the commercial director), whose persona has guardrails: true."
+      }
+    },
+    {
+      "name": "403 — PUT /guardrails without the seat for it",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('403 Forbidden', () => pm.response.to.have.status(403));",
+              "pm.test('not_allowed', () => pm.expect(pm.response.json().code).to.eql('not_allowed'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{nonGuardrailToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": { "raw": "{{baseUrl}}/api/v1/guardrails", "host": ["{{baseUrl}}"], "path": ["api", "v1", "guardrails"] },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"minMarginPct\": 30,\n  \"maxDiscountPct\": 12,\n  \"maxSpeedPremiumPct\": 6,\n  \"maxMarketDeviationPct\": 9\n}"
+        },
+        "description": "purchase-manager's persona has guardrails: false. Run the second Signup request first so nonGuardrailToken is set."
+      }
+    },
+    {
+      "name": "POST /guardrails/reset",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('200 OK', () => pm.response.to.have.status(200));",
+              "pm.test('back to the seed defaults', () => pm.expect(pm.response.json().minMarginPct).to.eql(25));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": { "raw": "{{baseUrl}}/api/v1/guardrails/reset", "host": ["{{baseUrl}}"], "path": ["api", "v1", "guardrails", "reset"] }
+      }
+    },
+    {
+      "name": "GET /guardrails/history",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('200 OK', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.test('newest first: the reset, then the save', () => {",
+              "  pm.expect(body.items[0].action).to.eql('reset');",
+              "  pm.expect(body.items[1].action).to.eql('set');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/guardrails/history?limit=10",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "guardrails", "history"],
+          "query": [{ "key": "limit", "value": "10" }]
+        }
+      }
+    },
+    {
+      "name": "GET /tenant",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('200 OK', () => pm.response.to.have.status(200));",
+              "pm.test('the profile the header shows', () =>",
+              "  pm.expect(pm.response.json().name).to.eql('Kestrel Supply Co.'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": { "raw": "{{baseUrl}}/api/v1/tenant", "host": ["{{baseUrl}}"], "path": ["api", "v1", "tenant"] }
+      }
+    },
+    {
+      "name": "PATCH /tenant (director can rename)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('200 OK', () => pm.response.to.have.status(200));",
+              "pm.test('renamed', () => pm.expect(pm.response.json().name).to.eql('Kestrel Supply Renamed'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": { "raw": "{{baseUrl}}/api/v1/tenant", "host": ["{{baseUrl}}"], "path": ["api", "v1", "tenant"] },
+        "body": { "mode": "raw", "raw": "{\n  \"name\": \"Kestrel Supply Renamed\"\n}" }
+      }
+    },
+    {
+      "name": "403 — PATCH /tenant, not a head or the director",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('403 Forbidden', () => pm.response.to.have.status(403));",
+              "pm.test('not_allowed', () => pm.expect(pm.response.json().code).to.eql('not_allowed'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{nonGuardrailToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": { "raw": "{{baseUrl}}/api/v1/tenant", "host": ["{{baseUrl}}"], "path": ["api", "v1", "tenant"] },
+        "body": { "mode": "raw", "raw": "{\n  \"name\": \"Should Not Stick\"\n}" },
+        "description": "purchase-manager is a manager, not a head and not the director."
+      }
+    },
+    {
+      "name": "GET /tenant/settings",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('200 OK', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.test('country, currency and the region nouns', () => {",
+              "  pm.expect(body.country).to.eql('US');",
+              "  pm.expect(body.subdivisionNoun).to.eql('State');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": { "raw": "{{baseUrl}}/api/v1/tenant/settings", "host": ["{{baseUrl}}"], "path": ["api", "v1", "tenant", "settings"] }
+      }
+    },
+    {
+      "name": "PUT /tenant/settings (currency, not just USD/GBP)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('200 OK', () => pm.response.to.have.status(200));",
+              "pm.test('country unchanged, currency relaxed beyond USD/GBP', () => {",
+              "  pm.expect(pm.response.json().country).to.eql('US');",
+              "  pm.expect(pm.response.json().currency).to.eql('INR');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": { "raw": "{{baseUrl}}/api/v1/tenant/settings", "host": ["{{baseUrl}}"], "path": ["api", "v1", "tenant", "settings"] },
+        "body": { "mode": "raw", "raw": "{\n  \"currency\": \"INR\"\n}" }
+      }
+    },
+    {
+      "name": "400 — PUT /tenant/settings, unsupported currency",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('400 Bad Request', () => pm.response.to.have.status(400));",
+              "pm.test('validation_failed, names the field', () => {",
+              "  const body = pm.response.json();",
+              "  pm.expect(body.code).to.eql('validation_failed');",
+              "  pm.expect(body.fields.currency).to.be.a('string');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": { "raw": "{{baseUrl}}/api/v1/tenant/settings", "host": ["{{baseUrl}}"], "path": ["api", "v1", "tenant", "settings"] },
+        "body": { "mode": "raw", "raw": "{\n  \"currency\": \"XYZ\"\n}" }
+      }
+    },
+    {
+      "name": "GET /reference/countries (public)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('200 OK, no token needed', () => pm.response.to.have.status(200));",
+              "pm.test('carries an ETag', () => pm.expect(pm.response.headers.get('ETag')).to.be.a('string'));",
+              "pm.test('US and UK, seed/countries.json verbatim', () => {",
+              "  const codes = pm.response.json().map(c => c.code);",
+              "  pm.expect(codes).to.eql(['US', 'UK']);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": { "raw": "{{baseUrl}}/api/v1/reference/countries", "host": ["{{baseUrl}}"], "path": ["api", "v1", "reference", "countries"] }
+      }
+    },
+    {
+      "name": "GET /reference/currencies (public)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('200 OK, no token needed', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.test('the ten seeded codes, in the seed\\'s order', () => {",
+              "  pm.expect(body.currencies.map(c => c.code)).to.eql(",
+              "    ['USD','GBP','EUR','CAD','AUD','INR','MXN','CNY','VND','JPY']);",
+              "});",
+              "pm.test('USD is the base', () => pm.expect(body.currencies[0].perUsd).to.eql(1));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": { "raw": "{{baseUrl}}/api/v1/reference/currencies", "host": ["{{baseUrl}}"], "path": ["api", "v1", "reference", "currencies"] }
+      }
+    },
+    {
+      "name": "POST /auth/refresh (rotates)",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": ["pm.collectionVariables.set('spentRefreshToken', pm.collectionVariables.get('refreshToken'));"]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('200 OK', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.test('a new pair, different from the one presented', () =>",
+              "  pm.expect(body.refreshToken).to.not.eql(pm.collectionVariables.get('spentRefreshToken')));",
+              "pm.collectionVariables.set('accessToken', body.accessToken);",
+              "pm.collectionVariables.set('refreshToken', body.refreshToken);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": { "raw": "{{baseUrl}}/api/v1/auth/refresh", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "refresh"] },
+        "body": { "mode": "raw", "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}" }
+      }
+    },
+    {
+      "name": "401 — refresh token reused revokes the family",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('401 Unauthorized', () => pm.response.to.have.status(401));",
+              "pm.test('refresh_reused', () => pm.expect(pm.response.json().code).to.eql('refresh_reused'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": { "raw": "{{baseUrl}}/api/v1/auth/refresh", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "refresh"] },
+        "body": { "mode": "raw", "raw": "{\n  \"refreshToken\": \"{{spentRefreshToken}}\"\n}" },
+        "description": "Run 'POST /auth/refresh (rotates)' first — this presents the token it spent, which the current live token is a descendant of and also gets revoked."
+      }
+    },
+    {
+      "name": "POST /auth/password/forgot",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('202 Accepted, whether or not the address has an account', () =>",
+              "  pm.response.to.have.status(202));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": { "raw": "{{baseUrl}}/api/v1/auth/password/forgot", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "password", "forgot"] },
+        "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{takenEmail}}\"\n}" },
+        "description": "LogMailer writes the reset token to the server console rather than sending mail. Copy it from there into {{resetToken}} to try 'POST /auth/password/reset' by hand."
+      }
+    },
+    {
+      "name": "400 — password/reset with a token that was never issued",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('400 Bad Request', () => pm.response.to.have.status(400));",
+              "pm.test('invalid_reset_token', () => pm.expect(pm.response.json().code).to.eql('invalid_reset_token'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": { "raw": "{{baseUrl}}/api/v1/auth/password/reset", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "password", "reset"] },
+        "body": { "mode": "raw", "raw": "{\n  \"token\": \"{{resetToken}}\",\n  \"password\": \"NewZephyr!99Bridge\"\n}" },
+        "description": "Set {{resetToken}} from the LogMailer output after running the forgot request to exercise the happy path instead."
+      }
+    },
+    {
+      "name": "204 — logout is idempotent",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": ["pm.test('204 No Content', () => pm.response.to.have.status(204));"]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": { "raw": "{{baseUrl}}/api/v1/auth/logout", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "logout"] },
+        "body": { "mode": "raw", "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}" },
+        "description": "204 the first time and 204 again if you send it twice — sign-out does not distinguish a live token from one already gone."
       }
     },
     {
