@@ -152,17 +152,60 @@ src/main/java/com/aatlas/
 
 ## Schema
 
-Flyway owns the schema; Hibernate only validates against it (`ddl-auto: validate`). Three migrations exist, all infrastructure:
+Flyway owns the schema; Hibernate only validates against it (`ddl-auto: validate`). On this branch:
 
 | | |
 |---|---|
 | `V1__foundations.sql` | Extensions, `app.uuid_generate_v7()`, `app.current_tenant()`, `app.touch_updated_at()`, `app.enable_tenant_rls()`, ShedLock |
 | `V2__spring_batch.sql` | Batch metadata, verbatim from spring-batch-core |
 | `V3__event_publication.sql` | The outbox, verbatim from spring-modulith-events-jdbc |
+| `V4__identity.sql` | Tenants, users, refresh tokens (identity module) |
+| `V7__catalog_and_data_sources.sql` | Regions/subdivisions, the logistics rate card, commodities (reference — not tenant-scoped); stores, products, product_stores, customers (catalogue — tenant-scoped); data_sources (catalog + ingest modules) |
 
-Business tables arrive with the modules that own them, so a table and the code reading it are reviewed together.
+`V5`, `V6` and `V8` are reserved for other wave-1 builders and do not exist on this branch; nothing here references their tables. Business tables arrive with the modules that own them, so a table and the code reading it are reviewed together.
 
 **Conventions** every business table follows: `id uuid` defaulted from `app.uuid_generate_v7()` (time-ordered, so inserts stay clustered instead of scattering a 24-month import across the whole index), `tenant_id uuid not null` as the first column of every composite index, `created_at` / `updated_at` / `version`, money as `numeric(14,4)` in USD with the currency beside it, and `jsonb` only for payloads rendered verbatim — anything filtered or sorted on is a real column.
+
+---
+
+## Catalog and ingest (blueprint groups E sample-data path, F)
+
+`catalog` owns the tenant's master data — stores, products, product_stores, customers — plus
+country-wide reference data (regions/subdivisions, the logistics rate card, commodity
+trend), loaded idempotently at startup from `seed/*.json`. `ingest` owns onboarding: what a
+tenant has connected, and copying the seed catalogue into a tenant when it connects the
+sample dataset. The dependency runs one way — `ingest` calls `catalog`'s public
+`CatalogSeeding` interface; `catalog` knows nothing about `ingest`.
+
+**Data sources** (`ingest`, `/api/v1/data-sources`)
+
+| Method | Path | Notes |
+|---|---|---|
+| GET | `/api/v1/data-sources` | The tenant's sources, newest first. Empty routes the client to onboarding. |
+| POST | `/api/v1/data-sources` | `{"kind":"sample"}` seeds the catalogue for the tenant's country and records the source (201). Calling it again is `409 already_connected` with the existing source's id — a partial unique index (`data_sources_sample_uk`) makes that race-proof, not just a check-then-act. `{"kind":"erp"\|"warehouse", "label", "detail", "config", "schedule"}` records a `pending` row; no connector runs yet. `{"kind":"csv"}` is refused (`400 use_imports`) — CSV goes through `POST /api/v1/imports`. |
+| DELETE | `/api/v1/data-sources/{id}` | 204. Removes the source only; the catalogue it brought stays, so reconnecting the sample source later is a no-op re-seed, not a duplicate. |
+
+Connecting the sample dataset publishes `SampleDataConnected(tenantId, dataSourceId, occurredAt)` after the seed and the source row commit, for the engines that will react to a tenant's first history.
+
+**Catalogue reads** (`catalog`, tenant-scoped; all 404 `no_catalogue` until a source is connected)
+
+| Method | Path | Notes |
+|---|---|---|
+| GET | `/api/v1/products` | `q` matches item number or description, case-insensitive; `category`, `hasSales`, `limit`/`cursor`. |
+| GET | `/api/v1/products/{item}` | Row plus `commodityTrend` and `storeIds` (branches with history). |
+| GET | `/api/v1/products/{item}/stores` | Branches with sales history for the item. |
+| GET | `/api/v1/stores` | `region`, `limit`/`cursor`. |
+| GET | `/api/v1/stores/{id}` | By branch code (`100959`) or our uuid. |
+| GET | `/api/v1/regions` | The tenant's country's market regions — `key, label, short, states, subdivisions[], storeIds[]` — the raw shape `countryInfo().regions` carries, not the frontend's derived `MarketRegion` (which swaps `label`/`short` into `label`/`name`). |
+| GET | `/api/v1/customers` | `limit`/`cursor`. |
+| GET | `/api/v1/customers/{id}` | By account code (`c-1`) or our uuid. |
+| GET | `/api/v1/reference/logistics` | `{regions, origins}` verbatim from the reference tables. Public (`SecurityConfig.PUBLIC`), identical for every tenant, cached 12h in-process and sent with `Cache-Control: public, max-age=3600`. |
+
+`stores` on the wire keeps the frontend's `StoreItem` keys verbatim — `store_id`, `legal_name`, `msa_name`, `item_count` — because that type was ported from the original service and every screen reads it as-is; everything added (`country`, `regionKey`, `map`) is camelCase like the rest of the API.
+
+**Which branches sell an item.** `SellersRule` (`catalog.internal.seed`) is a bit-for-bit port of the frontend's `hashString` (FNV-1a, `Math.imul`-equivalent 32-bit multiply) and `tenantsSellingItem`: the item's default branch always sells it, every other branch sells it unless `(hash(itemNumber) >> branchIndex) % 3 == 0`. Reproduced rather than replaced with something tidier because it decides which (item, branch) pairs get a `product_stores` row, and a different rule would silently diverge from the frontend fixtures the demo story and later golden-file tests depend on. Verified in `SellersRuleTest` against values computed by running the actual TypeScript in Node, not re-derived in Java.
+
+**What the sample provisioner seeds**, from `seed/stores.json`, `seed/products.json`, `seed/customers.json`: every branch for the tenant's country (`tenants.country`, US or UK); every product, with `has_sales` and `default_store_code` carried straight from the seed; a `product_stores` row for every (item, branch) pair `SellersRule` selects for a sellable item, with `first_sale_at`/`last_sale_at` spanning the trailing 12 months from `AatlasClock`; every customer. Idempotent by tenant: a tenant that already has branches is left alone and the summary says so, so reconnecting after a disconnect never duplicates rows.
 
 ---
 

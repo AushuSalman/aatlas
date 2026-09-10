@@ -1,7 +1,7 @@
 {
   "info": {
-    "name": "Aatlas API — Auth",
-    "description": "Signup for the Aatlas platform. Local defaults target http://localhost:8080.\n\nThe happy-path request stores accessToken, refreshToken and tenant/user ids into collection variables, so later requests can use {{accessToken}} without copying anything by hand.\n\nEach email is randomised at send time, because the address is globally unique — a fixed one would 409 on the second run.",
+    "name": "Aatlas API — Auth, catalog and data sources",
+    "description": "Signup, then the catalog and data-source onboarding path, for the Aatlas platform. Local defaults target http://localhost:8080.\n\nThe happy-path signup stores accessToken, refreshToken and tenant/user ids into collection variables, so later requests can use {{accessToken}} without copying anything by hand. Run the collection top to bottom: the catalog items after signup deliberately run in order — a 404 no_catalogue check, then connecting the sample dataset, then the reads it unlocks, then disconnecting — against the one tenant the first signup created.\n\nEach email is randomised at send time, because the address is globally unique — a fixed one would 409 on the second run.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -10,7 +10,8 @@
     { "key": "accessToken", "value": "" },
     { "key": "refreshToken", "value": "" },
     { "key": "userId", "value": "" },
-    { "key": "takenEmail", "value": "" }
+    { "key": "takenEmail", "value": "" },
+    { "key": "dataSourceId", "value": "" }
   ],
   "item": [
     {
@@ -247,6 +248,343 @@
           "raw": "{\n  \"fullName\": \"\",\n  \"email\": \"not-an-email\",\n  \"password\": \"short\",\n  \"company\": \"Kestrel Supply Co.\",\n  \"country\": \"US\",\n  \"role\": \"both\"\n}"
         },
         "description": "Three violations at once. The response body carries a `fields` map keyed by field name."
+      }
+    },
+    {
+      "name": "Catalog — 404 no_catalogue before connecting",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('404 Not Found', () => pm.response.to.have.status(404));",
+              "pm.test('a helpful code, not just an empty list', () =>",
+              "  pm.expect(pm.response.json().code).to.eql('no_catalogue'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": { "raw": "{{baseUrl}}/api/v1/products", "host": ["{{baseUrl}}"], "path": ["api", "v1", "products"] },
+        "description": "Run right after the happy-path signup, before any data source is connected. Every catalogue read behaves the same way."
+      }
+    },
+    {
+      "name": "Data sources — list (empty before onboarding)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('200 OK, empty array', () => {",
+              "  pm.response.to.have.status(200);",
+              "  pm.expect(pm.response.json()).to.be.an('array').that.is.empty;",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": { "raw": "{{baseUrl}}/api/v1/data-sources", "host": ["{{baseUrl}}"], "path": ["api", "v1", "data-sources"] },
+        "description": "An empty list is what routes a real client to onboarding."
+      }
+    },
+    {
+      "name": "Data sources — connect the sample dataset (happy path)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('201 Created', () => pm.response.to.have.status(201));",
+              "const body = pm.response.json();",
+              "pm.test('the recorded source', () => {",
+              "  pm.expect(body.kind).to.eql('sample');",
+              "  pm.expect(body.label).to.eql('Sample dataset');",
+              "  pm.expect(body.status).to.eql('connected');",
+              "  pm.expect(body.connectedAt).to.be.a('string').and.not.empty;",
+              "});",
+              "pm.collectionVariables.set('dataSourceId', body.id);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": { "raw": "{{baseUrl}}/api/v1/data-sources", "host": ["{{baseUrl}}"], "path": ["api", "v1", "data-sources"] },
+        "body": { "mode": "raw", "raw": "{\n  \"kind\": \"sample\"\n}" },
+        "description": "Seeds stores, products, product_stores and customers for the tenant's country and records the source."
+      }
+    },
+    {
+      "name": "Data sources — connect again (409 already_connected)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('409 Conflict', () => pm.response.to.have.status(409));",
+              "pm.test('names the existing source, does not reseed', () => {",
+              "  const body = pm.response.json();",
+              "  pm.expect(body.code).to.eql('already_connected');",
+              "  pm.expect(body.dataSourceId).to.eql(pm.collectionVariables.get('dataSourceId'));",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": { "raw": "{{baseUrl}}/api/v1/data-sources", "host": ["{{baseUrl}}"], "path": ["api", "v1", "data-sources"] },
+        "body": { "mode": "raw", "raw": "{\n  \"kind\": \"sample\"\n}" },
+        "description": "A partial unique index makes this race-proof, not just a check-then-act."
+      }
+    },
+    {
+      "name": "Catalog — products search (q + hasSales)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('200 OK', () => pm.response.to.have.status(200));",
+              "pm.test('finds the copper tube by description, case-insensitive q', () => {",
+              "  const items = pm.response.json().items;",
+              "  pm.expect(items.some((p) => p.itemNumber === 'HRD118902')).to.be.true;",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/products?q=copper&hasSales=true&limit=20",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "products"],
+          "query": [
+            { "key": "q", "value": "copper" },
+            { "key": "hasSales", "value": "true" },
+            { "key": "limit", "value": "20" }
+          ]
+        },
+        "description": "The picker. q matches the item number or description, case-insensitive."
+      }
+    },
+    {
+      "name": "Catalog — one product, with commodity trend and stores",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('200 OK', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.test('carries the trend and the selling branches', () => {",
+              "  pm.expect(body.commodity).to.eql('copper');",
+              "  pm.expect(body.commodityTrend.pct90).to.eql(6.4);",
+              "  pm.expect(body.storeIds).to.include('100959');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": { "raw": "{{baseUrl}}/api/v1/products/HRD118902", "host": ["{{baseUrl}}"], "path": ["api", "v1", "products", "HRD118902"] }
+      }
+    },
+    {
+      "name": "Catalog — 404 unknown item number",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": ["pm.test('404, code not_found', () => {", "  pm.response.to.have.status(404);", "  pm.expect(pm.response.json().code).to.eql('not_found');", "});"]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": { "raw": "{{baseUrl}}/api/v1/products/NOPE-000", "host": ["{{baseUrl}}"], "path": ["api", "v1", "products", "NOPE-000"] }
+      }
+    },
+    {
+      "name": "Catalog — stores by market region",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('200 OK, only the requested region', () => {",
+              "  pm.response.to.have.status(200);",
+              "  const items = pm.response.json().items;",
+              "  pm.expect(items.some((s) => s.store_id === '100959')).to.be.true;",
+              "  pm.expect(items.every((s) => s.regionKey === 'south')).to.be.true;",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/stores?region=south",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "stores"],
+          "query": [{ "key": "region", "value": "south" }]
+        },
+        "description": "store_id, legal_name, msa_name, item_count keep the frontend StoreItem's snake_case verbatim."
+      }
+    },
+    {
+      "name": "Catalog — one store by branch code",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('200 OK', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.test('Dallas #100959', () => {",
+              "  pm.expect(body.legal_name).to.eql('Dallas Branch');",
+              "  pm.expect(body.regionKey).to.eql('south');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": { "raw": "{{baseUrl}}/api/v1/stores/100959", "host": ["{{baseUrl}}"], "path": ["api", "v1", "stores", "100959"] }
+      }
+    },
+    {
+      "name": "Catalog — market regions with subdivisions and branches",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('200 OK, four regions', () => {",
+              "  pm.response.to.have.status(200);",
+              "  pm.expect(pm.response.json()).to.have.lengthOf(4);",
+              "});",
+              "pm.test('south carries Dallas and TX', () => {",
+              "  const south = pm.response.json().find((r) => r.key === 'south');",
+              "  pm.expect(south.storeIds).to.include('100959');",
+              "  pm.expect(south.subdivisions.map((s) => s.code)).to.include('TX');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": { "raw": "{{baseUrl}}/api/v1/regions", "host": ["{{baseUrl}}"], "path": ["api", "v1", "regions"] }
+      }
+    },
+    {
+      "name": "Catalog — customers list and one account",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('200 OK', () => pm.response.to.have.status(200));",
+              "pm.test('c-1 is in the picker list', () => {",
+              "  const items = pm.response.json().items;",
+              "  pm.expect(items.some((c) => c.id === 'c-1')).to.be.true;",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/customers?limit=100",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "customers"],
+          "query": [{ "key": "limit", "value": "100" }]
+        }
+      }
+    },
+    {
+      "name": "Reference — logistics rate card (public, no token)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('200 OK with no Authorization header', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.test('regions and origins, verbatim from the reference tables', () => {",
+              "  pm.expect(body.regions).to.be.an('array').that.is.not.empty;",
+              "  pm.expect(body.origins).to.be.an('object');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": { "raw": "{{baseUrl}}/api/v1/reference/logistics", "host": ["{{baseUrl}}"], "path": ["api", "v1", "reference", "logistics"] },
+        "description": "Listed in SecurityConfig.PUBLIC: same for every tenant, cacheable, no sign-in required."
+      }
+    },
+    {
+      "name": "Data sources — disconnect",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": ["pm.test('204 No Content', () => pm.response.to.have.status(204));"]
+          }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/data-sources/{{dataSourceId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "data-sources", "{{dataSourceId}}"]
+        },
+        "description": "Removes the source only. The catalogue it brought stays — run the products search above again and it still answers."
       }
     },
     {
