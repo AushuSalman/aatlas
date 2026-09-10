@@ -1,5 +1,6 @@
 package com.aatlas.ingest;
 
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -23,4 +24,7 @@ public interface SampleDataProvisioner {
      *     tenant already has the sample dataset
      */
     DataSourceView connectSampleData(UUID tenantId, UUID connectedBy);
+
+    /** The tenant's most recently connected source, if any - what {@code /me} reports. */
+    Optional<DataSourceView> current(UUID tenantId);
 }

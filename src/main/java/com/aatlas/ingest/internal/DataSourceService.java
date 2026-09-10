@@ -65,6 +65,13 @@ class DataSourceService implements SampleDataProvisioner {
                 .toList();
     }
 
+    /** {@link SampleDataProvisioner#current}: the newest connection, for any tenant id given. */
+    @Override
+    @Transactional(readOnly = true)
+    public java.util.Optional<DataSourceView> current(UUID tenantId) {
+        return sources.findByTenantIdOrderByConnectedAtDesc(tenantId).stream().findFirst().map(DataSourceEntity::toView);
+    }
+
     /** The REST entry point: routes by kind for the signed-in tenant. */
     @Transactional
     DataSourceView connect(ConnectDataSourceRequest request) {

@@ -10,9 +10,9 @@ import java.util.UUID;
  * rather than the workspace, because a pricing tool with no transaction history has
  * nothing to recommend from.
  *
- * <p>The seam between this module and {@code integrations}, which owns the
- * {@code data_sources} table (its V7). Until that module exposes a package-root reader,
- * {@link NoDataSourceYet} answers empty for everyone.
+ * <p>The seam between this module and {@code ingest}, which owns the {@code data_sources}
+ * table (its V7). {@link IngestDataSourceLookup} is the one implementation, reached
+ * through that module's public {@code SampleDataProvisioner#current}.
  */
 interface DataSourceLookup {
 
