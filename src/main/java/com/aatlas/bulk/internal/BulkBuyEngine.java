@@ -39,7 +39,7 @@ public class BulkBuyEngine {
             int qty = (int) Math.max(1, Math.round(
                     (BuyMath.annualVolumeFor(itemNumber, regionKey, probe.incumbent().landed()) / 4) * qtyMultiplier));
             BuyLine intel = buyLines.read(itemNumber, regionKey, qty);
-            double currentTotal = PricingEngine.round2(intel.incumbent().landed() * qty);
+            double currentTotal = BulkPricingEngine.round2(intel.incumbent().landed() * qty);
             lines.add(new LineView(itemNumber, intel.name(), qty, intel.incumbent(), intel.suppliers(),
                     currentTotal));
         }
@@ -97,7 +97,7 @@ public class BulkBuyEngine {
 
         List<ProjectionView> strategies = List.of(lowestCost, fastest, lowestRisk, balanced, split);
 
-        double currentCost = PricingEngine.round2(lines.stream().mapToDouble(LineView::currentTotal).sum());
+        double currentCost = BulkPricingEngine.round2(lines.stream().mapToDouble(LineView::currentTotal).sum());
         double optimizedCost = balanced.totalCost();
         String recommendedKey =
                 "High".equals(lowestCost.risk()) || lowestCost.savings() <= balanced.savings() * 1.12
@@ -105,7 +105,7 @@ public class BulkBuyEngine {
 
         double totalUnits = lines.stream().mapToInt(LineView::qty).sum();
         return new PlanView(regionKey, BuyMath.regionLabel(regionKey), lines, totalUnits, currentCost,
-                optimizedCost, PricingEngine.round2(currentCost - optimizedCost), strategies, recommendedKey);
+                optimizedCost, BulkPricingEngine.round2(currentCost - optimizedCost), strategies, recommendedKey);
     }
 
     private static List<Choice> one(SupplierEval s) {
@@ -143,12 +143,12 @@ public class BulkBuyEngine {
         }
         double current = lines.stream().mapToDouble(LineView::currentTotal).sum();
         String risk = "split".equals(key) ? "Low" : worst;
-        double avgOtifPct = units != 0 ? PricingEngine.round1(otifW / units) : 0;
+        double avgOtifPct = units != 0 ? BulkPricingEngine.round1(otifW / units) : 0;
         double avgLeadDays = units != 0 ? Math.round(leadW / units) : 0;
         String dependency = ids.size() >= 3 ? "Low" : ids.size() == 2 ? "Medium" : "High";
-        return new ProjectionView(key, title, blurb, PricingEngine.round2(total),
-                PricingEngine.round2(current - total),
-                current > 0 ? PricingEngine.round1((current - total) / current * 100) : 0, risk, avgOtifPct,
+        return new ProjectionView(key, title, blurb, BulkPricingEngine.round2(total),
+                BulkPricingEngine.round2(current - total),
+                current > 0 ? BulkPricingEngine.round1((current - total) / current * 100) : 0, risk, avgOtifPct,
                 avgLeadDays, avgOtifPct, ids.size(), dependency, awards, benefits);
     }
 }

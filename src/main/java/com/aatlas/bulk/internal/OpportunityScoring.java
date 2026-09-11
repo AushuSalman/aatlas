@@ -1,6 +1,6 @@
 package com.aatlas.bulk.internal;
 
-import com.aatlas.bulk.internal.PricingEngine.PricingModel;
+import com.aatlas.bulk.internal.BulkPricingEngine.PricingModel;
 import com.aatlas.common.seed.Seeded;
 import org.springframework.stereotype.Component;
 
@@ -13,10 +13,10 @@ import org.springframework.stereotype.Component;
 @Component
 public class OpportunityScoring {
 
-    private final PricingEngine pricing;
+    private final BulkPricingEngine pricing;
     private final BulkSeedCatalog catalog;
 
-    public OpportunityScoring(PricingEngine pricing, BulkSeedCatalog catalog) {
+    public OpportunityScoring(BulkPricingEngine pricing, BulkSeedCatalog catalog) {
         this.pricing = pricing;
         this.catalog = catalog;
     }
@@ -42,7 +42,7 @@ public class OpportunityScoring {
         }
 
         double market = m.competitorMedian() != null ? m.competitorMedian() : m.peerQ2();
-        double priceGapPct = PricingEngine.round1(((market - m.currentPrice()) / m.currentPrice()) * 100);
+        double priceGapPct = BulkPricingEngine.round1(((market - m.currentPrice()) / m.currentPrice()) * 100);
         if (priceGapPct > 3) {
             score += 16;
         } else if (priceGapPct >= 0) {
@@ -54,7 +54,7 @@ public class OpportunityScoring {
         }
 
         String commodity = catalog.product(itemNumber).map(BulkSeedCatalog.SeedProduct::commodity).orElse("none");
-        double commodityPct90 = PricingEngine.commodityTrend(commodity).pct90();
+        double commodityPct90 = BulkPricingEngine.commodityTrend(commodity).pct90();
         if (commodityPct90 >= 2) {
             score += 6;
         } else if (commodityPct90 <= -1.5) {
@@ -62,7 +62,7 @@ public class OpportunityScoring {
         }
 
         double marginPct = m.currentPrice() == 0 ? 0
-                : PricingEngine.round2(((m.currentPrice() - m.cost()) / m.currentPrice()) * 100);
+                : BulkPricingEngine.round2(((m.currentPrice() - m.cost()) / m.currentPrice()) * 100);
         if (marginPct >= 30) {
             score += 5;
         } else if (marginPct < 22) {

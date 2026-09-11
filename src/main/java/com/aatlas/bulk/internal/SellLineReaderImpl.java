@@ -3,7 +3,7 @@ package com.aatlas.bulk.internal;
 import com.aatlas.bulk.SellLine;
 import com.aatlas.bulk.SellLineReader;
 import com.aatlas.bulk.internal.BulkSeedCatalog.SeedProduct;
-import com.aatlas.bulk.internal.PricingEngine.PricingModel;
+import com.aatlas.bulk.internal.BulkPricingEngine.PricingModel;
 import org.springframework.stereotype.Component;
 
 /**
@@ -13,10 +13,10 @@ import org.springframework.stereotype.Component;
 @Component
 public class SellLineReaderImpl implements SellLineReader {
 
-    private final PricingEngine pricing;
+    private final BulkPricingEngine pricing;
     private final BulkSeedCatalog catalog;
 
-    public SellLineReaderImpl(PricingEngine pricing, BulkSeedCatalog catalog) {
+    public SellLineReaderImpl(BulkPricingEngine pricing, BulkSeedCatalog catalog) {
         this.pricing = pricing;
         this.catalog = catalog;
     }
@@ -39,9 +39,9 @@ public class SellLineReaderImpl implements SellLineReader {
         double elasticity = SellSeeds.elasticity(itemNumber, storeId);
         double monthlyUnits = SellSeeds.monthlyUnitsFor(itemNumber, storeId, m.cost());
         SellSeeds.Inventory inv = SellSeeds.inventoryFor(itemNumber, storeId, monthlyUnits);
-        double inventoryValue = PricingEngine.round2(inv.units() * m.cost());
-        double upliftPerUnit = PricingEngine.round2(m.optimalPrice() - m.currentPrice());
-        double monthlyOpportunity = PricingEngine.round2(upliftPerUnit * monthlyUnits);
+        double inventoryValue = BulkPricingEngine.round2(inv.units() * m.cost());
+        double upliftPerUnit = BulkPricingEngine.round2(m.optimalPrice() - m.currentPrice());
+        double monthlyOpportunity = BulkPricingEngine.round2(upliftPerUnit * monthlyUnits);
         String demandLevel = m.demand() != null ? m.demand().level() : "none";
         double demandPct = m.demand() != null ? m.demand().movePercent() : 0;
 
@@ -58,6 +58,6 @@ public class SellLineReaderImpl implements SellLineReader {
     }
 
     private static double marginPct(double price, double cost) {
-        return price == 0 ? 0 : PricingEngine.round2(((price - cost) / price) * 100);
+        return price == 0 ? 0 : BulkPricingEngine.round2(((price - cost) / price) * 100);
     }
 }

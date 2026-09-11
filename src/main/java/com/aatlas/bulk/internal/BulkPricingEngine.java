@@ -19,7 +19,7 @@ import org.springframework.stereotype.Component;
  * is upstream of this class: which item/store facts feed it - see {@link BulkSeedCatalog}.
  */
 @Component
-public class PricingEngine {
+public class BulkPricingEngine {
 
     /** Where the underlying commodity is heading over the next quarter. Ported verbatim
      * from {@code src/lib/intel/catalog.ts}'s {@code COMMODITY_TREND}. */
@@ -45,7 +45,7 @@ public class PricingEngine {
 
     private final BulkSeedCatalog catalog;
 
-    public PricingEngine(BulkSeedCatalog catalog) {
+    public BulkPricingEngine(BulkSeedCatalog catalog) {
         this.catalog = catalog;
     }
 

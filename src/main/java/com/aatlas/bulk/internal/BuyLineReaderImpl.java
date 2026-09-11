@@ -35,10 +35,10 @@ import org.springframework.stereotype.Component;
 @Component
 public class BuyLineReaderImpl implements BuyLineReader {
 
-    private final PricingEngine pricing;
+    private final BulkPricingEngine pricing;
     private final BulkSeedCatalog catalog;
 
-    public BuyLineReaderImpl(PricingEngine pricing, BulkSeedCatalog catalog) {
+    public BuyLineReaderImpl(BulkPricingEngine pricing, BulkSeedCatalog catalog) {
         this.pricing = pricing;
         this.catalog = catalog;
     }
@@ -92,10 +92,10 @@ public class BuyLineReaderImpl implements BuyLineReader {
         List<Double> landedSorted = ranked.stream().map(SupplierEval::landed).sorted().toList();
         double marketLow = landedSorted.get(0);
         double marketMedian = landedSorted.get(landedSorted.size() / 2);
-        double targetCost = PricingEngine.round2(marketLow + (marketMedian - marketLow) / 3);
+        double targetCost = BulkPricingEngine.round2(marketLow + (marketMedian - marketLow) / 3);
         double currentCost = incumbent.landed();
-        double savingPerUnit = PricingEngine.round2(Math.max(0, currentCost - targetCost));
-        double savingPct = PricingEngine.round1(savingPerUnit / Math.max(0.01, currentCost) * 100);
+        double savingPerUnit = BulkPricingEngine.round2(Math.max(0, currentCost - targetCost));
+        double savingPct = BulkPricingEngine.round1(savingPerUnit / Math.max(0.01, currentCost) * 100);
 
         return new BuyLine(itemNumber, name, true, regionKey, BuyMath.regionLabel(regionKey), destination,
                 StoreLabels.of(catalog, destination), effectiveQty, currentCost, targetCost, savingPerUnit,
@@ -119,13 +119,13 @@ public class BuyLineReaderImpl implements BuyLineReader {
     private SyntheticQuote syntheticQuote(SeedSupplier s, String itemNumber, double cost) {
         String key = "sup:" + s.record().id() + ":" + itemNumber;
         boolean domestic = isDomestic(s.record().country());
-        double exWorksCost = PricingEngine.round2(cost * (s.record().priceIndex() / 100));
+        double exWorksCost = BulkPricingEngine.round2(cost * (s.record().priceIndex() / 100));
         double freightPct = domestic ? Seeded.randRange(key, "freight", 1, 4) : Seeded.randRange(key, "freight", 3, 9);
         double dutyPct = domestic ? 0 : Seeded.randRange(key, "duty", 0, 12);
-        double freightCost = PricingEngine.round2(exWorksCost * freightPct / 100);
-        double dutyCost = PricingEngine.round2(exWorksCost * dutyPct / 100);
-        double landed = PricingEngine.round2(exWorksCost + freightCost + dutyCost);
-        return new SyntheticQuote(exWorksCost, landed, PricingEngine.round2(freightCost + dutyCost),
+        double freightCost = BulkPricingEngine.round2(exWorksCost * freightPct / 100);
+        double dutyCost = BulkPricingEngine.round2(exWorksCost * dutyPct / 100);
+        double landed = BulkPricingEngine.round2(exWorksCost + freightCost + dutyCost);
+        return new SyntheticQuote(exWorksCost, landed, BulkPricingEngine.round2(freightCost + dutyCost),
                 s.record().leadTimeDays());
     }
 
@@ -142,7 +142,7 @@ public class BuyLineReaderImpl implements BuyLineReader {
         double landed = quote.landed();
         double otifPct = s.record().otifPct();
         double defectPct = s.profile() != null ? s.profile().defectPct() : 1.0;
-        double fulfilmentPct = PricingEngine.round1(Seeded.randRange(supplierKey, "fulfil", 87, 99.4));
+        double fulfilmentPct = BulkPricingEngine.round1(Seeded.randRange(supplierKey, "fulfil", 87, 99.4));
         CommercialTerms commercial = new CommercialTerms(
                 s.terms().creditDays(), s.terms().termsLabel(), s.terms().earlyPayDiscountPct(),
                 s.terms().earlyPayDays(), s.terms().latePenaltyPctPerWeek(), s.terms().latePenaltyCapPct(),
@@ -155,15 +155,15 @@ public class BuyLineReaderImpl implements BuyLineReader {
                 ? Seeded.randInt(supplierKey, "years", 3, 11)
                 : Seeded.randInt(supplierKey, "years", 0, 2);
 
-        double reliability = PricingEngine.round2(landed * ((100 - otifPct) / 100) * 0.55);
-        double leadTime = PricingEngine.round2(landed * quote.totalLeadDays() * 0.0006);
-        double quality = PricingEngine.round2(landed * (defectPct / 100) * 1.5);
-        double fulfilment = PricingEngine.round2(landed * ((100 - fulfilmentPct) / 100) * 0.3);
-        double moqAdj = meetsMoq ? 0 : PricingEngine.round2(landed * 0.04);
-        double credit = PricingEngine.round2(-TermsMath.creditValuePerUnit(landed, commercial.creditDays()));
-        double earlyPay = PricingEngine.round2(-TermsMath.earlyPayNetPerUnit(landed, commercial));
+        double reliability = BulkPricingEngine.round2(landed * ((100 - otifPct) / 100) * 0.55);
+        double leadTime = BulkPricingEngine.round2(landed * quote.totalLeadDays() * 0.0006);
+        double quality = BulkPricingEngine.round2(landed * (defectPct / 100) * 1.5);
+        double fulfilment = BulkPricingEngine.round2(landed * ((100 - fulfilmentPct) / 100) * 0.3);
+        double moqAdj = meetsMoq ? 0 : BulkPricingEngine.round2(landed * 0.04);
+        double credit = BulkPricingEngine.round2(-TermsMath.creditValuePerUnit(landed, commercial.creditDays()));
+        double earlyPay = BulkPricingEngine.round2(-TermsMath.earlyPayNetPerUnit(landed, commercial));
         double penaltyRecoveryPerUnit = TermsMath.penaltyRecoveryCapPerUnit(landed, commercial);
-        double penalty = PricingEngine.round2(
+        double penalty = BulkPricingEngine.round2(
                 -((100 - otifPct) / 100) * Math.min(penaltyRecoveryPerUnit, landed * 0.55));
 
         List<SupplierEval.Adjustment> adjustments = new ArrayList<>();
@@ -187,7 +187,7 @@ public class BuyLineReaderImpl implements BuyLineReader {
                     "Late clause, capped at " + commercial.latePenaltyCapPct() + "%", penalty));
         }
 
-        double effective = PricingEngine.round2(
+        double effective = BulkPricingEngine.round2(
                 landed + reliability + leadTime + quality + fulfilment + moqAdj + credit + earlyPay + penalty);
 
         String risk = (otifPct < 82 || defectPct > 2.5) ? "High" : (otifPct < 90 || quote.totalLeadDays() > 40)

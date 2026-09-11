@@ -32,7 +32,7 @@ final class SellSeeds {
 
     static Inventory inventoryFor(String itemNumber, String storeId, double monthlyUnits) {
         String key = "inv:" + itemNumber + ":" + storeId;
-        double weeksOfCover = PricingEngine.round1(Seeded.randRange(key, "cover", 2.2, 24));
+        double weeksOfCover = BulkPricingEngine.round1(Seeded.randRange(key, "cover", 2.2, 24));
         double units = Math.max(1, Math.round((monthlyUnits / 4.33) * weeksOfCover));
         return new Inventory(units, weeksOfCover);
     }
@@ -40,6 +40,6 @@ final class SellSeeds {
     /** {@code getElasticityModel(itemNumber, 'sell', storeId).coefficient}. */
     static double elasticity(String itemNumber, String storeId) {
         String key = "el:sell:" + itemNumber + ":" + (storeId == null || storeId.isBlank() ? "default" : storeId);
-        return PricingEngine.round2(-1 * Seeded.randRange(key, "coef", 0.35, 2.6));
+        return BulkPricingEngine.round2(-1 * Seeded.randRange(key, "coef", 0.35, 2.6));
     }
 }

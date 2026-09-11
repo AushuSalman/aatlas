@@ -38,7 +38,7 @@ public class BulkSellEngine {
                 continue;
             }
             OpportunityScoring.Score score = scoring.score(itemNumber, storeId);
-            double opportunity = PricingEngine.round2(
+            double opportunity = BulkPricingEngine.round2(
                     (intel.recommended() - intel.currentPrice()) * intel.inventoryUnits());
             lines.add(new LineView(itemNumber, intel.name(), intel.cost(), intel.currentPrice(), intel.recommended(),
                     intel.inventoryUnits(), intel.inventoryValue(), intel.weeksOfCover(), opportunity, score.score(),
@@ -67,8 +67,8 @@ public class BulkSellEngine {
             recommendedKey = "balanced";
         }
 
-        double totalInventoryValue = PricingEngine.round2(lines.stream().mapToDouble(LineView::inventoryValue).sum());
-        double totalOpportunity = PricingEngine.round2(lines.stream().mapToDouble(LineView::opportunity).sum());
+        double totalInventoryValue = BulkPricingEngine.round2(lines.stream().mapToDouble(LineView::inventoryValue).sum());
+        double totalOpportunity = BulkPricingEngine.round2(lines.stream().mapToDouble(LineView::opportunity).sum());
 
         return new PlanView(storeId, StoreLabels.of(catalog, storeId), lines, totalInventoryValue, totalOpportunity,
                 current, strategies, recommendedKey);
@@ -83,7 +83,7 @@ public class BulkSellEngine {
         double cogs = 0;
         Map<String, Double> prices = new LinkedHashMap<>();
         for (LineView l : lines) {
-            double price = PricingEngine.round2(priceFor.apply(l));
+            double price = BulkPricingEngine.round2(priceFor.apply(l));
             prices.put(l.itemNumber(), price);
             double baseUnits = Math.min(l.inventoryUnits(), l.intel().monthlyUnits() * 3);
             double ratio = Math.pow(price / l.current(), l.intel().elasticity());
@@ -94,9 +94,9 @@ public class BulkSellEngine {
             profit += (price - l.cost()) * units;
             cogs += l.cost() * units;
         }
-        double marginPct = revenue > 0 ? PricingEngine.round1(((revenue - cogs) / revenue) * 100) : 0;
-        double turnoverPct = inventory > 0 ? PricingEngine.round1((unitsSold / inventory) * 100) : 0;
-        return new ProjectionView(key, title, blurb, prices, unitsSold, PricingEngine.round2(revenue),
-                PricingEngine.round2(profit), marginPct, turnoverPct, risk);
+        double marginPct = revenue > 0 ? BulkPricingEngine.round1(((revenue - cogs) / revenue) * 100) : 0;
+        double turnoverPct = inventory > 0 ? BulkPricingEngine.round1((unitsSold / inventory) * 100) : 0;
+        return new ProjectionView(key, title, blurb, prices, unitsSold, BulkPricingEngine.round2(revenue),
+                BulkPricingEngine.round2(profit), marginPct, turnoverPct, risk);
     }
 }

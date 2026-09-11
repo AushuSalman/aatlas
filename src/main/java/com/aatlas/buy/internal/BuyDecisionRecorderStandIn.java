@@ -7,12 +7,12 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 @Component
-class DecisionRecorderImpl implements DecisionRecorder {
+class BuyDecisionRecorderStandIn implements DecisionRecorder {
 
     private final BuyDecisionRepository repository;
     private final AatlasClock clock;
 
-    DecisionRecorderImpl(BuyDecisionRepository repository, AatlasClock clock) {
+    BuyDecisionRecorderStandIn(BuyDecisionRepository repository, AatlasClock clock) {
         this.repository = repository;
         this.clock = clock;
     }

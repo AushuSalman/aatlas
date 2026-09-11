@@ -23,14 +23,14 @@ import org.springframework.stereotype.Component;
  * out in the report rather than papered over with a table this track does not own.
  */
 @Component
-class DecisionRecorderImpl implements DecisionRecorder {
+class SellDecisionRecorderStandIn implements DecisionRecorder {
 
-    private static final Logger log = LoggerFactory.getLogger(DecisionRecorderImpl.class);
+    private static final Logger log = LoggerFactory.getLogger(SellDecisionRecorderStandIn.class);
 
     private final Map<UUID, List<Recorded>> byTenant = new ConcurrentHashMap<>();
     private final AatlasClock clock;
 
-    DecisionRecorderImpl(AatlasClock clock) {
+    SellDecisionRecorderStandIn(AatlasClock clock) {
         this.clock = clock;
     }
 

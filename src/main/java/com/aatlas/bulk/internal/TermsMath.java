@@ -16,7 +16,7 @@ final class TermsMath {
     }
 
     static double creditValuePerUnit(double unitCost, int creditDays) {
-        return PricingEngine.round2(unitCost * (creditDays / 365.0) * (COST_OF_CAPITAL_PCT / 100));
+        return BulkPricingEngine.round2(unitCost * (creditDays / 365.0) * (COST_OF_CAPITAL_PCT / 100));
     }
 
     static double earlyPayNetPerUnit(double unitCost, CommercialTerms t) {
@@ -25,7 +25,7 @@ final class TermsMath {
         }
         double discount = unitCost * (t.earlyPayDiscountPct() / 100);
         double creditGivenUp = creditValuePerUnit(unitCost, Math.max(0, t.creditDays() - t.earlyPayDays()));
-        return PricingEngine.round2(Math.max(0, discount - creditGivenUp));
+        return BulkPricingEngine.round2(Math.max(0, discount - creditGivenUp));
     }
 
     static double penaltyRecoveryCapPerUnit(double unitCost, CommercialTerms t) {
@@ -33,7 +33,7 @@ final class TermsMath {
             return 0;
         }
         double typicalSlipWeeks = 1.5;
-        return PricingEngine.round2(
+        return BulkPricingEngine.round2(
                 unitCost * Math.min(t.latePenaltyCapPct(), t.latePenaltyPctPerWeek() * typicalSlipWeeks) / 100);
     }
 }

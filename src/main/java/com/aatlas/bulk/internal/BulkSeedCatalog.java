@@ -15,7 +15,7 @@ import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Component;
 
 /**
- * The static reference data {@link PricingEngine} and the bulk strategies need:
+ * The static reference data {@link BulkPricingEngine} and the bulk strategies need:
  * products, US branches, and the supplier panel.
  *
  * <p><b>Stand-in.</b> {@code catalog}'s only public type is {@code CatalogSeeding} (for

@@ -25,7 +25,7 @@ class BulkSellEngineGoldenTest {
 
     private final ObjectMapper json = new ObjectMapper();
     private final BulkSeedCatalog catalog = new BulkSeedCatalog(json);
-    private final PricingEngine pricing = new PricingEngine(catalog);
+    private final BulkPricingEngine pricing = new BulkPricingEngine(catalog);
     private final BulkSellEngine engine = new BulkSellEngine(
             new SellLineReaderImpl(pricing, catalog), new OpportunityScoring(pricing, catalog), catalog);
 

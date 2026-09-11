@@ -19,13 +19,13 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Service
 @Transactional
-class DecisionRecorderImpl implements DecisionRecorder {
+class BulkDecisionRecorderStandIn implements DecisionRecorder {
 
     private final BulkDecisionRepository decisions;
     private final BulkDealRepository deals;
     private final ObjectMapper json;
 
-    DecisionRecorderImpl(BulkDecisionRepository decisions, BulkDealRepository deals, ObjectMapper json) {
+    BulkDecisionRecorderStandIn(BulkDecisionRepository decisions, BulkDealRepository deals, ObjectMapper json) {
         this.decisions = decisions;
         this.deals = deals;
         this.json = json;

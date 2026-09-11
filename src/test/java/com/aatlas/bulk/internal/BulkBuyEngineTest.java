@@ -31,7 +31,7 @@ class BulkBuyEngineTest {
 
     private final com.fasterxml.jackson.databind.ObjectMapper json = new com.fasterxml.jackson.databind.ObjectMapper();
     private final BulkSeedCatalog catalog = new BulkSeedCatalog(json);
-    private final PricingEngine pricing = new PricingEngine(catalog);
+    private final BulkPricingEngine pricing = new BulkPricingEngine(catalog);
     private final BulkBuyEngine engine = new BulkBuyEngine(new BuyLineReaderImpl(pricing, catalog));
 
     @Test

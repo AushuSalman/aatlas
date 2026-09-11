@@ -2,14 +2,14 @@ package com.aatlas.bulk.internal;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.aatlas.bulk.internal.PricingEngine.PricingModel;
+import com.aatlas.bulk.internal.BulkPricingEngine.PricingModel;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.InputStream;
 import org.junit.jupiter.api.Test;
 
 /**
- * Pins {@link PricingEngine#getPricingModel} against every one of the 84 rows in
+ * Pins {@link BulkPricingEngine#getPricingModel} against every one of the 84 rows in
  * {@code golden/pricing-model.json} - the same 84 priceable (item, store) pairs
  * {@code golden/bulk.json}'s baskets are drawn from. This is the foundation the rest of
  * bulk sell is built on: if this test is green, every price, margin floor and ceiling a
@@ -18,7 +18,7 @@ import org.junit.jupiter.api.Test;
 class PricingEngineGoldenTest {
 
     private final ObjectMapper json = new ObjectMapper();
-    private final PricingEngine engine = new PricingEngine(new BulkSeedCatalog(json));
+    private final BulkPricingEngine engine = new BulkPricingEngine(new BulkSeedCatalog(json));
 
     private JsonNode golden() throws Exception {
         try (InputStream in = getClass().getResourceAsStream("/golden/pricing-model.json")) {
