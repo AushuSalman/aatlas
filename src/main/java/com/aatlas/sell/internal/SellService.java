@@ -204,7 +204,7 @@ public class SellService {
             }
         }
         return rows.stream()
-                .sorted(Comparator.comparing(StarterDto::upliftPct).reversed())
+                .sorted(Comparator.comparing(StarterDto::pct).reversed())
                 .limit(3)
                 .toList();
     }

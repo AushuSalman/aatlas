@@ -82,6 +82,29 @@ class InsightsIT extends PostgresIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"kind\":\"sample\"}"))
                 .andExpect(status().isCreated());
+        awaitSuppliersSeeded();
+    }
+
+    /**
+     * SampleDataConnected seeds the supplier panel asynchronously (SuppliersSeedListener);
+     * under a full test-suite run that can still be in flight when the next line runs,
+     * leaving BuyEngine.currentSupplierFor with an empty supplier list. A plain read-only
+     * poll - not a second call to {@code /suppliers/seed} - avoids racing the listener's own
+     * insert (SupplierPanelSeederImpl's per-row exists-then-insert is not safe against two
+     * concurrent seed attempts for the same tenant).
+     */
+    private void awaitSuppliersSeeded() throws Exception {
+        for (int attempt = 0; attempt < 40; attempt++) {
+            MvcResult result = mvc.perform(get("/api/v1/suppliers").header("Authorization", "Bearer " + token))
+                    .andExpect(status().isOk())
+                    .andReturn();
+            JsonNode items = json.readTree(result.getResponse().getContentAsString()).get("items");
+            if (items != null && !items.isEmpty()) {
+                return;
+            }
+            Thread.sleep(100);
+        }
+        throw new IllegalStateException("Suppliers were not seeded within 4s of connecting sample data.");
     }
 
     @Test

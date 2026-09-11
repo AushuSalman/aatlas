@@ -17,10 +17,11 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 /**
- * Trivial in-memory stand-in for the {@code decisions} module. See {@link DecisionRecorder}
- * for what this stands in for and why. Kept per tenant, newest first, for the life of the
- * process only - a restart loses it, which is the honest cost of a stand-in and is called
- * out in the report rather than papered over with a table this track does not own.
+ * In-memory index for {@code GET /sell/outcomes} (kept per tenant, newest first, for the life
+ * of the process only - a restart loses it, the honest cost of that one query), and - since
+ * the merge - also the writer that mirrors every apply/quote into the real {@code decisions}
+ * ledger, so History/Overview/Analytics see it the same way they see every other applied
+ * recommendation. See {@link DecisionRecorder} for the original stand-in rationale.
  */
 @Component
 class SellDecisionRecorderStandIn implements DecisionRecorder {
@@ -29,9 +30,11 @@ class SellDecisionRecorderStandIn implements DecisionRecorder {
 
     private final Map<UUID, List<Recorded>> byTenant = new ConcurrentHashMap<>();
     private final AatlasClock clock;
+    private final com.aatlas.decisions.DecisionRecorder ledger;
 
-    SellDecisionRecorderStandIn(AatlasClock clock) {
+    SellDecisionRecorderStandIn(AatlasClock clock, com.aatlas.decisions.DecisionRecorder ledger) {
         this.clock = clock;
+        this.ledger = ledger;
     }
 
     @Override
@@ -62,7 +65,30 @@ class SellDecisionRecorderStandIn implements DecisionRecorder {
         byTenant.computeIfAbsent(tenantId, k -> new CopyOnWriteArrayList<>()).add(0, recorded);
         log.info("Recorded {} decision {} for {}@{} ({}): {} -> {}", r.kind(), id, r.itemNumber(), r.storeCode(),
                 tenantId, r.recommended(), r.applied());
+        mirrorToLedger(r);
         return recorded;
+    }
+
+    /**
+     * Writes the same apply/quote into {@code com.aatlas.decisions}: one {@link
+     * com.aatlas.decisions.Decision} plus one linked sell {@link com.aatlas.decisions.DealRecord}.
+     * {@code r.scope()} already carries the store label (every caller in {@code SellService}
+     * passes {@code intel.storeLabel()} there), which is exactly what {@code RecordSaleRequest}
+     * wants as {@code storeName}. Never lets a ledger-write problem fail the sell response
+     * itself - the in-memory record above is this endpoint's real contract with the frontend.
+     */
+    private void mirrorToLedger(RecordRequest r) {
+        try {
+            com.aatlas.decisions.Decision decision = ledger.record(new com.aatlas.decisions.RecordDecisionRequest(
+                    com.aatlas.decisions.DecisionKind.SELL, r.title(), r.itemNumber(), r.scope(),
+                    r.recommended(), r.applied(), r.expectedImpact(), r.impactLabel(), r.detail(), r.qty(), null));
+            ledger.recordSale(new com.aatlas.decisions.RecordSaleRequest(
+                    r.itemNumber(), r.title(), r.scope(), r.customerName(), r.qty(), r.cost(), r.baselinePrice(),
+                    r.recommended(), r.applied(), null, null, decision.id()));
+        } catch (RuntimeException ex) {
+            log.warn("Could not mirror sell decision for {}@{} into the decisions ledger: {}",
+                    r.itemNumber(), r.storeCode(), ex.toString());
+        }
     }
 
     @Override

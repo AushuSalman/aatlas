@@ -138,8 +138,13 @@ final class GeoEngine {
                         Fmt.round2(Math.abs(intel.monthlyOpportunity()) * 0.6),
                         "/app/sell?item=" + p.itemNumber() + "&store=" + storeId));
             }
-            BuyRecommendation buy = BuyEngine.compute(p.itemNumber(), storeId, snapshot);
-            if (buy.savingPct() > 4) {
+            // Suppliers seed asynchronously right after a data source connects (see
+            // SuppliersSeedListener); a request that lands in that narrow window would
+            // otherwise hit BuyEngine.currentSupplierFor with an empty panel. Treat "not
+            // seeded yet" the same as "no supplier opportunity to report" rather than 500.
+            BuyRecommendation buy = snapshot.suppliers().isEmpty() ? null
+                    : BuyEngine.compute(p.itemNumber(), storeId, snapshot);
+            if (buy != null && buy.savingPct() > 4) {
                 opportunities.add(new StoreOpportunity(p.itemNumber(), intel.name(), "supplier",
                         "Supplier renegotiation, " + Fmt.toFixed(buy.savingPct(), 0) + "% over target",
                         Fmt.round2(buy.annualSaving() / 12),
@@ -273,8 +278,9 @@ final class GeoEngine {
                 if (m.demand() != null && "high".equals(m.demand().level()) && intel.weeksOfCover() < 5) {
                     increaseInventory.add(p.itemNumber());
                 }
-                BuyRecommendation buy = BuyEngine.compute(p.itemNumber(), storeId, snapshot);
-                if (buy.savingPct() > 4) {
+                BuyRecommendation buy = snapshot.suppliers().isEmpty() ? null
+                        : BuyEngine.compute(p.itemNumber(), storeId, snapshot);
+                if (buy != null && buy.savingPct() > 4) {
                     reviewSuppliers.add(buy.incumbentSupplierName());
                 }
             }

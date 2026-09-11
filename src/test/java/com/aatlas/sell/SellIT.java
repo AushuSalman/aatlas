@@ -121,18 +121,27 @@ class SellIT extends PostgresIntegrationTest {
     @Test
     @DisplayName("GET /sell/recommendation: the whole answer for the flagship pair")
     void recommendation() throws Exception {
+        // The frontend's SellRecommendationResponse (platform/backend.ts) is declared
+        // `extends SellIntel`: every SellIntel field belongs at the top level of this
+        // response, not nested under "intel" - a prior version nested it, which made
+        // `priceable` (and everything else) read as undefined on the frontend and showed
+        // "no sales history" for lines that were priceable. Assert the flattened shape the
+        // frontend actually reads, not just that the backend has internally-consistent data.
         MvcResult result = mvc.perform(get("/api/v1/sell/recommendation?item=" + ITEM + "&store=" + STORE)
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.intel.priceable").value(true))
-                .andExpect(jsonPath("$.intel.itemNumber").value(ITEM))
+                .andExpect(jsonPath("$.priceable").value(true))
+                .andExpect(jsonPath("$.itemNumber").value(ITEM))
+                .andExpect(jsonPath("$.recommended").isNumber())
+                .andExpect(jsonPath("$.guardrail").exists())
                 .andExpect(jsonPath("$.decisionScore.total").isNumber())
                 .andExpect(jsonPath("$.speedPricing.tiers.length()").value(3))
                 .andExpect(jsonPath("$.holdVsSell.recommendation").isNotEmpty())
                 .andExpect(jsonPath("$.opportunityScore.score").isNumber())
+                .andExpect(jsonPath("$.intel").doesNotExist())
                 .andReturn();
         JsonNode body = json.readTree(result.getResponse().getContentAsString());
-        assert body.get("intel").get("recommended").isNumber();
+        assert body.get("recommended").isNumber();
     }
 
     @Test
@@ -242,9 +251,15 @@ class SellIT extends PostgresIntegrationTest {
     @Test
     @DisplayName("GET /sell/starters: top three opportunities for the empty state")
     void starters() throws Exception {
+        // Field names, not just shape: the frontend's SellStarter (platform/backend.ts) names
+        // these item/store/pct, not itemNumber/storeId/upliftPct like every other sell DTO -
+        // a drift here once shipped a `s.pct.toFixed is not a function` crash on the Sell tab.
         mvc.perform(get("/api/v1/sell/starters").header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$").isArray());
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$[0].item").exists())
+                .andExpect(jsonPath("$[0].store").exists())
+                .andExpect(jsonPath("$[0].pct").exists());
     }
 
     @Test

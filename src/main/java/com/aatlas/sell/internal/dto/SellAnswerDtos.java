@@ -13,6 +13,7 @@ import com.aatlas.sell.internal.dto.Sell2Dtos.SpeedPricingDto;
 import com.aatlas.sell.internal.dto.Sell2Dtos.SpeedTierDto;
 import com.aatlas.sell.internal.dto.SellDtos.ScenarioResultDto;
 import com.aatlas.sell.internal.dto.SellDtos.SellIntelDto;
+import com.fasterxml.jackson.annotation.JsonUnwrapped;
 import java.math.BigDecimal;
 
 /**
@@ -31,10 +32,18 @@ public final class SellAnswerDtos {
      * opportunity chip. The four nested answers are {@code null} exactly when {@code
      * intel.priceable} is {@code false} (no sales history), mirroring {@code a === null} on
      * the frontend.
+     *
+     * <p>{@code intel} is {@code @JsonUnwrapped}: the frontend's {@code
+     * SellRecommendationResponse} ({@code platform/backend.ts}) is declared {@code extends
+     * SellIntel}, i.e. every {@code SellIntelDto} field belongs at the top level of this
+     * response, not nested under an {@code "intel"} key - nesting it made every one of those
+     * fields (including {@code priceable} itself) read as {@code undefined} on the frontend,
+     * which then showed "no sales history" for lines that were priceable. Likewise {@code
+     * guardrail}, not {@code guardrailCheck} - the frontend's declared field name.
      */
     public record SellRecommendationDto(
-            SellIntelDto intel,
-            GuardrailCheckDto guardrailCheck,
+            @JsonUnwrapped SellIntelDto intel,
+            GuardrailCheckDto guardrail,
             SellDecisionScoreDto decisionScore,
             LiquidationDto liquidation,
             SpeedPricingDto speedPricing,
@@ -58,6 +67,7 @@ public final class SellAnswerDtos {
     public record ApplyResponseDto(Recorded decision) {
     }
 
-    public record StarterDto(String itemNumber, String storeId, String name, String storeLabel, BigDecimal upliftPct) {
+    /** Field names match the frontend's {@code SellStarter} (platform/backend.ts) exactly: {@code item}/{@code store}/{@code pct}, not {@code itemNumber}/{@code storeId}/{@code upliftPct}. */
+    public record StarterDto(String item, String store, String name, String storeLabel, BigDecimal pct) {
     }
 }

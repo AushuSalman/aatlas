@@ -127,8 +127,11 @@ class OverviewEngine {
                     lowDemandHits.merge(p.itemNumber(), 1, Integer::sum);
                 }
 
-                BuyRecommendation buy = BuyEngine.compute(p.itemNumber(), t.storeCode(), snapshot);
-                if (buy.savingPct() > 4) {
+                // Suppliers seed asynchronously right after a data source connects; treat
+                // "not seeded yet" as "nothing to report" rather than crash on an empty panel.
+                BuyRecommendation buy = snapshot.suppliers().isEmpty() ? null
+                        : BuyEngine.compute(p.itemNumber(), t.storeCode(), snapshot);
+                if (buy != null && buy.savingPct() > 4) {
                     suppliersAboveMarket.merge(buy.incumbentSupplierName(), buy.annualSaving(), Double::sum);
                     procurementAnnual += buy.annualSaving();
                 }

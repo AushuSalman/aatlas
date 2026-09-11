@@ -271,6 +271,11 @@ final class DemographicsEngine {
                     continue;
                 }
                 PricingModel m = PricingEngine.compute(p.itemNumber(), storeId, snapshot);
+                if (snapshot.suppliers().isEmpty()) {
+                    // Suppliers seed asynchronously right after a data source connects; treat
+                    // "not seeded yet" the same as "no incumbent found" below, not a crash.
+                    continue;
+                }
                 BuyRecommendation buy = BuyEngine.compute(p.itemNumber(), storeId, snapshot);
                 SupplierRef sup = snapshot.suppliers().stream()
                         .filter(s -> s.id().equals(buy.incumbentSupplierId())).findFirst().orElse(null);
