@@ -46,7 +46,10 @@ aatlas:
   cache:
     mode: caffeine
   rls:
-    enabled: false
+    # Same as production. Developing with RLS off would hide exactly the class of bug
+    # that only appears once it is on - a query with no tenant predicate, or a job that
+    # forgets to bind a tenant.
+    enabled: true
 
 logging:
   level:

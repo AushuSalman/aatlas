@@ -213,8 +213,16 @@ aatlas:
     path-style-access: true
 
   rls:
-    # Turned on once the migrations that create the policies have run.
-    enabled: ${RLS_ENABLED:false}
+    # On. The policies now exist on every tenant-scoped table, created with
+    # app.enable_tenant_rls() and FORCE ROW LEVEL SECURITY - which binds the table
+    # owner too, so there is no role that quietly bypasses them.
+    #
+    # This must stay in step with the migrations. With policies present and this off,
+    # nothing sets app.tenant_id, app.current_tenant() returns NULL, and every insert
+    # into a tenant-scoped table fails with "new row violates row-level security
+    # policy" while reads return nothing - which is exactly what happened when the
+    # policies landed and this was still false.
+    enabled: ${RLS_ENABLED:true}
     session-variable: app.tenant_id
 
 logging:
