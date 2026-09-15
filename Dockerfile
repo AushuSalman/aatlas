@@ -5,6 +5,9 @@ WORKDIR /app
 COPY mvnw .
 COPY .mvn .mvn
 COPY pom.xml .
+# Windows checkouts routinely drop the executable bit on this file; don't rely on git's
+# stored file mode surviving every contributor's platform.
+RUN chmod +x mvnw
 RUN ./mvnw -B -q dependency:go-offline
 
 COPY src src
