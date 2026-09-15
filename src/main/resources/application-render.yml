@@ -1,0 +1,59 @@
+# ============================================================================
+#  render - one Render web service, one Render-managed PostgreSQL instance
+#
+#  A demo/staging deploy target, not the `prod` profile's full Kubernetes/Redis/
+#  Kafka/S3 shape: no message broker, no external cache, no object storage.
+#  Caching is in-process and events are delivered in-process through the same
+#  transactional registry, exactly like `local` - only the database is real
+#  and remote instead of a laptop's Docker container, and secrets arrive as
+#  environment variables rather than defaults.
+# ============================================================================
+
+spring:
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+    hikari:
+      maximum-pool-size: ${DB_POOL_MAX:10}
+      minimum-idle: 2
+
+  jpa:
+    properties:
+      hibernate:
+        format_sql: false
+        generate_statistics: false
+
+  # Autoconfigure would otherwise try to reach a broker that is not there.
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.kafka.KafkaAutoConfiguration
+
+server:
+  forward-headers-strategy: framework
+
+management:
+  health:
+    redis:
+      enabled: false
+    mail:
+      enabled: false
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+aatlas:
+  cors:
+    allowed-origins: ${CORS_ORIGINS}
+  cache:
+    mode: caffeine
+  clock:
+    fixed: false
+  rls:
+    enabled: true
+
+logging:
+  level:
+    root: INFO
+    com.aatlas: INFO
