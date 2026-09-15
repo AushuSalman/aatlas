@@ -96,7 +96,8 @@ class SampleCatalogueSeeder implements CatalogSeeding {
                     s.regionKey(),
                     map == null ? null : map.x(),
                     map == null ? null : map.y(),
-                    map == null ? null : map.anchor()));
+                    map == null ? null : map.anchor(),
+                    StoreEntity.Source.SAMPLE));
         }
         stores.saveAll(storesByCode.values());
         List<String> codesInSeedOrder = List.copyOf(storesByCode.keySet());

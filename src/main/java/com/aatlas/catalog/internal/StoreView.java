@@ -13,7 +13,10 @@ import java.util.UUID;
  * {@code src/lib/types.ts} was ported from the original service with its field names
  * intact, and every screen reads {@code store_id}, {@code legal_name}, {@code msa_name}
  * and {@code item_count} as they are. The additions ({@code country}, {@code regionKey},
- * {@code map}) are camelCase like the rest of the API.
+ * {@code map}, {@code active}, {@code source}) are camelCase like the rest of the API.
+ *
+ * <p>Every key here is one {@link CreateStoreRequest} and {@link PatchStoreRequest}
+ * accept under the same name, so a client can send back what it read.
  */
 @Schema(name = "Store", description = "A branch. Snake_case keys match the frontend's StoreItem verbatim.")
 record StoreView(
@@ -29,8 +32,17 @@ record StoreView(
         @JsonProperty("item_count") Integer itemCount,
         @Schema(allowableValues = {"regular", "occasional"}) String segment,
         @Schema(example = "US") String country,
-        @Schema(allowableValues = {"south", "west", "north", "east"}) String regionKey,
-        MapPoint map) {
+        @Schema(description = "unassigned means nobody has placed this branch yet; it is kept out of "
+                        + "every regional rollup until they do.",
+                        allowableValues = {"south", "west", "north", "east", "unassigned"})
+                String regionKey,
+        MapPoint map,
+        @Schema(description = "A deactivated branch stays in the catalogue and its history, and is "
+                        + "filtered out of the pickers with ?active=true.")
+                boolean active,
+        @Schema(description = "How the branch got here. Read-only.",
+                        allowableValues = {"manual", "import", "erp", "sample"})
+                String source) {
 
     /** Where the dot sits on the 960x520 country map, and which side its label goes. */
     @Schema(name = "MapPoint")
@@ -54,6 +66,8 @@ record StoreView(
                 store.getSegment(),
                 store.getCountry(),
                 store.getRegionKey(),
-                map);
+                map,
+                store.isActive(),
+                store.getSource());
     }
 }
