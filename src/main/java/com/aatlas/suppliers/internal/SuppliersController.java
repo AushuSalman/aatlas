@@ -4,6 +4,8 @@ import com.aatlas.common.tenant.TenantContext;
 import com.aatlas.common.web.CursorPage;
 import com.aatlas.suppliers.SupplierPanelSeeder;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -121,6 +123,24 @@ class SuppliersController {
         SupplierProfileView profile = service.add(request);
         return ResponseEntity.created(uri.replacePath("/api/v1/suppliers/{id}").build(profile.id()))
                 .body(profile);
+    }
+
+    @Operation(summary = "Import a list of suppliers onto the panel",
+            description = """
+                    Takes supplier records, not a file: the client parses its CSV and shows the buyer a
+                    dry run, then sends the rows that passed. The server re-validates every one and has
+                    the last word.
+
+                    Row by row rather than all or nothing - a panel is a list of independent companies,
+                    so one bad row is returned in `rejected` with its index rather than losing the rest.
+                    """)
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Added, updated and rejected, split out."),
+        @ApiResponse(responseCode = "403", description = "Only buy seats and the director may change the panel.")
+    })
+    @PostMapping(path = "/import", consumes = MediaType.APPLICATION_JSON_VALUE)
+    ImportSuppliersResponse importSuppliers(@Valid @RequestBody ImportSuppliersRequest request) {
+        return service.importSuppliers(request);
     }
 
     @Operation(summary = "Edit a supplier's contact, category or terms")

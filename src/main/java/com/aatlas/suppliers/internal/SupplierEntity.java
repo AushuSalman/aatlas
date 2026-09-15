@@ -245,4 +245,41 @@ class SupplierEntity extends TenantScopedEntity {
     LocalDate getSince() {
         return since;
     }
+    /**
+     * Overwrites the profile and performance numbers from a re-imported file.
+     *
+     * <p>Deliberately does not touch spend, order count or { since}: those are facts
+     * about trading with this supplier that the platform observed, and a vendor-master
+     * export has no business overwriting them.
+     */
+    void applyImport(
+            String name,
+            String country,
+            String city,
+            String website,
+            String category,
+            String contactName,
+            String email,
+            String currency,
+            int leadTimeDays,
+            double otifPct,
+            double priceIndex,
+            double defectPct,
+            boolean holdsStock,
+            int yearsTrading) {
+        this.name = name;
+        this.country = country;
+        this.city = city;
+        this.website = website;
+        this.category = category;
+        this.contactName = contactName;
+        this.email = email;
+        this.currency = currency;
+        this.leadTimeDays = leadTimeDays;
+        this.otifPct = otifPct;
+        this.priceIndex = priceIndex;
+        this.defectPct = defectPct;
+        this.holdsStock = holdsStock;
+        this.yearsTrading = yearsTrading;
+    }
 }

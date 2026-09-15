@@ -112,4 +112,15 @@ class SupplierRatingEntity {
     String getRatingSource() {
         return ratingSource;
     }
+    /** Re-derives the stars after an import supplied new performance numbers. */
+    void recompute(double rating, RatingBreakdown breakdown, String label, String ratingSource, Instant computedAt) {
+        this.rating = rating;
+        this.quality = breakdown.quality();
+        this.delivery = breakdown.delivery();
+        this.communication = breakdown.communication();
+        this.pricing = breakdown.pricing();
+        this.label = label;
+        this.ratingSource = ratingSource;
+        this.computedAt = computedAt;
+    }
 }

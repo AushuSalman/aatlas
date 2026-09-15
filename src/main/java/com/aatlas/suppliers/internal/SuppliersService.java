@@ -6,6 +6,7 @@ import com.aatlas.common.tenant.TenantContext;
 import com.aatlas.common.time.AatlasClock;
 import com.aatlas.policy.Persona;
 import com.aatlas.policy.PolicyReader;
+import com.aatlas.suppliers.internal.csv.SupplierDraft;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
@@ -16,6 +17,7 @@ import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
+import java.util.Optional;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -47,6 +49,7 @@ class SuppliersService {
     private final ObjectMapper json;
     private final AatlasClock clock;
     private final PolicyReader policy;
+    private final SupplierWriter writer;
 
     SuppliersService(
             SupplierRepository suppliers,
@@ -58,7 +61,8 @@ class SuppliersService {
             SupplierLookupRepository lookups,
             ObjectMapper json,
             AatlasClock clock,
-            PolicyReader policy) {
+            PolicyReader policy,
+            SupplierWriter writer) {
         this.suppliers = suppliers;
         this.terms = terms;
         this.ratings = ratings;
@@ -69,6 +73,7 @@ class SuppliersService {
         this.json = json;
         this.clock = clock;
         this.policy = policy;
+        this.writer = writer;
     }
 
     // -- Reads ----------------------------------------------------------------------------------
@@ -209,6 +214,13 @@ class SuppliersService {
         UUID tenantId = TenantContext.requireTenantId();
         requireBuySeatOrDirector();
 
+        // Two shapes, one action. A record typed in by hand goes through the same writer the
+        // CSV import uses, so a supplier described in the form and the same supplier uploaded
+        // in a file produce identical rows - including a rating derived the same way.
+        if (!request.fromLookup()) {
+            return addFromRecord(tenantId, request);
+        }
+
         SupplierLookupEntity lookupRow = lookups.findByTenantIdAndId(tenantId, request.lookupId())
                 .orElseThrow(() -> ApiException.notFound("Supplier lookup", request.lookupId()));
         if (suppliers.existsByTenantIdAndSupplierKey(tenantId, lookupRow.getSupplierKey())) {
@@ -280,16 +292,13 @@ class SuppliersService {
     SupplierProfileView patch(String supplierKey, PatchSupplierRequest request) {
         UUID tenantId = TenantContext.requireTenantId();
         SupplierEntity s = requireSupplier(tenantId, supplierKey);
-        if (request.contactName() != null) {
-            s.setContactName(request.contactName());
+
+        // A profile edit goes through the same writer as an add, so the stars are re-derived
+        // from whatever the new numbers are rather than left describing the old ones.
+        if (request.touchesProfile()) {
+            // Corrected by hand, so the rating is the buyer's own record however it first arrived.
+            writer.update(s, mergedDraft(tenantId, s, request), SupplierWriter.SELF_REPORTED_SOURCE);
         }
-        if (request.email() != null) {
-            s.setEmail(request.email());
-        }
-        if (request.category() != null) {
-            s.setCategory(request.category());
-        }
-        suppliers.save(s);
 
         if (request.terms() != null) {
             SupplierTermsEntity termsRow = terms.findBySupplierIdAndTenantId(s.getId(), tenantId)
@@ -405,5 +414,148 @@ class SuppliersService {
         } catch (IOException e) {
             throw new IllegalStateException("Could not deserialise " + type.getSimpleName(), e);
         }
+    }
+    /**
+     * Adds a supplier the buyer described themselves.
+     *
+     * <p>Keyed on name and country, the same key the CSV import de-duplicates by, so adding a
+     * supplier that a file already brought in corrects it rather than creating a second row.
+     */
+    private SupplierProfileView addFromRecord(UUID tenantId, AddSupplierRequest request) {
+        SupplierDraft draft = request.toDraft();
+        String supplierKey = "own-" + draft.key().replace('|', '-');
+        UUID userId = TenantContext.currentUserId().orElse(null);
+
+        SupplierEntity saved = suppliers.findByTenantIdAndSupplierKey(tenantId, supplierKey)
+                .map(existing -> writer.update(existing, draft, SupplierWriter.SELF_REPORTED_SOURCE))
+                .orElseGet(() -> writer.create(
+                        tenantId, supplierKey, draft, userId, SupplierWriter.SELF_REPORTED_SOURCE));
+
+        return toView(
+                saved,
+                ratings.findById(saved.getId()).orElseThrow(),
+                terms.findById(saved.getId()).orElseThrow(),
+                reviews.findByTenantIdAndSupplierIdOrderByPositionAsc(tenantId, saved.getId()),
+                risks.findById(saved.getId()).orElseThrow());
+    }
+    /**
+     * The supplier as it would be after this patch.
+     *
+     * <p>Every field falls back to what is already stored, which is what makes a partial patch
+     * partial: the terms panel sends one number and the form sends all of them, and both end up
+     * here as a complete record.
+     */
+    private SupplierDraft mergedDraft(UUID tenantId, SupplierEntity s, PatchSupplierRequest p) {
+        String name = p.name() != null ? p.name().strip() : s.getName();
+        String country = p.country() != null ? p.country().strip() : s.getCountry();
+        return new SupplierDraft(
+                AddSupplierRequest.key(name, country),
+                name,
+                country,
+                p.city() != null ? p.city().strip() : s.getCity(),
+                p.website() != null ? p.website().strip() : s.getWebsite(),
+                p.category() != null ? p.category().strip() : s.getCategory(),
+                p.yearsTrading() != null ? p.yearsTrading() : s.getYearsTrading(),
+                p.certifications() != null ? p.certifications() : currentCertifications(tenantId, s),
+                p.leadTimeDays() != null ? p.leadTimeDays() : s.getLeadTimeDays(),
+                p.otifPct() != null ? p.otifPct() : s.getOtifPct(),
+                p.priceIndex() != null ? p.priceIndex() : s.getPriceIndex(),
+                p.defectPct() != null ? p.defectPct() : s.getDefectPct(),
+                p.holdsStock() != null ? p.holdsStock() : s.isHoldsStock(),
+                // Not stored on the supplier: it is a star, and the stars live on the rating row.
+                p.communication() != null ? p.communication() : SupplierDraft.DEFAULT_COMMUNICATION,
+                p.contactName() != null ? p.contactName().strip() : s.getContactName(),
+                p.resolvedEmail() != null ? p.resolvedEmail().strip() : s.getEmail(),
+                "",
+                0);
+    }
+
+    /** Certifications live on the terms row, and a patch that does not mention them keeps them. */
+    private java.util.List<String> currentCertifications(UUID tenantId, SupplierEntity s) {
+        return terms.findBySupplierIdAndTenantId(s.getId(), tenantId)
+                .map(SupplierTermsEntity::getCertifications)
+                .orElseGet(java.util.List::of);
+    }
+
+
+    /**
+     * Puts a list of suppliers on the panel.
+     *
+     * <p>Row by row rather than all or nothing, which is the opposite of the CSV loader and
+     * deliberate. A sales history half-imported is unusable because nobody can tell which
+     * months are complete; a supplier panel is a list of independent companies, and refusing
+     * forty-nine of them because the fiftieth has a bad country would be losing work the buyer
+     * has already done. Each rejection is returned with its index so the screen can point at
+     * the row.
+     *
+     * <p>Each row is still validated here. What the browser checked was the file's shape;
+     * only the server knows the panel, and only the server decides what a supplier may claim
+     * about itself.
+     */
+    @Transactional
+    ImportSuppliersResponse importSuppliers(ImportSuppliersRequest request) {
+        UUID tenantId = TenantContext.requireTenantId();
+        requireBuySeatOrDirector();
+        UUID userId = TenantContext.currentUserId().orElse(null);
+
+        List<SupplierProfileView> added = new ArrayList<>();
+        List<SupplierProfileView> updated = new ArrayList<>();
+        List<ImportSuppliersResponse.Rejection> rejected = new ArrayList<>();
+
+        // Within one file the later row wins, matching how the client de-duplicates its own
+        // preview: a corrected line appended to an export is meant to replace what came before.
+        Set<String> seen = new HashSet<>();
+
+        for (int index = 0; index < request.suppliers().size(); index++) {
+            AddSupplierRequest row = request.suppliers().get(index);
+            try {
+                if (row.fromLookup()) {
+                    throw ApiException.badRequest("lookup_not_importable",
+                            "An import carries supplier records, not lookup ids.");
+                }
+                // The same completeness rule bean validation applies to a single add, checked
+                // here so a bad row is rejected on its own rather than failing the whole file.
+                if (!row.isUsable()) {
+                    throw new ApiException(org.springframework.http.HttpStatus.BAD_REQUEST, "incomplete_supplier",
+                            "A supplier needs a name, a country, a lead time and an on-time rate.",
+                            java.util.Map.of("field", row.name() == null || row.name().isBlank() ? "name" : "country"));
+                }
+                SupplierDraft draft = row.toDraft();
+                String supplierKey = "own-" + draft.key().replace('|', '-');
+
+                Optional<SupplierEntity> existing = suppliers.findByTenantIdAndSupplierKey(tenantId, supplierKey);
+                // Counted as an update if the panel already had it, or if an earlier row in
+                // this same file did - otherwise a corrected duplicate would report as "added".
+                boolean existed = existing.isPresent() | !seen.add(supplierKey);
+
+                SupplierEntity saved = existing
+                        .map(found -> writer.update(found, draft, SupplierWriter.IMPORTED_SOURCE))
+                        .orElseGet(() -> writer.create(
+                                tenantId, supplierKey, draft, userId, SupplierWriter.IMPORTED_SOURCE));
+
+                (existed ? updated : added).add(viewOf(tenantId, saved));
+            } catch (ApiException ex) {
+                rejected.add(new ImportSuppliersResponse.Rejection(
+                        index, row.name() == null ? "" : row.name(), ex.getMessage(), fieldOf(ex)));
+            }
+        }
+
+        return new ImportSuppliersResponse(added, updated, rejected);
+    }
+
+    /** The field an error names, when it names one. */
+    private static String fieldOf(ApiException ex) {
+        Object field = ex.details().get("field");
+        return field == null ? null : field.toString();
+    }
+
+    /** A saved supplier with the rows that hang off it, as the panel shows it. */
+    private SupplierProfileView viewOf(UUID tenantId, SupplierEntity saved) {
+        return toView(
+                saved,
+                ratings.findById(saved.getId()).orElseThrow(),
+                terms.findById(saved.getId()).orElseThrow(),
+                reviews.findByTenantIdAndSupplierIdOrderByPositionAsc(tenantId, saved.getId()),
+                risks.findById(saved.getId()).orElseThrow());
     }
 }

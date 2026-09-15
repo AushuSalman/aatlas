@@ -146,4 +146,8 @@ class SupplierTermsEntity {
     void setCertifications(List<String> certifications) {
         this.certifications = certifications;
     }
+    /** Certifications are the buyer's claim about the supplier, replaced wholesale on a correction. */
+    void applyCertifications(java.util.List<String> certifications) {
+        this.certifications = certifications == null ? java.util.List.of() : java.util.List.copyOf(certifications);
+    }
 }

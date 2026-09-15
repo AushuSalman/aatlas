@@ -1,5 +1,6 @@
 package com.aatlas.ingest.internal.csv;
 
+import com.aatlas.common.csv.CsvReader;
 import com.aatlas.ingest.internal.csv.ImportReport.ParsedRow;
 import com.aatlas.ingest.internal.csv.ImportReport.RowIssue;
 import java.math.BigDecimal;

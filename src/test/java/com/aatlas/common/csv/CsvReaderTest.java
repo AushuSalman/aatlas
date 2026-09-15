@@ -1,4 +1,4 @@
-package com.aatlas.ingest.internal.csv;
+package com.aatlas.common.csv;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

@@ -16,6 +16,8 @@ import org.springframework.http.ProblemDetail;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -76,6 +78,42 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(NoResourceFoundException.class)
     public ProblemDetail onNoResource(NoResourceFoundException ex, HttpServletRequest request) {
         return base(HttpStatus.NOT_FOUND, "not_found", "No such endpoint.", request);
+    }
+
+    /**
+     * The path exists but not for this verb.
+     *
+     * <p>Without this it falls to the catch-all and becomes a 500, which sends a caller looking
+     * for a server fault over a typo in their own request. It is also actively misleading: a
+     * {@code POST} to a path that only answers {@code GET /{id}} matches the {@code {id}}
+     * pattern, so the error names a method rather than a missing endpoint.
+     */
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ProblemDetail onMethodNotSupported(
+            HttpRequestMethodNotSupportedException ex, HttpServletRequest request) {
+
+        ProblemDetail problem = base(HttpStatus.METHOD_NOT_ALLOWED, "method_not_allowed",
+                ex.getMethod() + " is not supported here.", request);
+        if (ex.getSupportedHttpMethods() != null && !ex.getSupportedHttpMethods().isEmpty()) {
+            problem.setProperty("allowed", ex.getSupportedHttpMethods().stream().map(Object::toString).toList());
+        }
+        return problem;
+    }
+
+    /**
+     * The body is in a format this endpoint does not read - most often JSON sent to something
+     * expecting multipart, or a missing {@code Content-Type} altogether.
+     */
+    @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
+    public ProblemDetail onUnsupportedMediaType(
+            HttpMediaTypeNotSupportedException ex, HttpServletRequest request) {
+
+        ProblemDetail problem = base(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "unsupported_media_type",
+                "This endpoint does not accept that content type.", request);
+        if (!ex.getSupportedMediaTypes().isEmpty()) {
+            problem.setProperty("supported", ex.getSupportedMediaTypes().stream().map(Object::toString).toList());
+        }
+        return problem;
     }
 
     /**

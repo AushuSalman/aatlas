@@ -1,4 +1,4 @@
-package com.aatlas.ingest.internal.csv;
+package com.aatlas.common.csv;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -16,7 +16,7 @@ import java.util.List;
  * edge cases, and agreeing with the browser is the entire requirement. Anything this
  * cannot read becomes a row issue rather than a guess.
  */
-final class CsvReader {
+public final class CsvReader {
 
     private CsvReader() {
     }
@@ -27,7 +27,7 @@ final class CsvReader {
      * <p>Rows that are entirely empty are dropped, which is what removes the trailing blank
      * line every file ending in a newline produces.
      */
-    static List<List<String>> parse(String text) {
+    public static List<List<String>> parse(String text) {
         List<List<String>> rows = new ArrayList<>();
         List<String> row = new ArrayList<>();
         StringBuilder field = new StringBuilder();

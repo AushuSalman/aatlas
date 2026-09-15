@@ -2,6 +2,7 @@ package com.aatlas.ingest.internal.csv;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.aatlas.common.csv.CsvReader;
 import com.aatlas.ingest.internal.csv.ImportReport.ParsedRow;
 import com.aatlas.ingest.internal.csv.ImportReport.RowIssue;
 import java.io.IOException;
