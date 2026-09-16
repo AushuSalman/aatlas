@@ -19,6 +19,8 @@ interface StoreRepository extends JpaRepository<StoreEntity, UUID>, JpaSpecifica
 
     long countByTenantId(UUID tenantId);
 
+    boolean existsByTenantIdAndStoreCode(UUID tenantId, String storeCode);
+
     Optional<StoreEntity> findByTenantIdAndStoreCode(UUID tenantId, String storeCode);
 
     Optional<StoreEntity> findByTenantIdAndId(UUID tenantId, UUID id);
