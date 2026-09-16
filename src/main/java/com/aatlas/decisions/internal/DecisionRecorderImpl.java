@@ -71,13 +71,23 @@ class DecisionRecorderImpl implements DecisionRecorder {
     @Override
     @Transactional
     public Decision record(RecordDecisionRequest request) {
+        return save(request, DecisionStatus.APPLIED);
+    }
+
+    @Override
+    @Transactional
+    public Decision recordPending(RecordDecisionRequest request) {
+        return save(request, DecisionStatus.PENDING);
+    }
+
+    private Decision save(RecordDecisionRequest request, DecisionStatus status) {
         UUID userId = TenantContext.currentUserId()
                 .orElseThrow(() -> ApiException.forbidden("A decision must be recorded by a signed-in user."));
 
         DecisionEntity entity = new DecisionEntity(userId, request.kind(), request.title(), request.itemNumber(),
                 request.scope() == null ? "" : request.scope(), nz(request.recommended()), nz(request.applied()),
                 nz(request.expectedImpact()), request.impactLabel() == null ? "" : request.impactLabel(),
-                request.detail() == null ? "" : request.detail(), request.count(), DecisionStatus.APPLIED);
+                request.detail() == null ? "" : request.detail(), request.count(), status);
         entity = decisions.save(entity);
 
         if (request.quote() != null) {
@@ -85,6 +95,16 @@ class DecisionRecorderImpl implements DecisionRecorder {
             quotes.save(new QuoteEntity(entity.getId(), q));
         }
         return Mappers.toDecision(entity);
+    }
+
+    @Override
+    @Transactional
+    public Decision resolve(UUID decisionId, DecisionStatus status) {
+        UUID tenantId = TenantContext.requireTenantId();
+        DecisionEntity entity = decisions.findByTenantIdAndId(tenantId, decisionId)
+                .orElseThrow(() -> ApiException.notFound("Decision", decisionId));
+        entity.setStatus(DecisionEntity.Status.valueOf(status.wire().replace('-', '_')));
+        return Mappers.toDecision(decisions.save(entity));
     }
 
     @Override

@@ -11,8 +11,16 @@ import java.util.UUID;
  *
  * <h2>Shape</h2>
  * <ul>
- *   <li>{@link #record} - one {@link Decision} row. Ports the frontend's {@code recordDecision}.
- *       Carries an optional {@link QuoteBreakdown} for a sell decision with deal context.</li>
+ *   <li>{@link #record} - one {@link Decision} row, immediately {@link DecisionStatus#APPLIED}.
+ *       Ports the frontend's {@code recordDecision}. Carries an optional {@link QuoteBreakdown}
+ *       for a sell decision with deal context.</li>
+ *   <li>{@link #recordPending} - the same, but {@link DecisionStatus#PENDING}: a decision raised
+ *       for the {@code approvals} module because the seat could not commit it alone. No deal
+ *       exists yet - the caller records one with {@link #recordSale}/{@link #recordPurchase}
+ *       once {@code approvals} reports the request granted.</li>
+ *   <li>{@link #resolve} - moves a pending decision to {@link DecisionStatus#APPROVED} or
+ *       {@link DecisionStatus#REJECTED}. Called by {@code approvals} alone, after its own
+ *       {@code approval_request} row is decided; never by the module that raised it.</li>
  *   <li>{@link #recordSale} - one sell-side {@link DealRecord}. Ports the frontend's
  *       {@code recordSale} ({@code platform/recorded.ts}) - a separate file from
  *       {@code recordDecision} in the frontend because the browser-only prototype wrote two
@@ -33,6 +41,10 @@ import java.util.UUID;
 public interface DecisionRecorder {
 
     Decision record(RecordDecisionRequest request);
+
+    Decision recordPending(RecordDecisionRequest request);
+
+    Decision resolve(UUID decisionId, DecisionStatus status);
 
     DealRecord recordSale(RecordSaleRequest request);
 

@@ -525,6 +525,57 @@ not the real formula. See `AssistantService`'s class doc for the precise line.
 | GET | `/api/v1/assistant/suggestions` | The six questions, reordered so this seat's own side of the business (from `policy`'s `Persona.side`) comes first. |
 | GET | `/api/v1/assistant/history` | `limit` (default 20). This seat's recent questions, newest first. |
 
+## RFQ and approvals (`rfq`, `approvals`)
+
+Both were empty `package-info.java` placeholders (named in the blueprint's module map,
+never built by any wave) until now. Built directly on `salman`, not in a wave worktree —
+`sell`, `buy`, `decisions` and `policy` all already existed for real, so there was no stand-in
+to write against another track's future shape.
+
+`rfq` ports `src/lib/intel/rfq.ts` (`createRfq`, `simulateQuote`, `awardRfq`,
+`recommendQuote`) onto real tables, built against `buy`'s public
+`BuyIntelReader`/`ProcurementPlanReader` — a round invites suppliers from the same ranked
+panel the Buy screen already shows, never a second scoring pass. `simulateQuote` stays:
+there is no real supplier inbox behind this, so `POST /rfqs/{id}/quotes` still fabricates a
+deterministic reply for any invite nobody has typed an answer in for, exactly like the
+frontend did in the browser.
+
+`approvals` is the module `buy.BuySelectResult`'s `pending` branch always implied but never
+had behind it — `ApiException.approvalRequired` was already there, unused, waiting. It is
+generic on purpose: a raising module calls `decisions.DecisionRecorder#recordPending` then
+`approvals.ApprovalRequester#raise`, and listens for `ApprovalGranted`/`ApprovalRejected` to
+finish committing what it stood behind — `approvals` itself never writes a deal. `rfq.award`
+is the first (only, so far) caller; `buy.BuySelectRequest` still writes its own
+`buy_decisions` stand-in row and could be retargeted onto this the same way.
+
+| Method | Path | Notes |
+|---|---|---|
+| POST | `/api/v1/rfqs` | `{itemNumber, regionKey, destinationId?, qty, requiredDays, priority, supplierIds[], notes?, incoterm?, paymentTerms?}`. Drafts the round and the request message; does not send it. |
+| GET | `/api/v1/rfqs` | `status?`, `limit`. Newest first. |
+| GET | `/api/v1/rfqs/{id}` | Round with invites and quotes. |
+| PATCH | `/api/v1/rfqs/{id}` | `qty`/`requiredDays`/`priority`/`notes`; draft only, `409` otherwise. |
+| POST | `/api/v1/rfqs/{id}/send` | Draft → sent; stamps every invite, logs the mail (no SMTP yet — see `RfqMailer`). |
+| POST | `/api/v1/rfqs/{id}/quotes` | Optional `{replies:[...]}`; any invite not named gets a simulated reply. Moves to `quoted`. |
+| GET | `/api/v1/rfqs/{id}/recommendation` | Which live quote to take, under the order's own priority weights, with the reason. |
+| POST | `/api/v1/rfqs/{id}/award` | `{supplierId}`. Same shape as `POST /buy/select`: `ok` within the seat's limit, `pending` (with `limit`/`approver`) otherwise. |
+| GET | `/api/v1/rfqs/{id}/export` | CSV quote sheet. |
+| GET | `/api/v1/approvals` | Pending requests for my role, plus every request I raised myself. |
+| GET | `/api/v1/approvals/{id}` | One request with the decision behind it. |
+| POST | `/api/v1/approvals/{id}/approve` \| `/reject` | Optional `{note}`. Moves the linked decision to `approved`/`rejected` and publishes the outcome event. |
+| GET | `/api/v1/approvals/limits` | My seat's own `approveLimit`/`approver`. |
+
+**Not yet enforced:** `approve`/`reject` only check that the caller is a signed-in user of
+the tenant, not that they hold `approverRole` — there is no seat-invite flow yet (a tenant
+has exactly one user, the one who signed up), so a real check would make every request
+permanently unactionable. Add it once a tenant can hold more than one seat.
+
+`RfqApprovalsIT` (Testcontainers) drives the whole thing end to end against the flagship
+Copper Tube item/region `BuyEngineGoldenIT` already golden-tests: a small order a
+purchase-manager commits alone, and a large one that raises a real `approval_request`,
+which `POST /approvals/{id}/approve` grants and `rfq.ApprovalOutcomeListener` turns into an
+actual purchase — polling for it exactly as every other cross-module listener test here
+does, since the event is relayed after the approve transaction commits.
+
 ---
 
 ## What comes next
@@ -536,6 +587,6 @@ Following the blueprint's build order:
 3. **Sell and buy live** — snapshot reads; apply, quote and bulk write through the outbox.
 4. **The aggregate screens** — geo, demographics, overview workers; procurement rollups; Redis in front. Load test to 1,000 RPS.
 5. **Onboarding for real** — streaming CSV import, sample provisioning, first ERP connector.
-6. **Procurement V2** — plan, RFQ, approvals, webhooks, admin.
+6. **Procurement V2** — plan, ~~RFQ, approvals~~ (see "RFQ and approvals" below), webhooks, admin.
 
 The frontend switches one `src/lib/platform/api.ts` body at a time — that file is already one async function per screen with a fake delay, which is the seam this whole design is built to slot into.

@@ -433,3 +433,29 @@ Migration V13 gives `mcp_permission` its own `requires_approval` column, matchin
 ### `assistant_question` is new: no existing table fit
 
 The brief allowed adding one minimal history table if nothing else covered it, and nothing did — `decisions` (which might one day carry a generic activity log) was the empty placeholder discussed above. Kept deliberately narrow: `tenant_id`, `user_id`, `question`, `asked_at`. No answer payload is stored; a history row is a prompt to re-ask, not a cache of the response.
+
+## `rfq` and `approvals` (V18, V19)
+
+Both were empty `package-info.java` placeholders from the original scaffold, never claimed by any wave. Built directly on `salman` rather than in a wave worktree, because everything they depend on (`sell`, `buy`, `decisions`, `policy`) was already real and merged — there was no future module's shape to guess at or stand in for.
+
+### `approvals` never writes a deal; it only moves `Decision#status`
+
+The temptation is to have the approvals module finish the purchase itself once granted — it already has the amount and the decision id, after all. Rejected: `approvals` would then need to know what "finishing" means for every kind of decision that might ever raise one (a buy award today, a sell bulk-apply or an RFQ tomorrow), which is exactly the coupling a generic gate should not have. Instead `ApprovalRequester#raise` takes a decision the caller already recorded as `pending` (`decisions.DecisionRecorder#recordPending`, new alongside `#resolve`), and `approve`/`reject` only call `#resolve` and publish `ApprovalGranted`/`ApprovalRejected` — the module that raised the request listens for its own outcome and writes the actual `DealRecord`. `rfq.ApprovalOutcomeListener` is the first (only, so far) example.
+
+One consequence worth naming: this is why `Decision#status` visits `approved` on its way to `applied` rather than jumping straight there. `approved` means "signed off, not yet committed"; `rfq.RfqService#onApprovalGranted` calls `#resolve` a second time, to `applied`, only after the deal is actually written — so a screen reading `decisions` sees the same terminal state regardless of which path a purchase took, and a crash between grant and commit leaves the decision visibly `approved`-but-not-`applied` rather than silently `applied` with no deal behind it.
+
+### `approval_request.approver_role` has to be a seat key, not the title `Persona#approver` returns
+
+`Persona#approver` is documented as a display title ("Head of purchasing"), because that is all `BuySelectResult`'s `pending` branch ever needed it for — a string to show on screen. `approvals`' own inbox (`GET /approvals`, "pending for my role") filters by comparing `approver_role` against the signed-in seat's own wire role (`TenantContext.Actor#role`, e.g. `purchase-head`) — a title there would never match anything. `RfqService#approverRoleKeyFor` resolves it once, at raise time, by matching the title against `policy.PolicyReader#personasFor` and taking that persona's `key`; falls back to the title itself if no seat carries it (defensive - every approver named in `seed/personas.json` is itself a persona title today, so the fallback should never actually fire).
+
+### `approve`/`reject` do not check the caller holds `approverRole`
+
+They check only that the caller is a signed-in user of the tenant. A tenant has exactly one user right now — the one who signed up — so a real "does this seat's role match `approver_role`" check would make every request permanently unactionable rather than enforce anything, since there is no seat-invite flow yet to ever put a second, differently-roled user in the same tenant. Add the check when there is one; `RfqApprovalsIT` already exercises approve/reject as the requester themselves for exactly this reason and will need updating alongside it.
+
+### `rfq_quote` carries both `quoted_unit` and `quoted_landed`, but `simulateQuote` only ever produces one number
+
+The blueprint's own schema sketch has both columns; `intel/rfq.ts`'s `simulateQuote` (the only source of a reply when nobody types one in) computes a single landed-cost figure from `RfqInvite#expectedLanded` (itself `ScoredSupplier.route.unitCost` — already a landed estimate, per the frontend). `RfqEngine#simulate` writes that one number into both columns rather than fabricating an ex-works split with nothing real behind it; a manually-entered reply (`POST /rfqs/{id}/quotes`'s `replies[]`) can set them independently. `recommendQuote`'s scoring and every comparison in this module read `quoted_landed` only, so the duplication costs nothing today.
+
+### RFQ invites read `buy`'s ranked panel; nothing here re-scores suppliers
+
+`RfqService#create` takes `supplierIds` and looks each one up in `ProcurementPlanReader#procurementPlan(...).ranked()` — the same `ScoredSupplier` list the Buy screen's compare tab reads — rather than re-running `TermsEngine`/`RiskEngine`/`RatingEngine` a third time (`suppliers` and `buy` each already carry their own copy, per that module's own decisions.md entry). An id the plan does not rank (a typo, a supplier outside this order's panel) is silently dropped from the invite list; `400 no_such_supplier` only fires when every given id drops, since a partial invite list from a partially-wrong request is still a usable round.
