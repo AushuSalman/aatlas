@@ -10,5 +10,7 @@
  * already in Postgres from wave 1. There is no snapshot table and no worker; see
  * {@code docs/decisions.md} for why that is not a shortcut.
  */
-@org.springframework.modulith.ApplicationModule(displayName = "sell")
+@org.springframework.modulith.ApplicationModule(
+        displayName = "sell",
+        allowedDependencies = {"common", "decisions"})
 package com.aatlas.sell;

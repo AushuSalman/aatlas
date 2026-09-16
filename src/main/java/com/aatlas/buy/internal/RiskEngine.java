@@ -61,7 +61,7 @@ final class RiskEngine {
         if (supplier != null) {
             RatingEngine.Profile profile = RatingEngine.profileFor(ref, supplier.id(), supplier.country(),
                     supplier.leadTimeDays(), supplier.otifPct(), supplier.priceIndex(),
-                    RatingEngine.seededDefect(supplier.id()));
+                    supplier.defectPct());
             factors.add(new SupplierRisk.Factor("Buyer rating",
                     Js.toFixed(profile.rating(), 1) + " ★ (" + profile.reviewCount() + " reviews)",
                     profile.rating() >= 4));

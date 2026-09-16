@@ -115,6 +115,20 @@ final class DemographicsEngine {
             PricingModel m = PricingEngine.compute(p.itemNumber(), storeId, snapshot);
             SellSummary intel = SellEngine.compute(p.itemNumber(), storeId, snapshot, m);
             double[] a = acc.get(p.category());
+            if (a == null) {
+                // A category this mix has no column for - in practice 'uncategorised', which
+                // is what ingest writes for a product invented by a CSV import (it declines to
+                // guess a category, deliberately). The accumulator is pre-sized to CATEGORIES,
+                // so this used to read null and throw, and one imported SKU was enough to make
+                // GET /insights/demographics 500 for the whole tenant.
+                //
+                // Skipped rather than given a column of its own: the shares below are what the
+                // frontend renders against four fixed categories, and a fifth would change that
+                // contract. The consequence is that an uncategorised line is absent from the
+                // mix until someone categorises it, which is the honest reading of "we do not
+                // know what this is" - better than inventing a category for it.
+                continue;
+            }
             a[0] += intel.currentPrice() * intel.annualUnits();
             a[1] += intel.cost() * intel.annualUnits();
             a[2] += (m.demand() != null ? m.demand().movePercent() : 0) * 3;

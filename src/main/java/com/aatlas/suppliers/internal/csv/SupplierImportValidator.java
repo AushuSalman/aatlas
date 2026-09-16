@@ -2,6 +2,7 @@ package com.aatlas.suppliers.internal.csv;
 
 import com.aatlas.common.csv.CsvReader;
 import com.aatlas.common.time.AatlasClock;
+import com.aatlas.suppliers.internal.Countries;
 import com.aatlas.suppliers.internal.csv.SupplierImportReport.RowIssue;
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -56,23 +57,6 @@ public class SupplierImportValidator {
     /** The categories the platform files a supplier under. */
     private static final List<String> CATEGORIES =
             List.of("Copper & brass", "Valves", "Polymers", "Steel", "Tooling", "Fittings");
-
-    /** Countries with a shipping lane on file. Others import, with a warning and an assumption. */
-    private static final Set<String> LANE_COUNTRIES =
-            Set.of("USA", "UK", "Germany", "China", "India", "Vietnam", "Mexico", "Canada");
-
-    /** "united states", "US" and "USA" are one lane. Anything unlisted is taken as written. */
-    private static final Map<String, String> COUNTRY_ALIASES = Map.ofEntries(
-            Map.entry("us", "USA"), Map.entry("usa", "USA"), Map.entry("unitedstates", "USA"),
-            Map.entry("unitedstatesofamerica", "USA"), Map.entry("america", "USA"),
-            Map.entry("uk", "UK"), Map.entry("gb", "UK"), Map.entry("unitedkingdom", "UK"),
-            Map.entry("greatbritain", "UK"), Map.entry("england", "UK"),
-            Map.entry("de", "Germany"), Map.entry("germany", "Germany"), Map.entry("deutschland", "Germany"),
-            Map.entry("cn", "China"), Map.entry("china", "China"), Map.entry("prc", "China"),
-            Map.entry("in", "India"), Map.entry("india", "India"),
-            Map.entry("vn", "Vietnam"), Map.entry("vietnam", "Vietnam"), Map.entry("viet", "Vietnam"),
-            Map.entry("mx", "Mexico"), Map.entry("mexico", "Mexico"),
-            Map.entry("ca", "Canada"), Map.entry("canada", "Canada"));
 
     private final AatlasClock clock;
 
@@ -167,7 +151,7 @@ public class SupplierImportValidator {
             issues.add(RowIssue.error(line, SupplierField.NAME, "Supplier name is longer than 120 characters."));
         }
 
-        if (normaliseCountry(cell(row, mapping, SupplierField.COUNTRY)) == null) {
+        if (Countries.canonical(cell(row, mapping, SupplierField.COUNTRY)) == null) {
             issues.add(RowIssue.error(line, SupplierField.COUNTRY, "No country."));
         }
 
@@ -199,7 +183,7 @@ public class SupplierImportValidator {
             List<String> row, SupplierColumnMapping mapping, int line, List<RowIssue> warnings) {
 
         String name = cell(row, mapping, SupplierField.NAME);
-        String country = normaliseCountry(cell(row, mapping, SupplierField.COUNTRY));
+        String country = Countries.canonical(cell(row, mapping, SupplierField.COUNTRY));
         int leadTimeDays = (int) Math.round(parseNumber(cell(row, mapping, SupplierField.LEAD_TIME_DAYS)).orElseThrow());
         double otifPct = round(parseRate(cell(row, mapping, SupplierField.OTIF_PCT)).orElseThrow(), 2);
 
@@ -233,7 +217,7 @@ public class SupplierImportValidator {
                     + cell(row, mapping, SupplierField.HOLDS_STOCK) + "\" is not yes or no; taken as made to order."));
         }
 
-        if (!LANE_COUNTRIES.contains(country)) {
+        if (!Countries.hasLane(country)) {
             warnings.add(RowIssue.warning(line, SupplierField.COUNTRY,
                     country + " has no shipping lane on file; a 30-day inbound transit is assumed."));
         }
@@ -354,14 +338,6 @@ public class SupplierImportValidator {
     /** A rate written as either 94 or 0.94. At or below 1 it is a fraction. */
     private static Optional<Double> parseRate(String raw) {
         return parseNumber(raw).map(v -> v > 0 && v <= 1 ? v * 100 : v);
-    }
-
-    private static String normaliseCountry(String raw) {
-        String key = SupplierField.normalise(raw);
-        if (key.isEmpty()) {
-            return null;
-        }
-        return COUNTRY_ALIASES.getOrDefault(key, raw.strip());
     }
 
     /** Exact category first, then either side containing the other, then nothing. */

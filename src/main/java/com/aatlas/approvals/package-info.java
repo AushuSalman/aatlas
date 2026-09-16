@@ -14,5 +14,7 @@
  * decisions.DecisionRecorder#resolve}, which is all {@link
  * com.aatlas.approvals.internal.ApprovalService} calls.
  */
-@org.springframework.modulith.ApplicationModule(displayName = "approvals")
+@org.springframework.modulith.ApplicationModule(
+        displayName = "approvals",
+        allowedDependencies = {"common", "decisions", "policy"})
 package com.aatlas.approvals;

@@ -111,7 +111,12 @@ record AddSupplierRequest(
      */
     SupplierDraft toDraft() {
         String cleanName = name.strip();
-        String cleanCountry = country.strip();
+        // Canonical, not merely stripped: this string is the shipping lane's key, and "GB"
+        // or "United Kingdom" misses every row in the rate card, landing the supplier on the
+        // unlisted-origin fallback - a 5% duty and a thirty-day transit on every quote they
+        // are ever part of. The CSV import has always canonicalised; the same supplier typed
+        // into the form reaches the same table and the same engine, so it does too.
+        String cleanCountry = Countries.canonicalOr(country, country.strip());
         return new SupplierDraft(
                 key(cleanName, cleanCountry),
                 cleanName,

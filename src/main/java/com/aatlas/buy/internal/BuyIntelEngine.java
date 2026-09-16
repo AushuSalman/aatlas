@@ -27,11 +27,31 @@ public class BuyIntelEngine implements BuyIntelReader {
     private final CatalogGateway catalog;
     private final BuyRecommendationEngine recommendationEngine;
     private final PricingStandIn pricing;
+    private final SupplierGateway suppliers;
 
-    BuyIntelEngine(CatalogGateway catalog, BuyRecommendationEngine recommendationEngine, PricingStandIn pricing) {
+    BuyIntelEngine(CatalogGateway catalog, BuyRecommendationEngine recommendationEngine, PricingStandIn pricing,
+            SupplierGateway suppliers) {
         this.catalog = catalog;
         this.recommendationEngine = recommendationEngine;
         this.pricing = pricing;
+        this.suppliers = suppliers;
+    }
+
+    /**
+     * The stored reject rate for a supplier, or the seeded one when this supplier is not on
+     * the item's panel.
+     *
+     * <p>A linear scan of at most a handful of rows rather than a map: {@code
+     * ArchitectureRulesTest.noFloatingPointMoney} forbids this package from depending on
+     * {@code java.lang.Double}, which any {@code Map<String, Double>} would box into.
+     */
+    private static double defectPctFor(String supplierId, List<SupplierGateway.SupplierRow> panel) {
+        for (SupplierGateway.SupplierRow s : panel) {
+            if (s.id().equals(supplierId)) {
+                return s.defectPct();
+            }
+        }
+        return RatingEngine.seededDefect(supplierId);
     }
 
     /** The busiest branch in a market region - where a regional buy is landed for costing. */
@@ -61,9 +81,13 @@ public class BuyIntelEngine implements BuyIntelReader {
         return n >= 85 ? "High" : n >= 70 ? "Medium" : "Low";
     }
 
-    private SupplierEval evaluate(SupplierQuote q, String itemNumber, double cost, double qty) {
+    private SupplierEval evaluate(SupplierQuote q, String itemNumber, double cost, double qty,
+            List<SupplierGateway.SupplierRow> panel) {
         String key = "sup:" + q.supplierId() + ":" + itemNumber;
-        double defectPct = RatingEngine.seededDefect(q.supplierId());
+        // The reject rate the row carries, not a hash of the id: for a CSV-imported supplier
+        // that is the rate the file gave. Identical for a seeded one, whose stored figure
+        // came from this same hash.
+        double defectPct = defectPctFor(q.supplierId(), panel);
         double fulfilmentPct = Js.round1(Seeded.randRange("sup:" + q.supplierId(), "fulfil", 87, 99.4));
         CommercialTerms commercial = TermsEngine.commercialTerms(q.supplierId(), q.country());
         String terms = commercial.termsLabel();
@@ -155,7 +179,9 @@ public class BuyIntelEngine implements BuyIntelReader {
         int annualVolume = annualVolumeFor(itemNumber, regionKey, cost);
         double effectiveQty = Math.max(1, qty);
 
-        List<SupplierEval> evaluated = rec.quotes().stream().map(q -> evaluate(q, itemNumber, cost, effectiveQty)).toList();
+        List<SupplierGateway.SupplierRow> panel = suppliers.panelFor(itemNumber);
+        List<SupplierEval> evaluated =
+                rec.quotes().stream().map(q -> evaluate(q, itemNumber, cost, effectiveQty, panel)).toList();
         List<SupplierEval> acceptable = evaluated.stream().filter(s -> s.otifPct() >= 80).toList();
         List<SupplierEval> pool = acceptable.isEmpty() ? evaluated : acceptable;
         SupplierEval best = pool.stream().min(Comparator.comparingDouble(SupplierEval::effective)).orElseThrow();

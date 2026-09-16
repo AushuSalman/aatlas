@@ -220,7 +220,7 @@ public class ProcurementEngine implements ProcurementPlanReader {
             double rating = 3.8;
             if (meta != null) {
                 rating = RatingEngine.profileFor(logisticsRef, meta.id(), meta.country(), meta.leadTimeDays(),
-                        meta.otifPct(), meta.priceIndex(), RatingEngine.seededDefect(meta.id())).rating();
+                        meta.otifPct(), meta.priceIndex(), meta.defectPct()).rating();
             }
             double costSub = Math.round((minCost / r.situationalCost()) * 100);
             double speedSub = Math.round(0.6 * r.delivery().onTimePct() + 0.4 * (minLead / (double) r.route().days()) * 100);

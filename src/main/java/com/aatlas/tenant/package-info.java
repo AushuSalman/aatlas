@@ -4,5 +4,7 @@
  * <p>Application module. Types in this package root are the public API other
  * modules may depend on; everything under it is internal.
  */
-@org.springframework.modulith.ApplicationModule(displayName = "tenant")
+@org.springframework.modulith.ApplicationModule(
+        displayName = "tenant",
+        allowedDependencies = {"common", "policy"})
 package com.aatlas.tenant;

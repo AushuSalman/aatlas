@@ -6,5 +6,7 @@
  * <p>Application module. Types in this package root are the public API other modules may
  * depend on; everything under {@code internal} is implementation.
  */
-@org.springframework.modulith.ApplicationModule(displayName = "analytics")
+@org.springframework.modulith.ApplicationModule(
+        displayName = "analytics",
+        allowedDependencies = {"common", "ingest"})
 package com.aatlas.analytics;

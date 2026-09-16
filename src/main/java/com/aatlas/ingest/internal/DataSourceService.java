@@ -8,6 +8,7 @@ import com.aatlas.common.time.AatlasClock;
 import com.aatlas.ingest.DataSourceView;
 import com.aatlas.ingest.SampleDataConnected;
 import com.aatlas.ingest.SampleDataProvisioner;
+import com.aatlas.suppliers.SupplierPanelSeeder;
 import com.aatlas.tenant.CountryCode;
 import java.time.Instant;
 import java.util.List;
@@ -40,6 +41,7 @@ class DataSourceService implements SampleDataProvisioner {
 
     private final DataSourceRepository sources;
     private final CatalogSeeding catalog;
+    private final SupplierPanelSeeder supplierPanel;
     private final TenantCountryLookup tenantCountry;
     private final DomainEventPublisher events;
     private final AatlasClock clock;
@@ -47,11 +49,13 @@ class DataSourceService implements SampleDataProvisioner {
     DataSourceService(
             DataSourceRepository sources,
             CatalogSeeding catalog,
+            SupplierPanelSeeder supplierPanel,
             TenantCountryLookup tenantCountry,
             DomainEventPublisher events,
             AatlasClock clock) {
         this.sources = sources;
         this.catalog = catalog;
+        this.supplierPanel = supplierPanel;
         this.tenantCountry = tenantCountry;
         this.events = events;
         this.clock = clock;
@@ -99,6 +103,18 @@ class DataSourceService implements SampleDataProvisioner {
 
         CountryCode country = tenantCountry.countryOf(tenantId);
         CatalogSeeding.SeedSummary seeded = catalog.seedSampleCatalogue(tenantId, country);
+
+        // The supplier panel is part of the sample dataset, so it is copied in here with the
+        // catalogue rather than by a listener reacting to the event below.
+        //
+        // It used to be the latter, and the ordering was not guaranteed: analytics' own
+        // listener seeds a purchase-order ledger naming suppliers by key, and on this machine
+        // it ran ~280ms BEFORE the panel existed. Nothing failed only because no constraint
+        // connected the two - V21 adds one, and with it the old order is a hard error. Seeding
+        // both sides in this transaction, before SampleDataConnected is published, means every
+        // listener sees a complete dataset. It also retires the race the integration tests
+        // documented and polled around (see BuyEngineGoldenIT.waitForSupplierPanel).
+        supplierPanel.seedForTenant(tenantId);
 
         Instant now = clock.now();
         DataSourceEntity source = new DataSourceEntity(

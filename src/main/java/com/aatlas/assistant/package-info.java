@@ -18,5 +18,7 @@
  * modules may depend on; everything under it is internal. This module currently has no
  * public types - no other module calls the assistant.
  */
-@org.springframework.modulith.ApplicationModule(displayName = "assistant")
+@org.springframework.modulith.ApplicationModule(
+        displayName = "assistant",
+        allowedDependencies = {"bulk", "common", "policy"})
 package com.aatlas.assistant;

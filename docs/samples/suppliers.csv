@@ -1,0 +1,11 @@
+Vendor Name,Country,City,Website,Commodity,Lead Time (days),On Time %,Price vs Market,Reject Rate %,Comms,Certifications,Ex Stock,Primary Contact,Email,Phone,Established
+Atlas Copper Works,USA,Cleveland OH,atlascopperworks.example.com,Copper & brass,12,94.2,99,0.7,4.5,"ISO 9001; ASTM B88",yes,Dana Whitfield,dana@atlascopperworks.example.com,+1 555 0547,1991
+Keystone Valve & Fitting,USA,Pittsburgh PA,keystonevalvefitting.example.com,Valves,9,96.8,103,0.4,4.5,"ISO 9001; API 6D",yes,Marcus Vaughn,marcus@keystonevalvefitting.example.com,+1 555 0134,1978
+Rio Bravo Polymers,Mexico,Monterrey,riobravopolymers.example.com,Polymers,14,89.5,92,1.9,3.5,"ISO 9001",yes,Elena Cruz,elena@riobravopolymers.example.com,+1 555 0768,2004
+Thames Steel Supply,UK,Sheffield,thamessteelsupply.example.com,Steel,21,91.3,101,1.1,4,"ISO 9001; ISO 14001",no,Owen Hartley,owen@thamessteelsupply.example.com,+1 555 0475,1969
+Shenzhen Precision Tools,China,Shenzhen,shenzhenprecisiontools.example.com,Tooling,38,86.1,84,2.8,3,"ISO 9001",no,Li Wei,li@shenzhenprecisiontools.example.com,+1 555 0547,2008
+Ganges Fittings Ltd,India,Pune,gangesfittingsltd.example.com,Fittings,31,88.4,88,2.2,3,"ISO 9001; NSF/ANSI 61",no,Ravi Menon,ravi@gangesfittingsltd.example.com,+1 555 0554,2001
+Mekong Brass Industries,Vietnam,Ho Chi Minh City,mekongbrassindustries.example.com,Copper & brass,34,87.6,86,2.4,2.5,"ISO 9001",no,Tran Minh,tran@mekongbrassindustries.example.com,+1 555 0591,2012
+Laurentide Iron Foundry,Canada,Hamilton ON,laurentideironfoundry.example.com,Steel,16,93.7,97,0.9,4,"ISO 9001; ASTM A888",yes,Claire Dubois,claire@laurentideironfoundry.example.com,+1 555 0605,1954
+Rhine Valve Technik,Germany,Duisburg,rhinevalvetechnik.example.com,Valves,18,97.1,108,0.3,5,"ISO 9001; PED 2014/68/EU",yes,Stefan Keller,stefan@rhinevalvetechnik.example.com,+1 555 0819,1963
+Gulf Coast Polymer,USA,Houston TX,gulfcoastpolymer.example.com,Polymers,7,95.4,100,0.8,4.5,"ISO 9001; NSF/ANSI 61",yes,Bea Trujillo,bea@gulfcoastpolymer.example.com,+1 555 0855,1996

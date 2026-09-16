@@ -42,6 +42,7 @@ public class SupplierImportService {
     private final SupplierWriter writer;
     private final SupplierImportValidator validator;
     private final SupplierPanelAccess access;
+    private final SupplierProductLinkSeeder links;
     private final AatlasClock clock;
 
     SupplierImportService(
@@ -49,11 +50,13 @@ public class SupplierImportService {
             SupplierWriter writer,
             SupplierImportValidator validator,
             SupplierPanelAccess access,
+            SupplierProductLinkSeeder links,
             AatlasClock clock) {
         this.suppliers = suppliers;
         this.writer = writer;
         this.validator = validator;
         this.access = access;
+        this.links = links;
         this.clock = clock;
     }
 
@@ -120,8 +123,20 @@ public class SupplierImportService {
             }
         }
 
-        log.info("Supplier import for tenant {}: {} created, {} updated, {} rejected",
-                tenantId, created, updated, report.rejectedRows());
+        // A supplier nobody has linked to a product can quote on nothing, because
+        // SupplierGateway.panelFor only falls back to the whole panel for an item with no
+        // links at all. Without this an imported supplier would be invisible on every product
+        // the seeded panel already covers - ten new suppliers, and the buy screen unchanged.
+        // So they get the same "no opinion recorded yet" default the seed writes: every
+        // supplier against every product. Idempotent, so the re-import path costs nothing.
+        int linked = 0;
+        if (created > 0) {
+            suppliers.flush();
+            linked = links.linkAllForTenant(tenantId);
+        }
+
+        log.info("Supplier import for tenant {}: {} created, {} updated, {} rejected, {} product links",
+                tenantId, created, updated, report.rejectedRows(), linked);
 
         return new ImportOutcome(report, created, updated);
     }

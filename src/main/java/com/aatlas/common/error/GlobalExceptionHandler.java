@@ -19,8 +19,10 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 /**
@@ -63,6 +65,79 @@ public class GlobalExceptionHandler {
                 base(HttpStatus.BAD_REQUEST, "validation_failed", "A request parameter is not valid.", request);
         problem.setProperty("fields", fields);
         return problem;
+    }
+
+    /**
+     * A required query parameter was not sent at all.
+     *
+     * <p>The sibling of {@link #onConstraintViolation}, and the gap next to it: a parameter
+     * sent empty fails {@code @NotBlank} and is already a 400, while the same parameter
+     * omitted fails during binding - before any controller or any constraint runs - and fell
+     * to the catch-all as a 500. The two mistakes are the same mistake, so they now read the
+     * same way, under the same {@code fields} map the rest of this class uses.
+     *
+     * <p>Worth its own handler rather than being left to the 500 because a caller who
+     * mistypes a parameter name (this API has {@code destination}, not {@code store}) is
+     * told they have broken the server, and goes looking in the wrong place. It was found
+     * doing exactly that.
+     */
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ProblemDetail onMissingParameter(
+            MissingServletRequestParameterException ex, HttpServletRequest request) {
+
+        ProblemDetail problem = base(HttpStatus.BAD_REQUEST, "missing_parameter",
+                "\"" + ex.getParameterName() + "\" is required.", request);
+        problem.setProperty("fields",
+                Map.of(ex.getParameterName(), "This parameter is required."));
+        return problem;
+    }
+
+    /**
+     * A query parameter that cannot be read as the type it is declared as - {@code qty=abc}
+     * for an {@code int}, or an unknown value for an enum bound from the query string.
+     *
+     * <p>Also a binding failure, also a 500 until now, and for the same reason: the
+     * constraint annotations that produce the tidy 400s never get to run, because there is no
+     * value of the right type for them to check.
+     *
+     * <p>The rejected value is named and the required type is not: {@code "abc" is not a
+     * whole number} is the caller's own input handed back, whereas the type's class name
+     * describes our internals.
+     */
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ProblemDetail onParameterTypeMismatch(
+            MethodArgumentTypeMismatchException ex, HttpServletRequest request) {
+
+        String name = ex.getName();
+        String expected = readableType(ex.getRequiredType());
+        String detail = "\"" + ex.getValue() + "\" is not " + expected + ".";
+
+        ProblemDetail problem = base(HttpStatus.BAD_REQUEST, "invalid_parameter",
+                "\"" + name + "\": " + detail, request);
+        problem.setProperty("fields", Map.of(name, detail));
+        problem.setProperty("rejectedValue", String.valueOf(ex.getValue()));
+        return problem;
+    }
+
+    /** The declared type as a person would say it, never as a class name. */
+    private static String readableType(Class<?> type) {
+        if (type == null) {
+            return "the right type";
+        }
+        if (type == Integer.class || type == int.class || type == Long.class || type == long.class) {
+            return "a whole number";
+        }
+        if (Number.class.isAssignableFrom(type) || type.isPrimitive()) {
+            return "a number";
+        }
+        if (type == Boolean.class || type == boolean.class) {
+            return "true or false";
+        }
+        if (type.isEnum()) {
+            return "one of " + String.join(", ", java.util.Arrays.stream(type.getEnumConstants())
+                    .map(String::valueOf).toList());
+        }
+        return "a valid value";
     }
 
     @ExceptionHandler(AccessDeniedException.class)

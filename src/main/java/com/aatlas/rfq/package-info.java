@@ -20,5 +20,7 @@
  * approvals.ApprovalRequester#raise}, and the purchase is written later, when {@code
  * approvals.ApprovalGranted} arrives for that round's decision.
  */
-@org.springframework.modulith.ApplicationModule(displayName = "rfq")
+@org.springframework.modulith.ApplicationModule(
+        displayName = "rfq",
+        allowedDependencies = {"approvals", "buy", "common", "decisions", "policy"})
 package com.aatlas.rfq;

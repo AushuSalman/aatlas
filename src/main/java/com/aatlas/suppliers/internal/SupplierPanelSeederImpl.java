@@ -39,6 +39,7 @@ class SupplierPanelSeederImpl implements SupplierPanelSeeder {
     private final SupplierReviewRepository reviews;
     private final SupplierRiskRepository risks;
     private final SupplierPerformanceMonthRepository performance;
+    private final SupplierProductLinkSeeder links;
     private final ObjectMapper json;
     private final AatlasClock clock;
 
@@ -49,6 +50,7 @@ class SupplierPanelSeederImpl implements SupplierPanelSeeder {
             SupplierReviewRepository reviews,
             SupplierRiskRepository risks,
             SupplierPerformanceMonthRepository performance,
+            SupplierProductLinkSeeder links,
             ObjectMapper json,
             AatlasClock clock) {
         this.suppliers = suppliers;
@@ -57,6 +59,7 @@ class SupplierPanelSeederImpl implements SupplierPanelSeeder {
         this.reviews = reviews;
         this.risks = risks;
         this.performance = performance;
+        this.links = links;
         this.json = json;
         this.clock = clock;
     }
@@ -73,7 +76,20 @@ class SupplierPanelSeederImpl implements SupplierPanelSeeder {
             seedOne(tenantId, entry);
             added++;
         }
-        log.info("Seeded {} of {} suppliers for tenant {}", added, entries.size(), tenantId);
+        // The rows above are still in the persistence context; the link insert is plain JDBC
+        // and does not see them. Without this flush the cross join misses whatever Hibernate
+        // has not written yet - it produced 105 links instead of 120 (seven suppliers, not
+        // eight) until the flush was added, which is the kind of shortfall that looks like a
+        // seeding rule rather than a bug.
+        suppliers.flush();
+
+        // Which supplier can quote on which product. Runs on every call, not only when
+        // suppliers were added: the catalogue may have arrived after the panel did, and the
+        // insert is idempotent, so this is what picks up products seeded since. A tenant with
+        // no catalogue yet links nothing and that is not an error.
+        int linked = links.linkAllForTenant(tenantId);
+        log.info("Seeded {} of {} suppliers for tenant {} ({} product links)",
+                added, entries.size(), tenantId, linked);
         return added;
     }
 

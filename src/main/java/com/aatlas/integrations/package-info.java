@@ -16,5 +16,7 @@
  * modules may depend on; everything under it is internal. This module currently has no
  * public types - no other module needs to read a tenant's integration state.
  */
-@org.springframework.modulith.ApplicationModule(displayName = "integrations")
+@org.springframework.modulith.ApplicationModule(
+        displayName = "integrations",
+        allowedDependencies = {"common"})
 package com.aatlas.integrations;

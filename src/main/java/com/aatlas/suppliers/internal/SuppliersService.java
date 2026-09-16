@@ -50,6 +50,7 @@ class SuppliersService {
     private final AatlasClock clock;
     private final PolicyReader policy;
     private final SupplierWriter writer;
+    private final SupplierProductLinkSeeder links;
 
     SuppliersService(
             SupplierRepository suppliers,
@@ -62,7 +63,8 @@ class SuppliersService {
             ObjectMapper json,
             AatlasClock clock,
             PolicyReader policy,
-            SupplierWriter writer) {
+            SupplierWriter writer,
+            SupplierProductLinkSeeder links) {
         this.suppliers = suppliers;
         this.terms = terms;
         this.ratings = ratings;
@@ -74,6 +76,7 @@ class SuppliersService {
         this.clock = clock;
         this.policy = policy;
         this.writer = writer;
+        this.links = links;
     }
 
     // -- Reads ----------------------------------------------------------------------------------
@@ -285,6 +288,11 @@ class SuppliersService {
         lookupRow.setStatus("added");
         lookups.save(lookupRow);
 
+        // As above: a supplier added from a web lookup gets the same default coverage, or the
+        // buy panel would never offer it on anything already linked.
+        suppliers.flush();
+        links.linkAllForTenant(tenantId);
+
         return toView(supplier, ratingRow, termsRow, reviewRows, riskRow);
     }
 
@@ -431,6 +439,11 @@ class SuppliersService {
                 .orElseGet(() -> writer.create(
                         tenantId, supplierKey, draft, userId, SupplierWriter.SELF_REPORTED_SOURCE));
 
+        // Default product coverage for a supplier the panel has not seen before - see the note
+        // in importSuppliers. Idempotent, so re-saving an existing supplier adds nothing.
+        suppliers.flush();
+        links.linkAllForTenant(tenantId);
+
         return toView(
                 saved,
                 ratings.findById(saved.getId()).orElseThrow(),
@@ -447,7 +460,13 @@ class SuppliersService {
      */
     private SupplierDraft mergedDraft(UUID tenantId, SupplierEntity s, PatchSupplierRequest p) {
         String name = p.name() != null ? p.name().strip() : s.getName();
-        String country = p.country() != null ? p.country().strip() : s.getCountry();
+        // A country the caller did not touch is kept exactly as stored rather than
+        // re-canonicalised, for the same reason the branch patch leaves an untouched
+        // subdivision alone: correcting somebody's lead time should not quietly move their
+        // supplier onto a different shipping lane.
+        String country = p.country() != null
+                ? Countries.canonicalOr(p.country(), p.country().strip())
+                : s.getCountry();
         return new SupplierDraft(
                 AddSupplierRequest.key(name, country),
                 name,
@@ -538,6 +557,15 @@ class SuppliersService {
                 rejected.add(new ImportSuppliersResponse.Rejection(
                         index, row.name() == null ? "" : row.name(), ex.getMessage(), fieldOf(ex)));
             }
+        }
+
+        // Give anything new the default product coverage, or it can quote on nothing:
+        // SupplierGateway.panelFor falls back to the whole panel only for an item with no
+        // links at all, so on a tenant whose catalogue is already linked a new supplier would
+        // be invisible on every product. See SupplierProductLinkSeeder.
+        if (!added.isEmpty()) {
+            suppliers.flush();
+            links.linkAllForTenant(tenantId);
         }
 
         return new ImportSuppliersResponse(added, updated, rejected);

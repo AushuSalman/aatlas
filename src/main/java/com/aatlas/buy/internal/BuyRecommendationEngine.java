@@ -74,7 +74,10 @@ class BuyRecommendationEngine {
                 .orElseThrow(() -> ApiException.notFound("Product", itemNumber));
         CatalogGateway.StoreRow destination = catalog.findStore(destinationId)
                 .orElseThrow(() -> ApiException.notFound("Store", destinationId));
-        List<SupplierGateway.SupplierRow> panel = suppliers.panel();
+        // Who can actually quote on THIS item, per supplier_products (V21) - not the whole
+        // panel. An item nobody has been linked to yet falls back to the whole panel, so a
+        // freshly imported product still costs; see SupplierGateway.panelFor.
+        List<SupplierGateway.SupplierRow> panel = suppliers.panelFor(itemNumber);
         if (panel.isEmpty()) {
             throw ApiException.notFound("Supplier panel", "(empty)");
         }
