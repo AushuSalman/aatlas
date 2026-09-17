@@ -79,20 +79,17 @@ record AddSupplierRequest(
     }
 
     /**
-     * Exactly one shape, and a complete one.
+     * A complete record: a name, a country, a lead time and an on-time rate.
      *
-     * <p>Checked here rather than field by field because the fields are required only in the
-     * manual shape: demanding a name alongside a {@code lookupId} would reject the lookup
-     * route, and demanding nothing would let a half-filled record through as a supplier with
-     * no name.
+     * <p>The lookup endpoint no longer fetches anything - see {@link LookupScoring} - so a
+     * {@code lookupId} carries only a query and a country a buyer already typed, not a
+     * ready-made profile. Completing a supplier found through a lookup is the same act as
+     * describing one by hand, and requires the same facts; {@code lookupId} only records
+     * where the buyer started and marks the source as {@code lookup} rather than
+     * {@code manual}.
      */
-    @AssertTrue(message = "Send either a lookupId, or name, country, leadTimeDays and otifPct.")
+    @AssertTrue(message = "Send name, country, leadTimeDays and otifPct.")
     boolean isUsable() {
-        if (fromLookup()) {
-            // A lookup carries everything; anything else sent with it would be ignored, and
-            // silently ignoring input is how a buyer's correction disappears.
-            return name == null && country == null && leadTimeDays == null && otifPct == null;
-        }
         return isBlank(name) == false
                 && isBlank(country) == false
                 && leadTimeDays != null

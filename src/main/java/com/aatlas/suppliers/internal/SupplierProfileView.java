@@ -10,23 +10,21 @@ import java.util.List;
  * field for field, plus the two columns the panel table adds ({@code risk} and
  * {@code currency}).
  *
- * <p>One record serves three purposes on purpose. The lookup engine produces it, the
- * lookup table stores it verbatim as {@code jsonb}, and every read endpoint returns it.
- * If those were three shapes, the profile a buyer saw on the lookup card and the one that
- * lands on the panel could differ, which is precisely the thing "add what you looked up"
- * must not allow.
- *
  * <p>Nulls are omitted on the wire ({@code NON_NULL}), so the optional fields
- * ({@code addedAt}, {@code sources}, {@code watchOuts}, {@code risk}, {@code currency})
- * are absent rather than {@code null}, as the TypeScript type declares them.
+ * ({@code addedAt}, {@code sources}, {@code watchOuts}, {@code risk}, {@code currency}) are
+ * absent rather than {@code null}, as the TypeScript type declares them. Every figure that
+ * can be absent for a real supplier - one known only from a purchase order, or one whose
+ * profile is only partly filled in - is boxed for the same reason: {@code null} there is
+ * "not provided", and the UI renders it as such rather than a fabricated zero or average.
  *
- * @param id the frontend id: {@code sup-2} for the seeded panel, {@code cus-...} for a
- *     supplier added from a lookup. Every seeded figure for the supplier hashes this.
- * @param rating 1.0-5.0, one decimal; the weighted mean of the breakdown
- * @param ratingSource "Verified buyers" for the panel; the sources found for an added supplier
+ * @param id the frontend id: {@code sup-2} for the seeded panel, {@code own-...} for one
+ *     added by hand, a file or a lookup, {@code po-...} for one a purchases import created
+ * @param rating 1.0-5.0, one decimal; null when the supplier has no rated dimension yet
+ *     ("not assessed")
+ * @param ratingSource "Verified buyers" for the panel; null when there is no rating
  * @param spendShare12m share of the last twelve months' spend, 0-1; zero for a supplier added today
- * @param priceIndex 100 = market; lower is cheaper
- * @param holdsStock ships from stock or can rush, the same fact the Buy screen's route shows
+ * @param priceIndex 100 = market; lower is cheaper; null when never provided
+ * @param holdsStock ships from stock or can rush, the same fact the Buy screen's route shows; null = unknown
  */
 @Schema(name = "SupplierProfile")
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -37,19 +35,19 @@ record SupplierProfileView(
         String city,
         String website,
         String category,
-        int yearsTrading,
+        Integer yearsTrading,
         List<String> certifications,
-        double rating,
+        Double rating,
         int reviewCount,
         String ratingSource,
         RatingBreakdown ratingBreakdown,
         List<SupplierReview> reviews,
         double spendShare12m,
-        int leadTimeDays,
-        double otifPct,
-        double priceIndex,
-        double defectPct,
-        boolean holdsStock,
+        Integer leadTimeDays,
+        Double otifPct,
+        Double priceIndex,
+        Double defectPct,
+        Boolean holdsStock,
         boolean isCustom,
         Instant addedAt,
         List<LookupSource> sources,

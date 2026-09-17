@@ -37,17 +37,17 @@ class SupplierRatingEntity {
     @Column(name = "review_count", nullable = false)
     private int reviewCount;
 
-    @Column(name = "quality", nullable = false)
-    private double quality;
+    @Column(name = "quality")
+    private Double quality;
 
-    @Column(name = "delivery", nullable = false)
-    private double delivery;
+    @Column(name = "delivery")
+    private Double delivery;
 
-    @Column(name = "communication", nullable = false)
-    private double communication;
+    @Column(name = "communication")
+    private Double communication;
 
-    @Column(name = "pricing", nullable = false)
-    private double pricing;
+    @Column(name = "pricing")
+    private Double pricing;
 
     @Column(name = "label", nullable = false)
     private String label;

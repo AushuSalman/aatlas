@@ -1,25 +1,24 @@
 package com.aatlas.suppliers.internal;
 
 import com.aatlas.common.error.ApiException;
-import com.aatlas.common.seed.Seeded;
 import com.aatlas.common.tenant.TenantContext;
 import com.aatlas.common.time.AatlasClock;
+import com.aatlas.history.PurchaseHistory;
+import com.aatlas.history.Window;
 import com.aatlas.policy.Persona;
 import com.aatlas.policy.PolicyReader;
 import com.aatlas.suppliers.internal.csv.SupplierDraft;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import java.io.IOException;
 import java.math.BigDecimal;
-import java.time.Instant;
 import java.time.LocalDate;
-import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
-import java.util.Optional;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -28,9 +27,17 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * The supplier panel: reads that assemble a stored {@code SupplierProfile}, and the three
- * writes that change the panel - a lookup, adding what was found, and editing or removing a
- * custom supplier.
+ * The supplier panel: reads that assemble a {@code SupplierProfile} from the tenant's own
+ * rows plus its observed purchase history, and the writes that change the panel - a lookup,
+ * adding what was drafted, and editing or removing a custom supplier.
+ *
+ * <p>Fulfilment risk (see {@link RiskScoring}) is computed fresh on every read from
+ * {@link PurchaseHistory} rather than trusted from a stored snapshot: a supplier's observed
+ * on-time rate and lead-time variance change as purchase orders are received, and a row
+ * written once at creation would go stale the moment the first order lands. The
+ * {@code supplier_risk} table still holds each supplier's day-one snapshot ({@link
+ * SupplierWriter}), kept for other consumers, but this module's own reads never rely on its
+ * age.
  *
  * <p>Tenant, user and seat all come from {@link TenantContext}, bound by
  * {@code TenantContextFilter} for the life of the request; nothing here accepts any of the
@@ -42,8 +49,6 @@ class SuppliersService {
     private final SupplierRepository suppliers;
     private final SupplierTermsRepository terms;
     private final SupplierRatingRepository ratings;
-    private final SupplierReviewRepository reviews;
-    private final SupplierRiskRepository risks;
     private final SupplierPerformanceMonthRepository performance;
     private final SupplierLookupRepository lookups;
     private final ObjectMapper json;
@@ -51,25 +56,23 @@ class SuppliersService {
     private final PolicyReader policy;
     private final SupplierWriter writer;
     private final SupplierProductLinkSeeder links;
+    private final PurchaseHistory purchaseHistory;
 
     SuppliersService(
             SupplierRepository suppliers,
             SupplierTermsRepository terms,
             SupplierRatingRepository ratings,
-            SupplierReviewRepository reviews,
-            SupplierRiskRepository risks,
             SupplierPerformanceMonthRepository performance,
             SupplierLookupRepository lookups,
             ObjectMapper json,
             AatlasClock clock,
             PolicyReader policy,
             SupplierWriter writer,
-            SupplierProductLinkSeeder links) {
+            SupplierProductLinkSeeder links,
+            PurchaseHistory purchaseHistory) {
         this.suppliers = suppliers;
         this.terms = terms;
         this.ratings = ratings;
-        this.reviews = reviews;
-        this.risks = risks;
         this.performance = performance;
         this.lookups = lookups;
         this.json = json;
@@ -77,6 +80,7 @@ class SuppliersService {
         this.policy = policy;
         this.writer = writer;
         this.links = links;
+        this.purchaseHistory = purchaseHistory;
     }
 
     // -- Reads ----------------------------------------------------------------------------------
@@ -84,25 +88,23 @@ class SuppliersService {
     @Transactional(readOnly = true)
     List<SupplierProfileView> panel() {
         UUID tenantId = TenantContext.requireTenantId();
-        Map<UUID, SupplierEntity> byId = suppliers.findByTenantIdOrderByIdAsc(tenantId).stream()
-                .collect(Collectors.toMap(SupplierEntity::getId, e -> e));
+        LocalDate today = clock.today();
+        List<SupplierEntity> all = suppliers.findByTenantIdOrderByIdAsc(tenantId);
+        Map<UUID, SupplierRatingEntity> ratingById = ratings.findByTenantIdOrderByRatingDesc(tenantId).stream()
+                .collect(Collectors.toMap(SupplierRatingEntity::getSupplierId, e -> e));
         Map<UUID, SupplierTermsEntity> termsById = terms.findByTenantId(tenantId).stream()
                 .collect(Collectors.toMap(SupplierTermsEntity::getSupplierId, e -> e));
-        Map<UUID, SupplierRiskEntity> riskById = risks.findByTenantId(tenantId).stream()
-                .collect(Collectors.toMap(SupplierRiskEntity::getSupplierId, e -> e));
-        Map<UUID, List<SupplierReviewEntity>> reviewsBySupplier =
-                reviews.findByTenantIdOrderBySupplierIdAscPositionAsc(tenantId).stream()
-                        .collect(Collectors.groupingBy(SupplierReviewEntity::getSupplierId));
+        Map<String, PurchaseHistory.PoStats> w90 = w90BySupplierKey(today);
 
         List<SupplierProfileView> out = new ArrayList<>();
-        for (SupplierRatingEntity rating : ratings.findByTenantIdOrderByRatingDesc(tenantId)) {
-            SupplierEntity s = byId.get(rating.getSupplierId());
-            if (s == null) {
-                continue;
-            }
-            out.add(toView(s, rating, termsById.get(s.getId()),
-                    reviewsBySupplier.getOrDefault(s.getId(), List.of()), riskById.get(s.getId())));
+        for (SupplierEntity s : all) {
+            SupplierRatingEntity rating = ratingById.get(s.getId());
+            SupplierTermsEntity termsRow = termsById.get(s.getId());
+            SupplierRisk risk = computeRisk(s, termsRow, rating, w90, today);
+            out.add(toView(s, rating, termsRow, risk));
         }
+        out.sort(Comparator.comparing(
+                SupplierProfileView::rating, Comparator.nullsLast(Comparator.<Double>reverseOrder())));
         return out;
     }
 
@@ -116,11 +118,8 @@ class SuppliersService {
         Set<String> currencies = new HashSet<>();
         for (SupplierEntity s : suppliers.findByTenantIdOrderByIdAsc(tenantId)) {
             SupplierRatingEntity rating = ratingBySupplier.get(s.getId());
-            if (rating == null) {
-                continue;
-            }
-            rows.add(new SupplierScoring.PanelRow(s.isCustom(), rating.getRating(), s.getSpendShare12m(),
-                    s.getOtifPct()));
+            rows.add(new SupplierScoring.PanelRow(s.isCustom(), rating == null ? null : rating.getRating(),
+                    s.getSpendShare12m(), s.getOtifPct()));
             currencies.add(s.getCurrency());
         }
         return PanelSummary.View.of(SupplierScoring.panelSummary(rows), currencies.size());
@@ -130,10 +129,7 @@ class SuppliersService {
     SupplierProfileView get(String supplierKey) {
         UUID tenantId = TenantContext.requireTenantId();
         SupplierEntity s = requireSupplier(tenantId, supplierKey);
-        return toView(s, requireRating(tenantId, s), terms.findBySupplierIdAndTenantId(s.getId(), tenantId)
-                        .orElse(null),
-                reviews.findByTenantIdAndSupplierIdOrderByPositionAsc(tenantId, s.getId()),
-                risks.findBySupplierIdAndTenantId(s.getId(), tenantId).orElse(null));
+        return viewOf(tenantId, s);
     }
 
     @Transactional(readOnly = true)
@@ -160,32 +156,50 @@ class SuppliersService {
                 row.getRatingSource(), recommendation);
     }
 
+    /** No real review data exists anywhere in the platform today; the panel says so honestly. */
     @Transactional(readOnly = true)
     List<SupplierReview> reviewsFor(String supplierKey) {
         UUID tenantId = TenantContext.requireTenantId();
-        SupplierEntity s = requireSupplier(tenantId, supplierKey);
-        return reviews.findByTenantIdAndSupplierIdOrderByPositionAsc(tenantId, s.getId()).stream()
-                .map(SupplierReviewEntity::toReview)
-                .toList();
+        requireSupplier(tenantId, supplierKey);
+        return List.of();
     }
 
+    /**
+     * Fulfilment risk, computed fresh from this tenant's observed purchase history and the
+     * supplier's own provided figures - see {@link RiskScoring}. Always answers, even for a
+     * supplier known only by name: {@code score}/{@code level} are null and {@code factors} is
+     * empty rather than a 404, because "not assessed" is itself the honest answer.
+     */
     @Transactional(readOnly = true)
     SupplierRisk risk(String supplierKey) {
         UUID tenantId = TenantContext.requireTenantId();
         SupplierEntity s = requireSupplier(tenantId, supplierKey);
-        return risks.findBySupplierIdAndTenantId(s.getId(), tenantId)
-                .orElseThrow(() -> ApiException.notFound("Supplier risk", supplierKey))
-                .toSupplierRisk();
+        SupplierRatingEntity rating = ratings.findBySupplierIdAndTenantId(s.getId(), tenantId).orElse(null);
+        SupplierTermsEntity termsRow = terms.findBySupplierIdAndTenantId(s.getId(), tenantId).orElse(null);
+        LocalDate today = clock.today();
+        return computeRisk(s, termsRow, rating, w90BySupplierKey(today), today);
     }
 
     @Transactional(readOnly = true)
     PerformanceResponse performance(String supplierKey) {
         UUID tenantId = TenantContext.requireTenantId();
         SupplierEntity s = requireSupplier(tenantId, supplierKey);
-        List<Double> trend = performance.findByTenantIdAndSupplierIdOrderByMonthAsc(tenantId, s.getId()).stream()
-                .map(SupplierPerformanceMonthEntity::getOtifPct)
+        LocalDate today = clock.today();
+        PurchaseHistory.SupplierPurchases hist = purchaseHistory.supplier(s.getSupplierKey(), today);
+
+        List<Double> observedTrend = hist.otifTrend().stream()
+                .map(m -> m.otifPct() == null ? null : m.otifPct().doubleValue())
                 .toList();
-        return new PerformanceResponse(trend, s.getSpendYtd(), s.getPoCount12m(), s.getSince());
+        List<Double> otifTrend = observedTrend.stream().anyMatch(Objects::nonNull)
+                ? observedTrend
+                : performance.findByTenantIdAndSupplierIdOrderByMonthAsc(tenantId, s.getId()).stream()
+                        .map(SupplierPerformanceMonthEntity::getOtifPct)
+                        .toList();
+
+        BigDecimal spendYtd = hist.w12().spend();
+        int poCount12m = (int) hist.w12().pos();
+        LocalDate since = hist.allTime().firstOrder() != null ? hist.allTime().firstOrder() : s.getSince();
+        return new PerformanceResponse(otifTrend, spendYtd, poCount12m, since);
     }
 
     // -- Writes -----------------------------------------------------------------------------------
@@ -197,103 +211,60 @@ class SuppliersService {
 
         SupplierLookupEntity row = new SupplierLookupEntity(
                 outcome.query(),
-                outcome.profile().country(),
-                outcome.profile().id(),
-                writeJson(outcome.profile()),
-                writeJson(outcome.sources()),
-                outcome.watchOuts(),
-                outcome.recommendation(),
+                outcome.country() == null ? "" : outcome.country(),
+                "",
+                writeJson(outcome.draft()),
+                "[]",
+                List.of(),
+                "",
                 "complete",
                 TenantContext.currentUserId().orElse(null));
         row.setTenantId(tenantId);
         row = lookups.save(row);
 
-        return new LookupResponse(outcome.query(), outcome.profile(), outcome.sources(), outcome.watchOuts(),
-                outcome.recommendation(), row.getId());
+        return new LookupResponse(false, outcome.query(), outcome.country(), outcome.draft(), List.of(),
+                LookupResponse.MESSAGE, row.getId());
     }
 
+    /**
+     * Adds a supplier: typed in by hand, uploaded in a file's single row, or completed after
+     * an honest "we found nothing" lookup. All three are one action now that the lookup no
+     * longer carries a fabricated profile - only the {@code source} column and, for the
+     * lookup route, the lookup row's own status, differ.
+     */
     @Transactional
     SupplierProfileView add(AddSupplierRequest request) {
         UUID tenantId = TenantContext.requireTenantId();
         requireBuySeatOrDirector();
 
-        // Two shapes, one action. A record typed in by hand goes through the same writer the
-        // CSV import uses, so a supplier described in the form and the same supplier uploaded
-        // in a file produce identical rows - including a rating derived the same way.
-        if (!request.fromLookup()) {
-            return addFromRecord(tenantId, request);
+        SupplierLookupEntity lookupRow = null;
+        if (request.fromLookup()) {
+            lookupRow = lookups.findByTenantIdAndId(tenantId, request.lookupId())
+                    .orElseThrow(() -> ApiException.notFound("Supplier lookup", request.lookupId()));
         }
 
-        SupplierLookupEntity lookupRow = lookups.findByTenantIdAndId(tenantId, request.lookupId())
-                .orElseThrow(() -> ApiException.notFound("Supplier lookup", request.lookupId()));
-        if (suppliers.existsByTenantIdAndSupplierKey(tenantId, lookupRow.getSupplierKey())) {
+        SupplierDraft draft = request.toDraft();
+        String supplierKey = "own-" + draft.key().replace('|', '-');
+        if (suppliers.existsByTenantIdAndSupplierKey(tenantId, supplierKey)) {
             throw ApiException.conflict("already_added", "This supplier is already on the panel.");
         }
-        SupplierProfileView profile = readJson(lookupRow.getProfileJson(), SupplierProfileView.class);
-        CommercialTerms commercialTerms = TermsScoring.commercialTerms(profile.id(), profile.country());
-        Instant now = clock.now();
+
         UUID userId = TenantContext.currentUserId().orElse(null);
+        String source = request.fromLookup() ? SupplierWriter.LOOKUP_SOURCE : SupplierWriter.MANUAL_SOURCE;
+        SupplierEntity saved =
+                writer.create(tenantId, supplierKey, draft, userId, source, SupplierWriter.SELF_REPORTED_SOURCE);
 
-        String vendorCode = "V-" + Seeded.randInt(profile.id(), "vendor-code", 1000, 9999);
-        SupplierEntity supplier = new SupplierEntity(
-                profile.id(), vendorCode, profile.name(), profile.country(), profile.city(), profile.website(),
-                profile.category(), "", "sales@" + profile.website(), Currencies.forCountry(profile.country()),
-                profile.leadTimeDays(), profile.otifPct(), profile.priceIndex(), profile.defectPct(),
-                profile.holdsStock(), profile.yearsTrading(), 0, BigDecimal.ZERO, 0, true, userId, now,
-                clock.today());
-        supplier.setTenantId(tenantId);
-        supplier = suppliers.save(supplier);
-
-        String key = "sup:" + profile.id();
-        int qualityPpm = (int) Math.round(profile.defectPct() * 10000);
-        int responseHours = Seeded.randInt(key, "resp-h", 4, 72);
-        SupplierTermsEntity termsRow = new SupplierTermsEntity(supplier.getId(), tenantId, commercialTerms, 1, 1,
-                qualityPpm, responseHours, profile.certifications());
-        terms.save(termsRow);
-
-        String label = SupplierScoring.ratingLabel(profile.rating());
-        SupplierRatingEntity ratingRow = ratings.save(new SupplierRatingEntity(supplier.getId(), tenantId,
-                profile.rating(), profile.reviewCount(), profile.ratingBreakdown(), label, profile.ratingSource(),
-                now));
-
-        List<SupplierReviewEntity> reviewRows = new ArrayList<>();
-        int position = 0;
-        for (SupplierReview r : profile.reviews()) {
-            SupplierReviewEntity row = new SupplierReviewEntity(supplier.getId(), position++, r,
-                    profile.ratingSource());
-            row.setTenantId(tenantId);
-            reviewRows.add(row);
+        if (lookupRow != null) {
+            lookupRow.setStatus("added");
+            lookups.save(lookupRow);
         }
-        reviews.saveAll(reviewRows);
 
-        RiskScoring.Input riskInput = new RiskScoring.Input(
-                profile.id(), profile.leadTimeDays(), profile.otifPct(), profile.defectPct());
-        SupplierRisk risk = RiskScoring.supplierRisk(riskInput,
-                new RiskScoring.RatingSummary(profile.rating(), profile.reviewCount()), now);
-        SupplierRiskEntity riskRow = new SupplierRiskEntity(supplier.getId(), tenantId, risk);
-        risks.save(riskRow);
-
-        List<Double> trend = SupplierScoring.otifTrendFor("custom:" + profile.id(), profile.otifPct());
-        YearMonth thisMonth = YearMonth.from(clock.today());
-        List<SupplierPerformanceMonthEntity> months = new ArrayList<>();
-        for (int i = 0; i < trend.size(); i++) {
-            LocalDate month = thisMonth.minusMonths((long) trend.size() - 1 - i).atDay(1);
-            SupplierPerformanceMonthEntity row = new SupplierPerformanceMonthEntity(supplier.getId(), month,
-                    trend.get(i));
-            row.setTenantId(tenantId);
-            months.add(row);
-        }
-        performance.saveAll(months);
-
-        lookupRow.setStatus("added");
-        lookups.save(lookupRow);
-
-        // As above: a supplier added from a web lookup gets the same default coverage, or the
-        // buy panel would never offer it on anything already linked.
+        // Default product coverage for a supplier the panel has not seen before, or the buy
+        // panel would never offer it on anything already linked.
         suppliers.flush();
         links.linkAllForTenant(tenantId);
 
-        return toView(supplier, ratingRow, termsRow, reviewRows, riskRow);
+        return viewOf(tenantId, saved);
     }
 
     @Transactional
@@ -324,18 +295,118 @@ class SuppliersService {
         if (!s.isCustom()) {
             throw ApiException.conflict("seeded_supplier", "Only suppliers added from a lookup can be removed.");
         }
+        // purchase_order.supplier_id is a business key, not a database foreign key (T7 is
+        // append-only fact data, not relational to the panel) - so a supplier with purchase
+        // history is protected here rather than by a constraint the database would enforce.
+        if (purchaseHistory.supplier(s.getSupplierKey(), clock.today()).allTime().any()) {
+            throw ApiException.conflict(
+                    "supplier_has_purchases", "This supplier has purchase orders on file; it cannot be removed.");
+        }
         // The FKs from terms, ratings, risk, reviews and performance months to suppliers are
         // all ON DELETE CASCADE (V8__suppliers.sql), so one delete clears the whole row.
         suppliers.delete(s);
     }
 
+    // -- Risk assembly ----------------------------------------------------------------------------
+
+    /**
+     * Builds the {@link RiskScoring.Input} from real data and hands it to the pure formula.
+     * Observed (the trailing-twelve-month window has at least five received purchase orders)
+     * uses {@link PurchaseHistory}; otherwise only the supplier's own provided figures count.
+     */
+    private SupplierRisk computeRisk(SupplierEntity s, SupplierTermsEntity termsRow, SupplierRatingEntity ratingRow,
+            Map<String, PurchaseHistory.PoStats> w90BySupplierKey, LocalDate today) {
+        PurchaseHistory.SupplierPurchases hist = purchaseHistory.supplier(s.getSupplierKey(), today);
+        boolean observed = hist.w12().received() >= 5;
+
+        Integer capacityUnitsMonth = termsRow == null ? null : termsRow.toCommercialTerms().capacityUnitsMonth();
+        Double avgMonthlyUnits = toD(hist.w12().units());
+        if (avgMonthlyUnits != null) {
+            avgMonthlyUnits = avgMonthlyUnits / 12.0;
+        }
+        String capacity = capacityFor(avgMonthlyUnits, capacityUnitsMonth);
+
+        RiskScoring.RatingSummary ratingSummary = ratingRow == null
+                ? null
+                : new RiskScoring.RatingSummary(ratingRow.getRating(), ratingRow.getReviewCount());
+
+        RiskScoring.Input input;
+        if (observed) {
+            Double otif = toD(hist.w12().otifPct());
+            Double avgLead = toD(hist.w12().avgLeadDays());
+            Double leadSd = toD(hist.w12().leadSdDays());
+            String trend = trendFrom(hist.otifTrend());
+            PurchaseHistory.PoStats w90 = w90BySupplierKey.get(s.getSupplierKey());
+            Double recentDelay =
+                    w90 != null && w90.otifPct() != null ? 100 - w90.otifPct().doubleValue() : null;
+            input = new RiskScoring.Input(
+                    true, otif, s.getDefectPct(), avgLead, leadSd, trend, recentDelay, capacity, avgMonthlyUnits);
+        } else {
+            input = new RiskScoring.Input(
+                    false, s.getOtifPct(), s.getDefectPct(), null, null, null, null, capacity, avgMonthlyUnits);
+        }
+        return RiskScoring.supplierRisk(input, ratingSummary, clock.now());
+    }
+
+    private Map<String, PurchaseHistory.PoStats> w90BySupplierKey(LocalDate today) {
+        return purchaseHistory.bySupplier(Window.trailingDays(today, 90)).stream()
+                .collect(Collectors.toMap(PurchaseHistory.SupplierPurchases::supplierKey,
+                        PurchaseHistory.SupplierPurchases::w12));
+    }
+
+    /** Last-3-month OTIF vs. the prior 3, needing at least three received orders in each half. */
+    private static String trendFrom(List<PurchaseHistory.MonthOtif> trend) {
+        if (trend.size() < 6) {
+            return null;
+        }
+        List<PurchaseHistory.MonthOtif> prior = trend.subList(0, 3);
+        List<PurchaseHistory.MonthOtif> recent = trend.subList(3, 6);
+        long priorReceived = prior.stream().mapToLong(PurchaseHistory.MonthOtif::received).sum();
+        long recentReceived = recent.stream().mapToLong(PurchaseHistory.MonthOtif::received).sum();
+        if (priorReceived < 3 || recentReceived < 3) {
+            return null;
+        }
+        Double priorAvg = avgOtif(prior);
+        Double recentAvg = avgOtif(recent);
+        if (priorAvg == null || recentAvg == null) {
+            return null;
+        }
+        double diff = recentAvg - priorAvg;
+        return diff >= 3 ? "Improving" : diff <= -3 ? "Worsening" : "Stable";
+    }
+
+    private static Double avgOtif(List<PurchaseHistory.MonthOtif> months) {
+        List<BigDecimal> present =
+                months.stream().map(PurchaseHistory.MonthOtif::otifPct).filter(Objects::nonNull).toList();
+        if (present.isEmpty()) {
+            return null;
+        }
+        double sum = 0;
+        for (BigDecimal v : present) {
+            sum += v.doubleValue();
+        }
+        return sum / present.size();
+    }
+
+    private static String capacityFor(Double avgMonthlyUnits, Integer capacityUnitsMonth) {
+        if (avgMonthlyUnits == null || capacityUnitsMonth == null || capacityUnitsMonth == 0) {
+            return null;
+        }
+        double ratio = avgMonthlyUnits / capacityUnitsMonth;
+        return ratio > 0.8 ? "Low" : ratio > 0.5 ? "Medium" : "High";
+    }
+
+    private static Double toD(BigDecimal v) {
+        return v == null ? null : v.doubleValue();
+    }
+
     // -- Helpers ------------------------------------------------------------------------------
 
     private static CommercialTerms patched(CommercialTerms current, PatchSupplierRequest.TermsPatch p) {
-        int creditDays = p.creditDays() != null ? p.creditDays() : current.creditDays();
-        double earlyPayDiscountPct =
+        Integer creditDays = p.creditDays() != null ? p.creditDays() : current.creditDays();
+        Double earlyPayDiscountPct =
                 p.earlyPayDiscountPct() != null ? p.earlyPayDiscountPct() : current.earlyPayDiscountPct();
-        int earlyPayDays = p.earlyPayDays() != null ? p.earlyPayDays() : current.earlyPayDays();
+        Integer earlyPayDays = p.earlyPayDays() != null ? p.earlyPayDays() : current.earlyPayDays();
         String label = CommercialTerms.labelFor(creditDays, earlyPayDiscountPct, earlyPayDays);
         return new CommercialTerms(
                 creditDays,
@@ -361,20 +432,20 @@ class SuppliersService {
                 .orElseThrow(() -> ApiException.notFound("Supplier rating", s.getSupplierKey()));
     }
 
-    private static SupplierProfileView toView(SupplierEntity s, SupplierRatingEntity rating,
-            SupplierTermsEntity termsRow, List<SupplierReviewEntity> reviewRows, SupplierRiskEntity riskRow) {
-        List<SupplierReview> reviewList = reviewRows.stream()
-                .sorted(Comparator.comparingInt(SupplierReviewEntity::getPosition))
-                .map(SupplierReviewEntity::toReview)
-                .toList();
+    private SupplierProfileView toView(SupplierEntity s, SupplierRatingEntity rating, SupplierTermsEntity termsRow,
+            SupplierRisk risk) {
         List<String> certifications = termsRow != null ? termsRow.getCertifications() : List.of();
-        RiskSummary riskSummary = riskRow != null ? riskRow.toSummary() : null;
+        Double ratingValue = rating == null ? null : rating.getRating();
+        int reviewCount = rating == null ? 0 : rating.getReviewCount();
+        String ratingSource = rating == null ? null : rating.getRatingSource();
+        // No dims -> no stored rating row -> the panel shows "Not assessed" rather than a
+        // breakdown with nothing behind it.
+        RatingBreakdown breakdown = rating == null ? new RatingBreakdown(null, null, null, null) : rating.toBreakdown();
         return new SupplierProfileView(
                 s.getSupplierKey(), s.getName(), s.getCountry(), s.getCity(), s.getWebsite(), s.getCategory(),
-                s.getYearsTrading(), certifications, rating.getRating(), rating.getReviewCount(),
-                rating.getRatingSource(), rating.toBreakdown(), reviewList, s.getSpendShare12m(),
-                s.getLeadTimeDays(), s.getOtifPct(), s.getPriceIndex(), s.getDefectPct(), s.isHoldsStock(),
-                s.isCustom(), s.getAddedAt(), null, null, riskSummary, s.getCurrency());
+                s.getYearsTrading(), certifications, ratingValue, reviewCount, ratingSource, breakdown, List.of(),
+                s.getSpendShare12m(), s.getLeadTimeDays(), s.getOtifPct(), s.getPriceIndex(), s.getDefectPct(),
+                s.getHoldsStock(), s.isCustom(), s.getAddedAt(), null, null, risk.summary(), s.getCurrency());
     }
 
     /** Buy seats (purchase manager, buyer, purchase head) and the commercial director. */
@@ -416,47 +487,13 @@ class SuppliersService {
         }
     }
 
-    private <T> T readJson(String value, Class<T> type) {
-        try {
-            return json.readValue(value, type);
-        } catch (IOException e) {
-            throw new IllegalStateException("Could not deserialise " + type.getSimpleName(), e);
-        }
-    }
-    /**
-     * Adds a supplier the buyer described themselves.
-     *
-     * <p>Keyed on name and country, the same key the CSV import de-duplicates by, so adding a
-     * supplier that a file already brought in corrects it rather than creating a second row.
-     */
-    private SupplierProfileView addFromRecord(UUID tenantId, AddSupplierRequest request) {
-        SupplierDraft draft = request.toDraft();
-        String supplierKey = "own-" + draft.key().replace('|', '-');
-        UUID userId = TenantContext.currentUserId().orElse(null);
-
-        SupplierEntity saved = suppliers.findByTenantIdAndSupplierKey(tenantId, supplierKey)
-                .map(existing -> writer.update(existing, draft, SupplierWriter.SELF_REPORTED_SOURCE))
-                .orElseGet(() -> writer.create(
-                        tenantId, supplierKey, draft, userId, SupplierWriter.SELF_REPORTED_SOURCE));
-
-        // Default product coverage for a supplier the panel has not seen before - see the note
-        // in importSuppliers. Idempotent, so re-saving an existing supplier adds nothing.
-        suppliers.flush();
-        links.linkAllForTenant(tenantId);
-
-        return toView(
-                saved,
-                ratings.findById(saved.getId()).orElseThrow(),
-                terms.findById(saved.getId()).orElseThrow(),
-                reviews.findByTenantIdAndSupplierIdOrderByPositionAsc(tenantId, saved.getId()),
-                risks.findById(saved.getId()).orElseThrow());
-    }
     /**
      * The supplier as it would be after this patch.
      *
      * <p>Every field falls back to what is already stored, which is what makes a partial patch
      * partial: the terms panel sends one number and the form sends all of them, and both end up
-     * here as a complete record.
+     * here as a complete record. A field neither the patch nor the stored supplier has (a
+     * purchases-import supplier with a figure nobody has ever supplied) stays {@code null}.
      */
     private SupplierDraft mergedDraft(UUID tenantId, SupplierEntity s, PatchSupplierRequest p) {
         String name = p.name() != null ? p.name().strip() : s.getName();
@@ -480,7 +517,7 @@ class SuppliersService {
                 p.otifPct() != null ? p.otifPct() : s.getOtifPct(),
                 p.priceIndex() != null ? p.priceIndex() : s.getPriceIndex(),
                 p.defectPct() != null ? p.defectPct() : s.getDefectPct(),
-                p.holdsStock() != null ? p.holdsStock() : s.isHoldsStock(),
+                p.holdsStock() != null ? p.holdsStock() : s.getHoldsStock(),
                 // Not stored on the supplier: it is a star, and the stars live on the rating row.
                 p.communication() != null ? p.communication() : SupplierDraft.DEFAULT_COMMUNICATION,
                 p.contactName() != null ? p.contactName().strip() : s.getContactName(),
@@ -490,12 +527,11 @@ class SuppliersService {
     }
 
     /** Certifications live on the terms row, and a patch that does not mention them keeps them. */
-    private java.util.List<String> currentCertifications(UUID tenantId, SupplierEntity s) {
+    private List<String> currentCertifications(UUID tenantId, SupplierEntity s) {
         return terms.findBySupplierIdAndTenantId(s.getId(), tenantId)
                 .map(SupplierTermsEntity::getCertifications)
-                .orElseGet(java.util.List::of);
+                .orElseGet(List::of);
     }
-
 
     /**
      * Puts a list of suppliers on the panel.
@@ -549,8 +585,8 @@ class SuppliersService {
 
                 SupplierEntity saved = existing
                         .map(found -> writer.update(found, draft, SupplierWriter.IMPORTED_SOURCE))
-                        .orElseGet(() -> writer.create(
-                                tenantId, supplierKey, draft, userId, SupplierWriter.IMPORTED_SOURCE));
+                        .orElseGet(() -> writer.create(tenantId, supplierKey, draft, userId,
+                                SupplierWriter.IMPORT_SOURCE, SupplierWriter.IMPORTED_SOURCE));
 
                 (existed ? updated : added).add(viewOf(tenantId, saved));
             } catch (ApiException ex) {
@@ -579,11 +615,10 @@ class SuppliersService {
 
     /** A saved supplier with the rows that hang off it, as the panel shows it. */
     private SupplierProfileView viewOf(UUID tenantId, SupplierEntity saved) {
-        return toView(
-                saved,
-                ratings.findById(saved.getId()).orElseThrow(),
-                terms.findById(saved.getId()).orElseThrow(),
-                reviews.findByTenantIdAndSupplierIdOrderByPositionAsc(tenantId, saved.getId()),
-                risks.findById(saved.getId()).orElseThrow());
+        SupplierRatingEntity rating = ratings.findById(saved.getId()).orElse(null);
+        SupplierTermsEntity termsRow = terms.findById(saved.getId()).orElse(null);
+        LocalDate today = clock.today();
+        SupplierRisk risk = computeRisk(saved, termsRow, rating, w90BySupplierKey(today), today);
+        return toView(saved, rating, termsRow, risk);
     }
 }

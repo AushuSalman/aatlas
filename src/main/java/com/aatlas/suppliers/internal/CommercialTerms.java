@@ -8,6 +8,10 @@ import io.swagger.v3.oas.annotations.media.Schema;
  * {@code intel/terms.ts}, which is the one place these are seeded and priced so the Buy
  * screen, the supplier row and the Suppliers page read the same terms.
  *
+ * <p>Every field is null when it was never supplied: a supplier added by name and country
+ * carries no terms until a person or a file states them. {@link TermsScoring} never invents
+ * one.
+ *
  * @param creditDays days of credit; 0 means payment against proforma, a real cash cost
  * @param termsLabel as terms are written: "Net 45", "2/10 net 30", "Proforma"
  * @param earlyPayDiscountPct early-settlement discount, percent; 0 when none is offered
@@ -18,24 +22,31 @@ import io.swagger.v3.oas.annotations.media.Schema;
 @Schema(name = "CommercialTerms")
 @JsonIgnoreProperties(ignoreUnknown = true)
 record CommercialTerms(
-        int creditDays,
+        Integer creditDays,
         String termsLabel,
-        double earlyPayDiscountPct,
-        int earlyPayDays,
-        double latePenaltyPctPerWeek,
-        double latePenaltyCapPct,
-        int warrantyMonths,
-        int quoteValidityDays,
+        Double earlyPayDiscountPct,
+        Integer earlyPayDays,
+        Double latePenaltyPctPerWeek,
+        Double latePenaltyCapPct,
+        Integer warrantyMonths,
+        Integer quoteValidityDays,
         String incoterm,
-        double invoiceAccuracyPct,
-        int capacityUnitsMonth) {
+        Double invoiceAccuracyPct,
+        Integer capacityUnitsMonth) {
 
-    /** The label the numbers imply. Recomputed whenever a term is edited. */
-    static String labelFor(int creditDays, double earlyPayDiscountPct, int earlyPayDays) {
+    /** Nothing supplied: every field absent. */
+    static final CommercialTerms UNSPECIFIED =
+            new CommercialTerms(null, null, null, null, null, null, null, null, null, null, null);
+
+    /** The label the numbers imply. Recomputed whenever a term is edited. Null when no credit terms are on file. */
+    static String labelFor(Integer creditDays, Double earlyPayDiscountPct, Integer earlyPayDays) {
+        if (creditDays == null) {
+            return null;
+        }
         if (creditDays == 0) {
             return "Proforma";
         }
-        return earlyPayDiscountPct > 0
+        return earlyPayDiscountPct != null && earlyPayDiscountPct > 0
                 ? Js.num(earlyPayDiscountPct) + "/" + earlyPayDays + " net " + creditDays
                 : "Net " + creditDays;
     }

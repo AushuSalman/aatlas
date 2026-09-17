@@ -20,6 +20,10 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
  * {@code intel/terms.ts}, plus the certifications shown on the profile and the four
  * order-mechanics columns the side-by-side compare reads.
  *
+ * <p>Every {@code CommercialTerms} column is nullable (V27): a supplier added by name and
+ * country has no terms until a person or a file states them, and {@code null} is that state
+ * rather than a seeded placeholder.
+ *
  * <p>Primary key is the supplier's own id, not a fresh uuid: there is exactly one row per
  * supplier by definition. {@link com.aatlas.common.persistence.UuidV7Generator} honours an
  * id assigned explicitly, so the constructor sets it to {@code supplier.getId()} directly
@@ -37,38 +41,38 @@ class SupplierTermsEntity {
     @Column(name = "tenant_id", nullable = false, updatable = false)
     private UUID tenantId;
 
-    @Column(name = "credit_days", nullable = false)
-    private int creditDays;
+    @Column(name = "credit_days")
+    private Integer creditDays;
 
-    @Column(name = "terms_label", nullable = false)
+    @Column(name = "terms_label")
     private String termsLabel;
 
-    @Column(name = "early_pay_discount_pct", nullable = false)
-    private double earlyPayDiscountPct;
+    @Column(name = "early_pay_discount_pct")
+    private Double earlyPayDiscountPct;
 
-    @Column(name = "early_pay_days", nullable = false)
-    private int earlyPayDays;
+    @Column(name = "early_pay_days")
+    private Integer earlyPayDays;
 
-    @Column(name = "late_penalty_pct_per_week", nullable = false)
-    private double latePenaltyPctPerWeek;
+    @Column(name = "late_penalty_pct_per_week")
+    private Double latePenaltyPctPerWeek;
 
-    @Column(name = "late_penalty_cap_pct", nullable = false)
-    private double latePenaltyCapPct;
+    @Column(name = "late_penalty_cap_pct")
+    private Double latePenaltyCapPct;
 
-    @Column(name = "warranty_months", nullable = false)
-    private int warrantyMonths;
+    @Column(name = "warranty_months")
+    private Integer warrantyMonths;
 
-    @Column(name = "quote_validity_days", nullable = false)
-    private int quoteValidityDays;
+    @Column(name = "quote_validity_days")
+    private Integer quoteValidityDays;
 
-    @Column(name = "incoterm", nullable = false)
+    @Column(name = "incoterm")
     private String incoterm;
 
-    @Column(name = "invoice_accuracy_pct", nullable = false)
-    private double invoiceAccuracyPct;
+    @Column(name = "invoice_accuracy_pct")
+    private Double invoiceAccuracyPct;
 
-    @Column(name = "capacity_units_month", nullable = false)
-    private int capacityUnitsMonth;
+    @Column(name = "capacity_units_month")
+    private Integer capacityUnitsMonth;
 
     @Column(name = "moq", nullable = false)
     private int moq;

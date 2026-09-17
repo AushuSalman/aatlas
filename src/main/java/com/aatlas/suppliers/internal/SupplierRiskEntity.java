@@ -33,26 +33,26 @@ class SupplierRiskEntity {
     @Column(name = "tenant_id", nullable = false, updatable = false)
     private UUID tenantId;
 
-    @Column(name = "score", nullable = false)
-    private int score;
+    @Column(name = "score")
+    private Integer score;
 
-    @Column(name = "level", nullable = false)
+    @Column(name = "level")
     private String level;
 
-    @Column(name = "capacity", nullable = false)
+    @Column(name = "capacity")
     private String capacity;
 
-    @Column(name = "lead_variance_days", nullable = false)
-    private double leadVarianceDays;
+    @Column(name = "lead_variance_days")
+    private Double leadVarianceDays;
 
-    @Column(name = "consistency", nullable = false)
+    @Column(name = "consistency")
     private String consistency;
 
-    @Column(name = "trend", nullable = false)
+    @Column(name = "trend")
     private String trend;
 
-    @Column(name = "recent_delay_pct", nullable = false)
-    private double recentDelayPct;
+    @Column(name = "recent_delay_pct")
+    private Double recentDelayPct;
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "factors", columnDefinition = "jsonb", nullable = false)
@@ -97,14 +97,5 @@ class SupplierRiskEntity {
 
     UUID getSupplierId() {
         return supplierId;
-    }
-
-    SupplierRisk toSupplierRisk() {
-        return new SupplierRisk(score, level, capacity, leadVarianceDays, consistency, trend, recentDelayPct,
-                factors, computedAt);
-    }
-
-    RiskSummary toSummary() {
-        return new RiskSummary(score, level);
     }
 }
