@@ -2,22 +2,19 @@ package com.aatlas.buy;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import io.swagger.v3.oas.annotations.media.Schema;
+import java.math.BigDecimal;
 
 /**
  * What a supplier's paperwork says: credit, early-settlement discount, the late-delivery
  * clause and its cap, warranty, quote validity, incoterm, invoice accuracy and capacity.
  *
- * <p>A straight port of the frontend's {@code CommercialTerms} in {@code intel/terms.ts}.
- * The {@code suppliers} module (wave 1) already ported the same shape behind its own REST
- * endpoints, but its only public (package-root) type is {@code SupplierPanelSeeder} - it
- * exposes no reader for terms. Per the stand-in rule, {@code buy} carries its own copy here:
- * deterministic, keyed the same way (supplier id + country), rather than reaching into
- * {@code suppliers.internal}, which {@code ModularityTests} would fail the build for.
- *
- * <p>TODO(merge): consider depending on suppliers' public reader if one exists after merge.
+ * <p>Read verbatim from {@code supplier_terms} (via {@code history.Suppliers.terms}). Every
+ * field is null when the row itself is missing - "not provided" is a real state, never a
+ * placeholder a formula would then score. See {@code TermsEngine}.
  *
  * @param creditDays days of credit; 0 means payment against proforma, a real cash cost
- * @param termsLabel as terms are written: "Net 45", "2/10 net 30", "Proforma"
+ * @param termsLabel as terms are written: "Net 45", "2/10 net 30", "Proforma", or "Not
+ *     provided" when there is no terms row at all
  * @param earlyPayDiscountPct early-settlement discount, percent; 0 when none is offered
  * @param latePenaltyPctPerWeek liquidated damages, percent of order value per week late; 0 means no clause
  * @param latePenaltyCapPct the cap on that clause - the number that says whether it has teeth
@@ -26,15 +23,20 @@ import io.swagger.v3.oas.annotations.media.Schema;
 @Schema(name = "CommercialTerms")
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record CommercialTerms(
-        int creditDays,
+        Integer creditDays,
         String termsLabel,
-        double earlyPayDiscountPct,
-        int earlyPayDays,
-        double latePenaltyPctPerWeek,
-        double latePenaltyCapPct,
-        int warrantyMonths,
-        int quoteValidityDays,
+        BigDecimal earlyPayDiscountPct,
+        Integer earlyPayDays,
+        BigDecimal latePenaltyPctPerWeek,
+        BigDecimal latePenaltyCapPct,
+        Integer warrantyMonths,
+        Integer quoteValidityDays,
         String incoterm,
-        double invoiceAccuracyPct,
-        int capacityUnitsMonth) {
+        BigDecimal invoiceAccuracyPct,
+        Integer capacityUnitsMonth) {
+
+    /** No {@code supplier_terms} row on file: every figure "not provided", never a placeholder. */
+    public static CommercialTerms notProvided() {
+        return new CommercialTerms(null, "Not provided", null, null, null, null, null, null, null, null, null);
+    }
 }

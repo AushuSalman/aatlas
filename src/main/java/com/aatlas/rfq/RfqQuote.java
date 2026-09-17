@@ -23,5 +23,11 @@ public record RfqQuote(
         Double vsExpectedPct,
         Instant receivedAt,
         /** Null when the reply was simulated rather than typed in by a buyer. */
-        UUID enteredBy) {
+        UUID enteredBy,
+        /**
+         * True only for a demo reply {@code RfqEngine.simulate} generated (sample tenant
+         * data source only) - the UI badges it "Simulated (demo)" rather than presenting it
+         * as a real supplier reply.
+         */
+        boolean simulated) {
 }

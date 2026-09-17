@@ -1,5 +1,7 @@
 package com.aatlas.buy.internal;
 
+import com.aatlas.approvals.ApprovalRequester;
+import com.aatlas.approvals.RaiseApprovalRequest;
 import com.aatlas.buy.BuyIntel;
 import com.aatlas.buy.BuyRecommendation;
 import com.aatlas.buy.BuySelectResult;
@@ -9,9 +11,16 @@ import com.aatlas.buy.ProcurementPlan;
 import com.aatlas.buy.SupplierEval;
 import com.aatlas.common.error.ApiException;
 import com.aatlas.common.tenant.TenantContext;
+import com.aatlas.decisions.Decision;
+import com.aatlas.decisions.DecisionKind;
+import com.aatlas.decisions.DecisionStatus;
+import com.aatlas.decisions.RecordDecisionRequest;
+import com.aatlas.decisions.RecordPurchaseRequest;
 import com.aatlas.policy.Persona;
 import com.aatlas.policy.PolicyReader;
 import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -34,16 +43,18 @@ class BuyService {
     private final PolicyReader policy;
     private final DecisionRecorder decisions;
     private final com.aatlas.decisions.DecisionRecorder ledger;
+    private final ApprovalRequester approvals;
 
     BuyService(BuyRecommendationEngine recommendationEngine, BuyIntelEngine buyIntelEngine,
             ProcurementEngine procurementEngine, PolicyReader policy, DecisionRecorder decisions,
-            com.aatlas.decisions.DecisionRecorder ledger) {
+            com.aatlas.decisions.DecisionRecorder ledger, ApprovalRequester approvals) {
         this.recommendationEngine = recommendationEngine;
         this.buyIntelEngine = buyIntelEngine;
         this.procurementEngine = procurementEngine;
         this.policy = policy;
         this.decisions = decisions;
         this.ledger = ledger;
+        this.approvals = approvals;
     }
 
     @Transactional(readOnly = true)
@@ -81,8 +92,8 @@ class BuyService {
 
     /**
      * Select a procurement option: writes a decision and a purchase (see {@link
-     * DecisionRecorder}), or sends an approval request when the order is over the signed-in
-     * seat's limit ({@link Persona#canApprove}).
+     * DecisionRecorder}), or - over the signed-in seat's limit ({@link Persona#canApprove}) -
+     * raises a real {@code approvals} request the same way {@code rfq.RfqService#award} does.
      */
     @Transactional
     BuySelectResult select(BuySelectRequest request) {
@@ -92,52 +103,103 @@ class BuyService {
         Persona persona = policy.personaFor(TenantContext.requireTenantId(), role);
         boolean canApproveAlone = persona.canApprove(request.orderValue());
 
+        BuyRecommendation rec = recommendationEngine.build(request.itemNumber(), request.destinationId(),
+                request.supplierId() != null && !request.supplierId().isBlank() ? request.supplierId() : null);
+        int qty = request.qty() != null && request.qty() > 0 ? request.qty() : 1;
+        String supplierId = request.supplierId() != null && !request.supplierId().isBlank()
+                ? request.supplierId() : rec.supplierId();
+
+        RecordDecisionRequest decisionRequest = new RecordDecisionRequest(DecisionKind.BUY,
+                rec.description() + " awarded to " + rec.supplierName(), request.itemNumber(),
+                request.regionKey(), rec.targetCost(), rec.currentCost(), request.orderValue(), "one-time order",
+                "Awarded to " + rec.supplierName() + " at " + rec.destinationName(), qty, null);
+
         if (canApproveAlone) {
-            decisions.record(request.itemNumber(), request.regionKey(), request.destinationId(),
-                    request.optionKey(), request.orderValue(), BuyDecisionEntity.STATUS_RECORDED, null, null);
-            mirrorToLedger(request);
+            Decision decision = ledger.record(decisionRequest);
+            BuyDecisionEntity entity = decisions.record(request.itemNumber(), request.regionKey(),
+                    request.destinationId(), request.optionKey(), supplierId, qty, request.orderValue(),
+                    BuyDecisionEntity.STATUS_RECORDED, null, null);
+            entity.setDecisionId(decision.id());
+            decisions.save(entity);
+            mirrorPurchase(rec, qty, decision.id());
             return BuySelectResult.approved();
         }
-        decisions.record(request.itemNumber(), request.regionKey(), request.destinationId(), request.optionKey(),
-                request.orderValue(), BuyDecisionEntity.STATUS_PENDING_APPROVAL, persona.approver(),
-                persona.approveLimit());
+
+        Decision decision = ledger.recordPending(decisionRequest);
+        BuyDecisionEntity entity = decisions.record(request.itemNumber(), request.regionKey(),
+                request.destinationId(), request.optionKey(), supplierId, qty, request.orderValue(),
+                BuyDecisionEntity.STATUS_PENDING_APPROVAL, persona.approver(), persona.approveLimit());
+        entity.setDecisionId(decision.id());
+        decisions.save(entity);
+        approvals.raise(new RaiseApprovalRequest(decision.id(), approverRoleKeyFor(persona,
+                TenantContext.requireTenantId()), request.orderValue(),
+                "Buy " + request.itemNumber() + ": " + rec.description() + " to " + rec.supplierName()));
         return BuySelectResult.pending(persona.approveLimit(), persona.approver());
     }
 
     /**
-     * Writes an immediately-approved award onto the real {@code decisions} ledger too: one
-     * {@link com.aatlas.decisions.Decision} plus one linked buy {@link
-     * com.aatlas.decisions.DealRecord}, and - because a supplier and a destination are always
-     * known here - a real line on the {@code analytics} procurement ledger. A request pending
-     * approval is not yet a closed deal, so only the approved branch calls this.
-     *
-     * <p>{@code qty} defaults to 1 when the caller omits it (older frontend builds); the
-     * landed-cost panel for (item, destination, optionKey) supplies the rest: {@code
-     * incumbentCost} as the pre-decision baseline, {@code currentCost} as what the chosen
-     * supplier actually costs (the agreed price), {@code targetCost} as the negotiation
-     * target - never fails the request itself if the ledger write has a problem.
+     * See {@code rfq.RfqService#approverRoleKeyFor}: {@link Persona#approver()} is a display
+     * title, not the seat key {@code approvals} filters "pending for my role" by - resolved by
+     * matching the title against {@code policy}'s own persona list.
      */
-    private void mirrorToLedger(BuySelectRequest request) {
+    private String approverRoleKeyFor(Persona persona, UUID tenantId) {
+        if (persona.approver() == null) {
+            return null;
+        }
+        return policy.personasFor(tenantId).stream()
+                .filter(p -> persona.approver().equals(p.title()))
+                .map(Persona::key)
+                .findFirst()
+                .orElse(persona.approver());
+    }
+
+    /**
+     * Writes the real purchase: one {@link com.aatlas.decisions.DealRecord}, and - because a
+     * supplier and a destination are always known here - a real line on the {@code analytics}
+     * procurement ledger. Never fails the request itself if the ledger write has a problem.
+     */
+    private void mirrorPurchase(BuyRecommendation rec, int qty, UUID decisionId) {
         try {
-            BuyRecommendation rec = recommendationEngine.build(
-                    request.itemNumber(), request.destinationId(), request.optionKey());
-            int qty = request.qty() != null && request.qty() > 0 ? request.qty() : 1;
-
-            com.aatlas.decisions.Decision decision = ledger.record(new com.aatlas.decisions.RecordDecisionRequest(
-                    com.aatlas.decisions.DecisionKind.BUY,
-                    rec.description() + " awarded to " + rec.supplierName(), request.itemNumber(),
-                    request.regionKey(), java.math.BigDecimal.valueOf(rec.targetCost()),
-                    java.math.BigDecimal.valueOf(rec.currentCost()), request.orderValue(), "one-time order",
-                    "Awarded to " + rec.supplierName() + " at " + rec.destinationName(), qty, null));
-
-            ledger.recordPurchase(new com.aatlas.decisions.RecordPurchaseRequest(
-                    request.itemNumber(), rec.description(), rec.supplierName(), qty,
-                    java.math.BigDecimal.valueOf(rec.incumbentCost()), java.math.BigDecimal.valueOf(rec.targetCost()),
-                    java.math.BigDecimal.valueOf(rec.currentCost()), null, true, request.destinationId(),
-                    decision.id(), rec.supplierId(), null, null));
+            ledger.recordPurchase(new RecordPurchaseRequest(
+                    rec.itemNumber(), rec.description(), rec.supplierName(), qty,
+                    rec.incumbentCost() != null ? rec.incumbentCost() : rec.currentCost(),
+                    rec.targetCost(), rec.currentCost(), null, true, rec.destinationId(),
+                    decisionId, rec.supplierId(), null, null));
         } catch (RuntimeException ex) {
             log.warn("Could not mirror buy award for {}@{} (supplier {}) into the decisions ledger: {}",
-                    request.itemNumber(), request.destinationId(), request.optionKey(), ex.toString());
+                    rec.itemNumber(), rec.destinationId(), rec.supplierId(), ex.toString());
         }
+    }
+
+    // -- approval outcomes -----------------------------------------------------------------
+    //
+    // Called by BuyApprovalOutcomeListener with TenantContext already bound to the granting
+    // event's tenant (Modulith's worker thread does not inherit it - see rfq's own listener).
+
+    @Transactional
+    void onApprovalGranted(UUID decisionId) {
+        Optional<BuyDecisionEntity> entityOpt = decisions.findByDecisionId(decisionId);
+        if (entityOpt.isEmpty()) {
+            return;
+        }
+        BuyDecisionEntity entity = entityOpt.get();
+        if (entity.getSupplierId() == null) {
+            return;
+        }
+        BuyRecommendation rec = recommendationEngine.build(entity.getItemNumber(), entity.getDestinationStoreCode(),
+                entity.getSupplierId());
+        int qty = entity.getQty() != null && entity.getQty() > 0 ? entity.getQty() : 1;
+        mirrorPurchase(rec, qty, decisionId);
+        ledger.resolve(decisionId, DecisionStatus.APPLIED);
+        entity.setStatus(BuyDecisionEntity.STATUS_RECORDED);
+        decisions.save(entity);
+    }
+
+    @Transactional
+    void onApprovalRejected(UUID decisionId) {
+        decisions.findByDecisionId(decisionId).ifPresent(entity -> {
+            entity.setStatus("rejected");
+            decisions.save(entity);
+        });
     }
 }

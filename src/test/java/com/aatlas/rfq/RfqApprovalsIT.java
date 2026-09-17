@@ -27,10 +27,16 @@ import org.springframework.test.web.servlet.MvcResult;
 
 /**
  * The RFQ round end to end against a real PostgreSQL: create against the flagship item/region
- * ({@code buy.BuyEngineGoldenIT}'s own "HRD118902" / "south"), send, get simulated replies,
- * read a recommendation, and award both ways - a small order a purchase-manager can commit
- * alone, and a large one that raises a real {@code approval_request} instead, which {@code
- * approvals} then grants and {@code ApprovalOutcomeListener} turns into an actual purchase.
+ * ("HRD118902" / "south", the same pair {@code buy.BuyRealDataIT} pins against {@code
+ * SampleOracle}), send, get simulated replies, read a recommendation, and award both ways - a
+ * small order a purchase-manager can commit alone, and a large one that raises a real {@code
+ * approval_request} instead, which {@code approvals} then grants and {@code
+ * ApprovalOutcomeListener} turns into an actual purchase.
+ *
+ * <p>This is the sample tenant, so every quote {@code POST /rfqs/{id}/quotes} enters without a
+ * typed reply is simulated ({@code RfqEngine.simulate}, spec-A S2 "rfq") - {@code
+ * buy.BuyRealDataIT#rfqSimulatesOnlyOnTheSampleTenant} covers the gate itself (real tenant data
+ * never gets a simulated reply); this class only needs every entered quote here to say so.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -149,6 +155,11 @@ class RfqApprovalsIT extends PostgresIntegrationTest {
         JsonNode quoted = enterQuotes(token, id);
         assertThat(quoted.get("status").asText()).isEqualTo("quoted");
         assertThat(quoted.get("quotes")).hasSameSizeAs(quoted.get("invites"));
+        for (JsonNode q : quoted.get("quotes")) {
+            assertThat(q.get("simulated").asBoolean())
+                    .as("the sample tenant's un-replied invites are simulated, spec-A S2 \"rfq\"")
+                    .isTrue();
+        }
 
         MvcResult recResult = mvc.perform(get("/api/v1/rfqs/" + id + "/recommendation")
                         .header("Authorization", "Bearer " + token))

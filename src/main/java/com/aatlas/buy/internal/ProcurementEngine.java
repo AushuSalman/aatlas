@@ -14,7 +14,12 @@ import com.aatlas.buy.SupplierRisk;
 import com.aatlas.buy.Tradeoff;
 import com.aatlas.buy.Weights;
 import com.aatlas.common.error.ApiException;
-import com.aatlas.common.seed.Seeded;
+import com.aatlas.common.time.AatlasClock;
+import com.aatlas.history.PurchaseHistory;
+import com.aatlas.history.Window;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -34,11 +39,13 @@ import org.springframework.stereotype.Component;
 public class ProcurementEngine implements ProcurementPlanReader {
 
     private final SupplierGateway supplierGateway;
-    private final CatalogGateway catalog;
+    private final PurchaseHistory purchases;
+    private final AatlasClock clock;
 
-    ProcurementEngine(SupplierGateway supplierGateway, CatalogGateway catalog) {
+    ProcurementEngine(SupplierGateway supplierGateway, PurchaseHistory purchases, AatlasClock clock) {
         this.supplierGateway = supplierGateway;
-        this.catalog = catalog;
+        this.purchases = purchases;
+        this.clock = clock;
     }
 
     // -- Urgency ------------------------------------------------------------------------------
@@ -98,14 +105,28 @@ public class ProcurementEngine implements ProcurementPlanReader {
         return 1 / (1 + Math.exp(-z));
     }
 
+    /**
+     * Spec-A S2 "ProcurementEngine delivery": {@code varianceDays} = the observed lead-time sd
+     * when the risk assessment had one, else {@code lead x 0.15} - a stated estimate, not a
+     * second hash.
+     */
+    private static double varianceDaysFor(SupplierEval s, SupplierRisk risk) {
+        if (risk.leadVarianceDays() != null) {
+            return Math.max(0.5, risk.leadVarianceDays().doubleValue());
+        }
+        int lead = s.leadDays() == null ? 14 : s.leadDays();
+        return Math.max(0.5, lead * 0.15);
+    }
+
     /** The odds of arriving by {@code requiredDays} on a supplier's own (standard) lead time. */
     public static Delivery deliveryFor(SupplierEval s, SupplierRisk risk, int requiredDays) {
-        int expected = s.leadDays();
-        double v = Math.max(0.5, risk.leadVarianceDays());
+        int expected = s.leadDays() == null ? 14 : s.leadDays();
+        double v = varianceDaysFor(s, risk);
         int rangeLow = (int) Math.max(1, Math.round(expected - v * 0.5));
         int rangeHigh = (int) Math.round(expected + v * 1.6);
         double z = (requiredDays - expected) / v;
-        double onTime = Js.clamp(logistic(z * 1.3) * (0.55 + s.otifPct() / 220.0) * 100, 2, 99);
+        double otif = s.otifPct() == null ? 85 : s.otifPct().doubleValue();
+        double onTime = Js.clamp(logistic(z * 1.3) * (0.55 + otif / 220.0) * 100, 2, 99);
         return new Delivery(expected, rangeLow, rangeHigh, requiredDays, requiredDays - expected, Js.round1(onTime),
                 Js.round2(1 - onTime / 100));
     }
@@ -115,7 +136,8 @@ public class ProcurementEngine implements ProcurementPlanReader {
         int rangeLow = (int) Math.max(1, Math.round(route.days() - v * 0.5));
         int rangeHigh = (int) Math.round(route.days() + v * 1.6);
         double z = (requiredDays - route.days() + 1) / v;
-        double onTime = Js.clamp(logistic(z * 1.3) * (0.55 + s.otifPct() / 220.0) * 100, 2, 99);
+        double otif = s.otifPct() == null ? 85 : s.otifPct().doubleValue();
+        double onTime = Js.clamp(logistic(z * 1.3) * (0.55 + otif / 220.0) * 100, 2, 99);
         return new Delivery(route.days(), rangeLow, rangeHigh, requiredDays, requiredDays - route.days(),
                 Js.round1(onTime), Js.round2(1 - onTime / 100));
     }
@@ -125,36 +147,27 @@ public class ProcurementEngine implements ProcurementPlanReader {
     }
 
     /**
-     * How a supplier can get the goods here. Standard is the quoted lead time. Expedited is
-     * shipping from stock (domestic), a truck rush (Mexico) or air freight (ocean origins), at
-     * a surcharge - and not offered by suppliers short on capacity.
+     * How a supplier can get the goods here. Standard is the quoted lead time. Expedited -
+     * spec-A S2 "LogisticsEngine routes": the transit portion shrinks to 30% of the standard
+     * lead and freight carries an 18% surcharge, labelled {@code lane-estimate} (a stated
+     * reference rule, never a hash) - and only offered when the supplier actually holds stock
+     * ({@code suppliers.holds_stock}) and the risk assessment does not already say its
+     * capacity is tight.
      */
     public static List<Route> routesFor(SupplierEval s, SupplierRisk risk) {
-        String seed = "route:" + s.supplierId();
-        Route standard = new Route("standard", "Standard, " + dayWord(s.leadDays()), s.leadDays(),
-                risk.leadVarianceDays(), s.landed(), 0);
-        boolean stocking = Seeded.rand(seed, "stkD") > 0.42 && !"Low".equals(risk.capacity());
-        if (!stocking) {
+        int standardDays = s.leadDays() == null ? 14 : s.leadDays();
+        Route standard = new Route("standard", "Standard, " + dayWord(standardDays), standardDays,
+                risk.leadVarianceDays() == null ? Math.max(0.5, standardDays * 0.15) : risk.leadVarianceDays().doubleValue(),
+                s.landed() == null ? 0 : s.landed().doubleValue(), 0);
+        boolean stocking = Boolean.TRUE.equals(s.holdsStock()) && !"Low".equals(risk.capacity());
+        if (!stocking || s.landed() == null) {
             return List.of(standard);
         }
-        int days;
-        double surcharge;
-        String label;
-        if ("USA".equals(s.country())) {
-            days = (int) Math.round(Seeded.randRange(seed, "xd1", 1, 3));
-            surcharge = Js.round1(Seeded.randRange(seed, "xs", 8, 15));
-            label = "From stock, " + dayWord(days);
-        } else if ("Mexico".equals(s.country())) {
-            days = (int) Math.round(Seeded.randRange(seed, "xd", 4, 7));
-            surcharge = Js.round1(Seeded.randRange(seed, "xs", 12, 18));
-            label = "Truck rush, " + dayWord(days);
-        } else {
-            days = (int) Math.round(Seeded.randRange(seed, "xd", 6, 10));
-            surcharge = Js.round1(Seeded.randRange(seed, "xs", 22, 32));
-            label = "Air freight, " + dayWord(days);
-        }
+        int days = Math.max(1, (int) Math.round(standardDays * 0.3));
+        double surcharge = 18.0;
+        String label = "From stock, " + dayWord(days);
         Route expedited = new Route("expedited", label, days, Math.max(0.5, Js.round1(days * 0.18)),
-                Js.round2(s.landed() * (1 + surcharge / 100)), surcharge);
+                Js.round2(s.landed().doubleValue() * (1 + surcharge / 100)), surcharge);
         return List.of(standard, expedited);
     }
 
@@ -169,9 +182,12 @@ public class ProcurementEngine implements ProcurementPlanReader {
 
     private static RouteEval evaluateRoute(SupplierEval s, Route route, int requiredDays) {
         Delivery delivery = deliveryForRoute(s, route, requiredDays);
+        double penaltyRecoveryPerUnit = s.penaltyRecoveryPerUnit() == null ? 0 : s.penaltyRecoveryPerUnit().doubleValue();
         double lateCostPerUnit = Js.round2(route.unitCost() * lateCostFactor(requiredDays));
-        double recoveryPerUnit = Js.round2(Math.min(s.penaltyRecoveryPerUnit(), lateCostPerUnit));
-        double situationalCost = Js.round2(s.effective() + (route.unitCost() - s.landed())
+        double recoveryPerUnit = Js.round2(Math.min(penaltyRecoveryPerUnit, lateCostPerUnit));
+        double effective = s.effective() == null ? route.unitCost() : s.effective().doubleValue();
+        double landed = s.landed() == null ? route.unitCost() : s.landed().doubleValue();
+        double situationalCost = Js.round2(effective + (route.unitCost() - landed)
                 + delivery.lateProbability() * (lateCostPerUnit - recoveryPerUnit));
         return new RouteEval(route, delivery, lateCostPerUnit, recoveryPerUnit, situationalCost);
     }
@@ -184,18 +200,40 @@ public class ProcurementEngine implements ProcurementPlanReader {
         return scoreSuppliers(intel, requiredDays, weights, null);
     }
 
+    /**
+     * Only suppliers with a real quote and enough on file to assess can ever be scored,
+     * routed or awarded - spec-A S2 "quotes ... no quote on file, scored on lead/OTIF only,
+     * never awarded". A tenant with zero quotable suppliers for this item gets a clear
+     * {@code no_quotes} error here rather than a plan built on nothing.
+     */
+    private List<SupplierEval> quotable(BuyIntel intel) {
+        return intel.suppliers().stream()
+                .filter(SupplierEval::hasQuote)
+                .filter(s -> s.otifPct() != null || s.defectPct() != null)
+                .toList();
+    }
+
     public List<ScoredSupplier> scoreSuppliers(BuyIntel intel, int requiredDays, Weights weights, String forceMode) {
-        CatalogGateway.LogisticsRef logisticsRef = catalog.logistics();
-        Map<String, SupplierGateway.SupplierRow> byId = new LinkedHashMap<>();
-        for (SupplierGateway.SupplierRow row : supplierGateway.panel()) {
-            byId.put(row.id(), row);
+        LocalDate today = clock.today();
+        List<SupplierEval> candidates = quotable(intel);
+        if (candidates.isEmpty()) {
+            throw ApiException.conflict("no_quotes", "No supplier has quoted this item yet.");
+        }
+        Map<String, PurchaseHistory.PoStats> w90BySupplier = new LinkedHashMap<>();
+        for (PurchaseHistory.SupplierPurchases sp : purchases.bySupplier(Window.trailingDays(today, 90))) {
+            w90BySupplier.put(sp.supplierKey(), sp.w12());
         }
 
         List<RowCalc> rows = new ArrayList<>();
-        for (SupplierEval s : intel.suppliers()) {
-            SupplierRisk risk = RiskEngine.supplierRisk(logisticsRef,
-                    new RiskEngine.RiskInput(s.supplierId(), s.leadDays(), s.otifPct(), s.defectPct()),
-                    byId.get(s.supplierId()));
+        for (SupplierEval s : candidates) {
+            SupplierGateway.SupplierRow row = supplierGateway.supplier(s.supplierId()).orElse(null);
+            PurchaseHistory.SupplierPurchases history = purchases.supplier(s.supplierId(), today);
+            BigDecimal avgMonthlyUnits = history.w12().any()
+                    ? history.w12().units().divide(BigDecimal.valueOf(12), 4, RoundingMode.HALF_UP) : null;
+            RiskEngine.Input riskInput = new RiskEngine.Input(history.w12(), history.otifTrend(),
+                    w90BySupplier.get(s.supplierId()), row != null ? row.otifPct() : null, s.defectPct(),
+                    avgMonthlyUnits, s.commercial() == null ? null : s.commercial().capacityUnitsMonth());
+            SupplierRisk risk = RiskEngine.supplierRisk(riskInput);
             List<Route> routes = routesFor(s, risk);
             List<RouteEval> evaluated = new ArrayList<>();
             for (Route r : routes) {
@@ -216,20 +254,20 @@ public class ProcurementEngine implements ProcurementPlanReader {
 
         List<ScoredSupplier> out = new ArrayList<>();
         for (RowCalc r : rows) {
-            SupplierGateway.SupplierRow meta = byId.get(r.s().supplierId());
-            double rating = 3.8;
-            if (meta != null) {
-                rating = RatingEngine.profileFor(logisticsRef, meta.id(), meta.country(), meta.leadTimeDays(),
-                        meta.otifPct(), meta.priceIndex(), meta.defectPct()).rating();
-            }
+            BigDecimal storedRating = supplierGateway.rating(r.s().supplierId())
+                    .map(SupplierGateway.Rating::rating).orElse(null);
+            double rating = storedRating == null ? 3.8 : storedRating.doubleValue();
+            double otif = r.s().otifPct() == null ? 85 : r.s().otifPct().doubleValue();
+            double defect = r.s().defectPct() == null ? 1 : r.s().defectPct().doubleValue();
             double costSub = Math.round((minCost / r.situationalCost()) * 100);
             double speedSub = Math.round(0.6 * r.delivery().onTimePct() + 0.4 * (minLead / (double) r.route().days()) * 100);
             double reliabilitySub = Math.round(Js.clamp(
-                    (r.s().otifPct() * 0.75 + (100 - r.s().defectPct() * 10) * 0.25) * 0.85 + (rating / 5) * 100 * 0.15,
+                    (otif * 0.75 + (100 - defect * 10) * 0.25) * 0.85 + (rating / 5) * 100 * 0.15,
                     0, 100));
-            double riskSub = 100 - r.risk().score();
+            double riskSub = 100 - riskScoreOf(r.risk());
+            int relYears = r.s().relationshipYears() == null ? 0 : r.s().relationshipYears();
             double relationshipSub = Math.round(
-                    Js.clamp(35 + r.s().relationshipYears() * 8 + (r.s().isIncumbent() ? 12 : 0), 0, 100));
+                    Js.clamp(35 + relYears * 8 + (r.s().isIncumbent() ? 12 : 0), 0, 100));
             ScoredSupplier.SubScores sub = new ScoredSupplier.SubScores(costSub, speedSub, reliabilitySub, riskSub,
                     relationshipSub);
             int score = (int) Math.round(weights.cost() * sub.cost() + weights.speed() * sub.speed()
@@ -237,7 +275,7 @@ public class ProcurementEngine implements ProcurementPlanReader {
                     + weights.relationship() * sub.relationship());
             out.add(new ScoredSupplier(r.s(), r.risk(), r.route(), r.routes(), r.delivery(), r.situationalCost(),
                     r.lateCostPerUnit(), r.recoveryPerUnit(), score, sub, Js.round1(rating),
-                    RatingEngine.ratingLabel(rating)));
+                    RatingEngine.ratingLabel(BigDecimal.valueOf(rating))));
         }
         return out.stream().sorted(Comparator.comparingInt(ScoredSupplier::score).reversed()).toList();
     }
@@ -250,6 +288,15 @@ public class ProcurementEngine implements ProcurementPlanReader {
     }
 
     private record Share(ScoredSupplier r, double share) {
+    }
+
+    /** {@code SupplierEval.otifPct} is nullable (S0); every consumer downstream of scoring uses this instead of unboxing directly. */
+    private static double otifOf(SupplierEval s) {
+        return s.otifPct() == null ? 85 : s.otifPct().doubleValue();
+    }
+
+    private static int riskScoreOf(SupplierRisk risk) {
+        return risk.score() == null ? 30 : risk.score();
     }
 
     private static Blend blend(List<Share> rows) {
@@ -268,8 +315,8 @@ public class ProcurementEngine implements ProcurementPlanReader {
             rangeLow = Math.min(rangeLow, x.r().delivery().rangeLow());
             rangeHigh = Math.max(rangeHigh, x.r().delivery().rangeHigh());
             minOnTime = Math.min(minOnTime, x.r().delivery().onTimePct());
-            reliabilityPct += x.r().s().otifPct() * x.share();
-            riskScore += x.r().risk().score() * x.share();
+            reliabilityPct += otifOf(x.r().s()) * x.share();
+            riskScore += riskScoreOf(x.r().risk()) * x.share();
             subCost += x.r().sub().cost() * x.share();
             subSpeed += x.r().sub().speed() * x.share();
             subReliability += x.r().sub().reliability() * x.share();
@@ -303,7 +350,8 @@ public class ProcurementEngine implements ProcurementPlanReader {
         Weights weights = effectiveWeights(priority, urgency, custom);
         List<ScoredSupplier> ranked = scoreSuppliers(intel, requiredDays, weights);
         double qty = intel.qty();
-        double currentTotal = intel.incumbent().landed() * qty;
+        BigDecimal incumbentLanded = intel.incumbent() != null ? intel.incumbent().landed() : null;
+        double currentTotal = (incumbentLanded == null ? ranked.get(0).route().unitCost() : incumbentLanded.doubleValue()) * qty;
 
         ScoredSupplier cheapest = scoreSuppliers(intel, requiredDays, weights, "standard").stream()
                 .sorted(Comparator.comparingDouble((ScoredSupplier r) -> r.route().unitCost())
@@ -311,7 +359,7 @@ public class ProcurementEngine implements ProcurementPlanReader {
                 .findFirst().orElseThrow();
         ScoredSupplier fastest = scoreSuppliers(intel, requiredDays, weights, "expedited").stream()
                 .sorted(Comparator.comparingInt((ScoredSupplier r) -> r.route().days())
-                        .thenComparing(Comparator.comparingDouble((ScoredSupplier r) -> r.s().otifPct()).reversed())
+                        .thenComparing(Comparator.comparingDouble((ScoredSupplier r) -> otifOf(r.s())).reversed())
                         .thenComparingDouble((ScoredSupplier r) -> r.route().unitCost()))
                 .findFirst().orElseThrow();
         List<ScoredSupplier> canMake = ranked.stream().filter(r -> r.delivery().onTimePct() >= 80).toList();
@@ -319,7 +367,7 @@ public class ProcurementEngine implements ProcurementPlanReader {
                 : ranked.stream().sorted(Comparator.comparingDouble((ScoredSupplier r) -> r.delivery().onTimePct()).reversed())
                         .limit(3).toList();
         List<ScoredSupplier> reliablePool = reliableBase.stream()
-                .sorted(Comparator.comparingDouble((ScoredSupplier r) -> r.s().otifPct()).reversed()
+                .sorted(Comparator.comparingDouble((ScoredSupplier r) -> otifOf(r.s())).reversed()
                         .thenComparingDouble(ScoredSupplier::situationalCost))
                 .toList();
         ScoredSupplier mostReliable = reliablePool.stream()
@@ -379,7 +427,7 @@ public class ProcurementEngine implements ProcurementPlanReader {
         if (requiredDays >= 21) {
             List<ScoredSupplier> standardOnly = scoreSuppliers(intel, requiredDays, weights, "standard");
             ScoredSupplier calm = standardOnly.stream()
-                    .filter(r -> r.s().otifPct() >= 88 && r.delivery().onTimePct() >= 85)
+                    .filter(r -> otifOf(r.s()) >= 88 && r.delivery().onTimePct() >= 85)
                     .min(Comparator.comparingDouble(ScoredSupplier::situationalCost)).orElse(null);
             if (calm != null) {
                 double savings = Js.round2((best.unitCost() - calm.route().unitCost()) * qty);
@@ -393,7 +441,7 @@ public class ProcurementEngine implements ProcurementPlanReader {
                                 + "standard routes do not save money here: " + best.suppliers().get(0).name()
                                 + " is already the lowest all-in cost.";
                 notInAHurry = new ProcurementPlan.NotInAHurry(calm.s().name(), calm.route().unitCost(),
-                        calm.delivery().expectedDays(), calm.s().otifPct(), savings, calm.delivery().bufferDays(),
+                        calm.delivery().expectedDays(), otifOf(calm.s()), savings, calm.delivery().bufferDays(),
                         text);
             }
         }
