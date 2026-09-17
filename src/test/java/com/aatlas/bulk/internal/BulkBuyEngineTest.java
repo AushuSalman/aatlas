@@ -10,17 +10,13 @@ import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 /**
- * Structural checks for {@link BulkBuyEngine} against region south and every sellable
- * item - the same basket {@code golden/bulk.json}'s {@code bulkBuyPlan} row draws its
- * filtered seven from. {@link BuyLineReaderImpl}'s priceable check is item-only (any
- * sellable SKU is buyable into any region), so all twelve come back as lines here.
- *
- * <p>Not a golden-value test: {@link BuyLineReaderImpl} is an explicit stand-in for the
- * buy module's landed-cost engine (see its class doc) with its own synthetic freight/duty
- * model, so supplier costs will not match the TypeScript's real lane-based figures. What
- * this test pins instead is the shape and internal consistency {@code bulkBuyPlan}'s own
- * logic guarantees regardless of where the supplier numbers come from: five strategies in
- * order, a valid recommendation, and lowest-cost genuinely being the cheapest total.
+ * Structural checks for {@link BulkBuyEngine} over {@link BuyIntelFake}, a deterministic
+ * fake of {@code buy.BuyIntelReader} - the real seam {@link BuyLineReaderImpl} now reads,
+ * in a worktree that cannot see the real buy engine behind it. Not a golden-value test
+ * (the fake's numbers are not the real buy module's, on purpose): what this test pins is
+ * the shape and internal consistency {@code bulkBuyPlan}'s own logic guarantees regardless
+ * of where the supplier numbers come from - five strategies in order, a valid
+ * recommendation, and lowest-cost genuinely being the cheapest total.
  */
 class BulkBuyEngineTest {
 
@@ -29,10 +25,7 @@ class BulkBuyEngineTest {
             "HRD304148", "HRD118902", "HRD772310", "HRD450871", "HRD290145", "HRD661204",
             "HRD983377", "HRD512066", "HRD874019", "HRD335590", "HRD107744", "HRD248813");
 
-    private final com.fasterxml.jackson.databind.ObjectMapper json = new com.fasterxml.jackson.databind.ObjectMapper();
-    private final BulkSeedCatalog catalog = new BulkSeedCatalog(json);
-    private final BulkPricingEngine pricing = new BulkPricingEngine(catalog);
-    private final BulkBuyEngine engine = new BulkBuyEngine(new BuyLineReaderImpl(pricing, catalog));
+    private final BulkBuyEngine engine = new BulkBuyEngine(new BuyLineReaderImpl(new BuyIntelFake()));
 
     @Test
     void producesFiveStrategiesInOrderWithAValidRecommendation() {

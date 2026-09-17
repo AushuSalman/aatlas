@@ -1,19 +1,18 @@
 package com.aatlas.bulk;
 
+import java.util.List;
+import java.util.Map;
+
 /**
  * Enough of the frontend's {@code SellIntel} (src/lib/intel/sell.ts) to run and render a
- * bulk sell strategy for one (item, store) pair.
- *
- * <p><b>Stand-in.</b> {@code TODO(merge): replace with the sell module's public
- * SellIntel reader.} The real {@code getSellIntel} also derives a six-step pricing
- * chain, a twelve-month-back/ninety-day-forward timeline, a now-vs-wait recommendation
- * and competitor detail; none of that is needed to run {@code bulkSellPlan}'s three
- * strategies or read by the bulk sell/buy pages (verified against
- * {@code src/app/app/sell/bulk/page.tsx}, which reads only {@code description},
- * {@code monthlyUnits} and {@code marginFloor} off a line's nested intel), so this
- * record omits it rather than fabricate it. Every field it does carry is a real,
- * deterministic computation - the same seeded arithmetic {@code getPricingModel} and
- * {@code getSellIntel} use - not a placeholder value.
+ * bulk sell strategy for one (item, store) pair - sourced from {@code sell.SellLines},
+ * the real seam into the sell module's own pricing engine, so a basket priced in bulk and
+ * a line priced alone can never disagree. {@code getSellIntel} also derives a six-step
+ * pricing chain, a timeline, a now-vs-wait recommendation and competitor detail; none of
+ * that is needed to run {@code bulkSellPlan}'s three strategies or read by the bulk
+ * sell/buy pages (verified against {@code src/app/app/sell/bulk/page.tsx}, which reads
+ * only {@code description}, {@code monthlyUnits} and {@code marginFloor} off a line's
+ * nested intel), so this record omits it rather than carry dead weight.
  *
  * @param priceable false when this store has no sales history for the item
  * @param cost landed unit cost
@@ -33,6 +32,11 @@ package com.aatlas.bulk;
  * @param demandPct the demand signal's move percent, 0 when there is none
  * @param confidence 55-97, from how much evidence sits behind the number
  * @param confidenceLabel {@code High} (&gt;=85), {@code Medium} (&gt;=70) or {@code Low}
+ * @param sources one of the {@code com.aatlas.history.Resolved} labels per figure -
+ *     {@code cost}, {@code currentPrice}, {@code anchor}, {@code units}, {@code inventory} -
+ *     straight off {@code sell.SellLineView}
+ * @param locked section keys the UI must hide: {@code margin}, {@code inventory},
+ *     {@code demand}, {@code forecast}, {@code competitors}
  */
 public record SellLine(
         String itemNumber,
@@ -58,5 +62,7 @@ public record SellLine(
         String demandLevel,
         double demandPct,
         int confidence,
-        String confidenceLabel) {
+        String confidenceLabel,
+        Map<String, String> sources,
+        List<String> locked) {
 }

@@ -4,13 +4,13 @@ import java.util.List;
 
 /**
  * Enough of the frontend's {@code BuyIntel} (src/lib/intel/buy.ts) to run and render a
- * bulk buy strategy for one item into one region.
- *
- * <p><b>Stand-in.</b> {@code TODO(merge): replace with the buy module's public BuyIntel
- * reader.} The real {@code getBuyIntel} also derives a pricing chain, a buy-now-vs-wait
- * call and a negotiation message; none of that is read by {@code bulkBuyPlan} or by
+ * bulk buy strategy for one item into one region - sourced from {@code buy.BuyIntelReader},
+ * the real seam into the buy module's own recommendation engine. The real
+ * {@code getBuyIntel} also derives a pricing chain, a buy-now-vs-wait call and a
+ * negotiation message; none of that is read by {@code bulkBuyPlan} or by
  * {@code src/app/app/buy/bulk/page.tsx} (which reads {@code suppliers}, {@code incumbent}
- * and the top-level fields below only), so it is left out rather than fabricated.
+ * and the top-level fields below only), so it is left out rather than carried as dead
+ * weight.
  *
  * @param suppliers every evaluated supplier, cheapest all-in first
  * @param incumbent the supplier currently holding the line

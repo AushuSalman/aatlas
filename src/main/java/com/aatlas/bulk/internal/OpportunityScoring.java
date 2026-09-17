@@ -1,93 +1,43 @@
 package com.aatlas.bulk.internal;
 
-import com.aatlas.bulk.internal.BulkPricingEngine.PricingModel;
-import com.aatlas.common.seed.Seeded;
+import com.aatlas.bulk.SellLine;
+import com.aatlas.history.PricingMath;
+import java.math.BigDecimal;
 import org.springframework.stereotype.Component;
 
 /**
- * Exact port of {@code src/lib/intel/score.ts}'s {@code opportunityScore}: the one number
- * per (item, store) {@code bulkSellPlan} uses for each line's {@code score}/{@code tier}.
- * Five signals - demand, price-vs-market, market direction, margin health, inventory
- * position, and a seeded conversion draw - the same weights as the TypeScript, unchanged.
+ * The 0-100 opportunity score {@code bulkSellPlan} shows per line: {@link
+ * PricingMath#score}, fed only by what {@link SellLine} itself already carries off {@code
+ * sell.SellLines} - no separate lookup, no seeded conversion draw. A part whose input is
+ * locked on the line (margin without a cost, weeks of cover without a stock count) scores
+ * exactly 0, the same "skipped, never zeroed" rule every history-backed formula follows;
+ * {@code recommended} stands in for the market anchor {@link SellLine} does not carry
+ * separately - it is already the anchor/own-reference blend the sell engine computed, so
+ * the price-gap part still measures current price against what the market says it should
+ * be.
  */
 @Component
 public class OpportunityScoring {
 
-    private final BulkPricingEngine pricing;
-    private final BulkSeedCatalog catalog;
-
-    public OpportunityScoring(BulkPricingEngine pricing, BulkSeedCatalog catalog) {
-        this.pricing = pricing;
-        this.catalog = catalog;
-    }
-
     public record Score(int score, String tier) {
     }
 
-    public Score score(String itemNumber, String storeId) {
-        PricingModel m = pricing.getPricingModel(itemNumber, storeId);
-        if (!m.priceable()) {
+    public Score score(SellLine line) {
+        if (!line.priceable()) {
             return new Score(0, "risk");
         }
-        String key = "score:" + itemNumber + ":" + storeId;
-        double score = 42;
+        boolean marginLocked = line.locked().contains("margin");
+        boolean inventoryLocked = line.locked().contains("inventory");
 
-        String demandLevel = m.demand() != null ? m.demand().level() : "none";
-        if ("high".equals(demandLevel)) {
-            score += 16;
-        } else if ("medium".equals(demandLevel)) {
-            score += 5;
-        } else if ("low".equals(demandLevel)) {
-            score -= 14;
-        }
-
-        double market = m.competitorMedian() != null ? m.competitorMedian() : m.peerQ2();
-        double priceGapPct = BulkPricingEngine.round1(((market - m.currentPrice()) / m.currentPrice()) * 100);
-        if (priceGapPct > 3) {
-            score += 16;
-        } else if (priceGapPct >= 0) {
-            score += 5;
-        } else if (priceGapPct > -6) {
-            score -= 8;
-        } else {
-            score -= 16;
-        }
-
-        String commodity = catalog.product(itemNumber).map(BulkSeedCatalog.SeedProduct::commodity).orElse("none");
-        double commodityPct90 = BulkPricingEngine.commodityTrend(commodity).pct90();
-        if (commodityPct90 >= 2) {
-            score += 6;
-        } else if (commodityPct90 <= -1.5) {
-            score -= 5;
-        }
-
-        double marginPct = m.currentPrice() == 0 ? 0
-                : BulkPricingEngine.round2(((m.currentPrice() - m.cost()) / m.currentPrice()) * 100);
-        if (marginPct >= 30) {
-            score += 5;
-        } else if (marginPct < 22) {
-            score -= 9;
-        }
-
-        double units = SellSeeds.monthlyUnitsFor(itemNumber, storeId, m.cost());
-        double weeksOfCover = SellSeeds.inventoryFor(itemNumber, storeId, units).weeksOfCover();
-        if (weeksOfCover >= 4 && weeksOfCover <= 12) {
-            score += 7;
-        } else if (weeksOfCover > 16) {
-            score -= 10;
-        } else if (weeksOfCover < 3) {
-            score -= 5;
-        }
-
-        double conversionPct = Math.round(Seeded.randRange(key, "conv", 44, 93));
-        if (conversionPct >= 75) {
-            score += 6;
-        } else if (conversionPct < 55) {
-            score -= 7;
-        }
-
-        int finalScore = (int) Math.max(5, Math.min(97, Math.round(score)));
-        String tier = finalScore >= 75 ? "strong" : finalScore >= 45 ? "watch" : "risk";
-        return new Score(finalScore, tier);
+        PricingMath.Score s = PricingMath.score(new PricingMath.ScoreInputs(
+                line.demandLevel(),
+                BigDecimal.valueOf(line.recommended()),
+                BigDecimal.valueOf(line.currentPrice()),
+                null,
+                marginLocked ? null : BigDecimal.valueOf(line.currentMarginPct()),
+                inventoryLocked ? null : BigDecimal.valueOf(line.weeksOfCover()),
+                null,
+                0));
+        return new Score(s.score(), s.tier());
     }
 }

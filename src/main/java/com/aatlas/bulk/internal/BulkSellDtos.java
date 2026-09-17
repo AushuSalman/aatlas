@@ -2,6 +2,7 @@ package com.aatlas.bulk.internal;
 
 import com.aatlas.bulk.SellLine;
 import io.swagger.v3.oas.annotations.media.Schema;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 
@@ -25,11 +26,18 @@ final class BulkSellDtos {
             double inventoryUnits,
             double inventoryValue,
             double weeksOfCover,
-            @Schema(description = "(recommended - current) x inventory: what repricing the stock on hand is worth.")
-                    double opportunity,
+            @Schema(description = "(recommended - current) x inventory: what repricing the stock on hand is "
+                    + "worth. Null when there is no stock count to price it on (see locked).")
+                    Double opportunity,
             int score,
             String tier,
-            SellLine intel) {
+            SellLine intel,
+            @Schema(description = "cost/currentPrice/anchor/units/inventory, straight off sell.SellLines.")
+                    Map<String, String> sources,
+            @Schema(description = "Section keys this line's plan should hide, e.g. inventory.")
+                    List<String> locked,
+            @Schema(description = "The stock count's as-of date; null with no count on file.")
+                    LocalDate inventoryAsOf) {
     }
 
     @Schema(name = "SellProjection")
@@ -42,7 +50,8 @@ final class BulkSellDtos {
             double revenue,
             double profit,
             double marginPct,
-            double turnoverPct,
+            @Schema(description = "Null when no line in the plan has a stock count to turn over.")
+                    Double turnoverPct,
             String risk) {
     }
 

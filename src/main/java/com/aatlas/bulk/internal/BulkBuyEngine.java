@@ -16,8 +16,9 @@ import java.util.function.Function;
 import org.springframework.stereotype.Service;
 
 /**
- * Exact port of {@code src/lib/intel/bulk.ts}'s {@code bulkBuyPlan} and
- * {@code projectBuy}: five ways to award a basket into one region.
+ * {@code bulkBuyPlan} and {@code projectBuy}: five ways to award a basket into one
+ * region, over {@code buy.BuyIntelReader} - the real seam into the buy module's own
+ * recommendation engine.
  */
 @Service
 public class BulkBuyEngine {
@@ -28,32 +29,40 @@ public class BulkBuyEngine {
         this.buyLines = buyLines;
     }
 
-    public PlanView plan(String regionKey, List<String> itemNumbers, double qtyMultiplier) {
+    public PlanView plan(String regionKey, List<String> itemNumbers, double horizon) {
         List<LineView> lines = new ArrayList<>();
         for (String itemNumber : itemNumbers) {
             BuyLine probe = buyLines.read(itemNumber, regionKey, 1);
-            if (!probe.priceable()) {
+            if (!probe.priceable() || referenceSupplier(probe) == null) {
                 continue;
             }
-            // A quarter's volume for the region, scaled by what the buyer asked for.
-            int qty = (int) Math.max(1, Math.round(
-                    (BuyMath.annualVolumeFor(itemNumber, regionKey, probe.incumbent().landed()) / 4) * qtyMultiplier));
+            // A quarter's regional volume, scaled by what the buyer asked for. annualVolume
+            // is buy's own figure (purchases W12 units, else sales W12 units, region-scoped);
+            // when neither is on file it comes back 0 and qty floors at 1 rather than being
+            // skipped - there is still an item to award, just no volume evidence behind it.
+            int qty = (int) Math.max(1, Math.round((probe.annualVolume() / 4.0) * horizon));
             BuyLine intel = buyLines.read(itemNumber, regionKey, qty);
-            double currentTotal = BulkPricingEngine.round2(intel.incumbent().landed() * qty);
+            SupplierEval reference = referenceSupplier(intel);
+            if (reference == null) {
+                continue;
+            }
+            double currentTotal = round2(reference.landed() * qty);
             lines.add(new LineView(itemNumber, intel.name(), qty, intel.incumbent(), intel.suppliers(),
                     currentTotal));
         }
 
         ProjectionView lowestCost = project(lines, "lowest-cost", "Lowest cost",
                 "Cheapest landed price on every line, whatever the supplier.",
-                l -> one(l.suppliers().stream().min(Comparator.comparingDouble(SupplierEval::landed)).orElseThrow()),
+                l -> one(quoted(l.suppliers()).stream().min(Comparator.comparingDouble(SupplierEval::landed))
+                        .orElseThrow()),
                 List.of("Maximum saving on paper", "Accepts delivery and quality risk"));
 
         ProjectionView fastest = project(lines, "fastest", "Fastest",
                 "Shortest lead time on every line, among suppliers that deliver on time.",
                 l -> {
-                    List<SupplierEval> quick = l.suppliers().stream().filter(s -> s.otifPct() >= 85).toList();
-                    List<SupplierEval> pool = quick.isEmpty() ? l.suppliers() : quick;
+                    List<SupplierEval> pool0 = quoted(l.suppliers());
+                    List<SupplierEval> quick = pool0.stream().filter(s -> s.otifPct() >= 85).toList();
+                    List<SupplierEval> pool = quick.isEmpty() ? pool0 : quick;
                     SupplierEval sel = pool.stream()
                             .min(Comparator.comparingInt(SupplierEval::leadDays)
                                     .thenComparingDouble(SupplierEval::landed))
@@ -65,10 +74,11 @@ public class BulkBuyEngine {
         ProjectionView lowestRisk = project(lines, "lowest-risk", "Lowest risk",
                 "Only suppliers with 92%+ on-time delivery.",
                 l -> {
-                    List<SupplierEval> safe = l.suppliers().stream().filter(s -> s.otifPct() >= 92).toList();
+                    List<SupplierEval> pool0 = quoted(l.suppliers());
+                    List<SupplierEval> safe = pool0.stream().filter(s -> s.otifPct() >= 92).toList();
                     List<SupplierEval> pool = !safe.isEmpty() ? safe
-                            : l.suppliers().stream().filter(s -> s.otifPct() >= 88).toList();
-                    List<SupplierEval> finalPool = pool.isEmpty() ? List.of(l.incumbent()) : pool;
+                            : pool0.stream().filter(s -> s.otifPct() >= 88).toList();
+                    List<SupplierEval> finalPool = pool.isEmpty() ? pool0 : pool;
                     SupplierEval sel = finalPool.stream().min(Comparator.comparingDouble(SupplierEval::landed))
                             .orElseThrow();
                     return one(sel);
@@ -77,14 +87,16 @@ public class BulkBuyEngine {
 
         ProjectionView balanced = project(lines, "balanced", "Balanced",
                 "Lowest all-in cost once reliability, lead time and quality are priced in.",
-                l -> one(l.suppliers().stream().filter(SupplierEval::recommended).findFirst()
-                        .orElse(l.suppliers().get(0))),
+                l -> {
+                    List<SupplierEval> pool = quoted(l.suppliers());
+                    return one(pool.stream().filter(SupplierEval::recommended).findFirst().orElse(pool.get(0)));
+                },
                 List.of("Best cost after hidden costs", "Reliable enough to plan on"));
 
         ProjectionView split = project(lines, "split", "Diversified",
                 "Volume across the three best all-in suppliers, 40 / 35 / 25.",
                 l -> {
-                    List<SupplierEval> top = l.suppliers().stream()
+                    List<SupplierEval> top = quoted(l.suppliers()).stream()
                             .sorted(Comparator.comparingDouble(SupplierEval::effective)).limit(3).toList();
                     double[] shares = {0.4, 0.35, 0.25};
                     List<Choice> out = new ArrayList<>();
@@ -97,7 +109,7 @@ public class BulkBuyEngine {
 
         List<ProjectionView> strategies = List.of(lowestCost, fastest, lowestRisk, balanced, split);
 
-        double currentCost = BulkPricingEngine.round2(lines.stream().mapToDouble(LineView::currentTotal).sum());
+        double currentCost = round2(lines.stream().mapToDouble(LineView::currentTotal).sum());
         double optimizedCost = balanced.totalCost();
         String recommendedKey =
                 "High".equals(lowestCost.risk()) || lowestCost.savings() <= balanced.savings() * 1.12
@@ -105,7 +117,27 @@ public class BulkBuyEngine {
 
         double totalUnits = lines.stream().mapToInt(LineView::qty).sum();
         return new PlanView(regionKey, BuyMath.regionLabel(regionKey), lines, totalUnits, currentCost,
-                optimizedCost, BulkPricingEngine.round2(currentCost - optimizedCost), strategies, recommendedKey);
+                optimizedCost, round2(currentCost - optimizedCost), strategies, recommendedKey);
+    }
+
+    /**
+     * The incumbent when buy has one; otherwise a supplier this reader actually has a
+     * quote for. {@code null} when nothing is quotable - "supplier with ex-works, else
+     * none" per the buy incumbent rule (D2) means an item can come back priceable with
+     * nobody to compare, and bulk skips it rather than invent a baseline.
+     */
+    private static SupplierEval referenceSupplier(BuyLine line) {
+        if (line.incumbent() != null) {
+            return line.incumbent();
+        }
+        List<SupplierEval> q = quoted(line.suppliers());
+        return q.isEmpty() ? null : q.get(0);
+    }
+
+    /** Suppliers this reader has a landed quote for; unquoted suppliers are listed but never awarded. */
+    private static List<SupplierEval> quoted(List<SupplierEval> suppliers) {
+        List<SupplierEval> q = suppliers.stream().filter(s -> s.quoted() > 0).toList();
+        return q.isEmpty() ? suppliers : q;
     }
 
     private static List<Choice> one(SupplierEval s) {
@@ -143,12 +175,19 @@ public class BulkBuyEngine {
         }
         double current = lines.stream().mapToDouble(LineView::currentTotal).sum();
         String risk = "split".equals(key) ? "Low" : worst;
-        double avgOtifPct = units != 0 ? BulkPricingEngine.round1(otifW / units) : 0;
+        double avgOtifPct = units != 0 ? round1(otifW / units) : 0;
         double avgLeadDays = units != 0 ? Math.round(leadW / units) : 0;
         String dependency = ids.size() >= 3 ? "Low" : ids.size() == 2 ? "Medium" : "High";
-        return new ProjectionView(key, title, blurb, BulkPricingEngine.round2(total),
-                BulkPricingEngine.round2(current - total),
-                current > 0 ? BulkPricingEngine.round1((current - total) / current * 100) : 0, risk, avgOtifPct,
+        return new ProjectionView(key, title, blurb, round2(total), round2(current - total),
+                current > 0 ? round1((current - total) / current * 100) : 0, risk, avgOtifPct,
                 avgLeadDays, avgOtifPct, ids.size(), dependency, awards, benefits);
+    }
+
+    private static double round2(double n) {
+        return Math.round(n * 100) / 100.0;
+    }
+
+    private static double round1(double n) {
+        return Math.round(n * 10) / 10.0;
     }
 }
