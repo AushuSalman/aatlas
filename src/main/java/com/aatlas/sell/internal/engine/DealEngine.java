@@ -3,7 +3,7 @@ package com.aatlas.sell.internal.engine;
 import static com.aatlas.sell.internal.engine.Round.round2;
 import static com.aatlas.sell.internal.engine.Wire.bd;
 
-import com.aatlas.sell.internal.catalog.CatalogRefs.CustomerRef;
+import com.aatlas.history.Catalogue.CustomerRef;
 import com.aatlas.sell.internal.dto.DealDtos.DealQuoteDto;
 import java.math.BigDecimal;
 import org.springframework.stereotype.Component;

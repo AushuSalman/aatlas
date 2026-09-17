@@ -1,30 +1,26 @@
 package com.aatlas.sell.internal.buy;
 
-import com.aatlas.common.tenant.TenantContext;
+import com.aatlas.history.Suppliers;
 import java.util.List;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
+/** Over {@code history.Suppliers}, the panel's non-custom rows - real names, real facts. */
 @Repository
 class BuySupplierGatewayImpl implements BuySupplierGateway {
 
-    private final JdbcTemplate jdbc;
+    private final Suppliers suppliers;
 
-    BuySupplierGatewayImpl(JdbcTemplate jdbc) {
-        this.jdbc = jdbc;
+    BuySupplierGatewayImpl(Suppliers suppliers) {
+        this.suppliers = suppliers;
     }
 
     @Override
     public List<SupplierRef> seededPanel() {
-        return jdbc.query(
-                """
-                select supplier_key, name, otif_pct, price_index
-                from suppliers where tenant_id = ? and is_custom = false
-                order by supplier_key
-                """,
-                (rs, rowNum) -> new SupplierRef(
-                        rs.getString("supplier_key"), rs.getString("name"),
-                        rs.getDouble("otif_pct"), rs.getDouble("price_index")),
-                TenantContext.requireTenantId());
+        return suppliers.panel().stream()
+                .filter(s -> !s.custom())
+                .map(s -> new SupplierRef(s.supplierKey(), s.name(),
+                        s.otifPct() == null ? 0 : s.otifPct().doubleValue(),
+                        s.priceIndex() == null ? 0 : s.priceIndex().doubleValue()))
+                .toList();
     }
 }

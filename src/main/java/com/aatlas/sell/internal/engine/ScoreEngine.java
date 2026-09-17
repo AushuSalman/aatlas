@@ -1,45 +1,50 @@
 package com.aatlas.sell.internal.engine;
 
-import static com.aatlas.sell.internal.engine.PricingEngine.marginPercent;
-import static com.aatlas.sell.internal.engine.Round.clamp;
-import static com.aatlas.sell.internal.engine.Round.round1;
-import static com.aatlas.sell.internal.engine.Wire.bd;
-
-import com.aatlas.common.seed.Seeded;
+import com.aatlas.common.time.AatlasClock;
+import com.aatlas.decisions.DealSummaries;
+import com.aatlas.decisions.DealSummaries.Adoption;
+import com.aatlas.history.PricingMath;
+import com.aatlas.history.PricingMath.Score;
+import com.aatlas.history.PricingMath.ScoreInputs;
+import com.aatlas.history.Window;
 import com.aatlas.sell.OpportunityScoreView;
 import com.aatlas.sell.OpportunityScoreView.Reason;
 import com.aatlas.sell.OpportunityScoreView.Signals;
 import com.aatlas.sell.OpportunityScores;
 import com.aatlas.sell.internal.catalog.CatalogGateway;
-import com.aatlas.sell.internal.catalog.CatalogRefs.CommodityTrend;
-import com.aatlas.sell.internal.catalog.CatalogRefs.ProductRef;
-import com.aatlas.sell.internal.catalog.CatalogRefs.StoreRef;
 import com.aatlas.sell.internal.engine.PricingTypes.PricingModel;
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import org.springframework.stereotype.Component;
 
 /**
- * Port of {@code src/lib/intel/score.ts}: {@code opportunityScore}, {@code tierLabel}. Five
- * signals, each stated as a reason - demand, price against the market, margin health,
- * inventory position, conversion - nothing hidden in the weighting.
+ * Port of {@code src/lib/intel/score.ts}: {@code opportunityScore}, {@code tierLabel}, now
+ * over {@link com.aatlas.history.PricingMath#score} so sell, insights and bulk agree bit for
+ * bit. Five signals, each stated as a reason - demand, price against the market, margin
+ * health, inventory position, decision follow-rate - nothing hidden in the weighting.
  */
 @Component
 public class ScoreEngine implements OpportunityScores {
 
     private final CatalogGateway catalog;
     private final PricingEngine pricing;
+    private final DealSummaries deals;
+    private final AatlasClock clock;
 
-    public ScoreEngine(CatalogGateway catalog, PricingEngine pricing) {
+    public ScoreEngine(CatalogGateway catalog, PricingEngine pricing, DealSummaries deals, AatlasClock clock) {
         this.catalog = catalog;
         this.pricing = pricing;
+        this.deals = deals;
+        this.clock = clock;
     }
 
     public static String tierLabel(String tier) {
         return switch (tier) {
-            case "strong" -> "Strong opportunity";
-            case "watch" -> "Watch";
+            case Score.STRONG -> "Strong opportunity";
+            case Score.WATCH -> "Watch";
             default -> "Risk";
         };
     }
@@ -47,111 +52,90 @@ public class ScoreEngine implements OpportunityScores {
     @Override
     public OpportunityScoreView score(String itemNumber, String storeCode) {
         PricingModel m = pricing.getPricingModel(itemNumber, storeCode);
-        String key = "score:" + itemNumber + ":" + storeCode;
 
         if (!m.priceable()) {
             return new OpportunityScoreView(itemNumber, storeCode, 0, "risk", "No history",
                     List.of(new Reason("No sales history at this store", false)),
-                    new Signals("none", bd(0), bd(0), bd(0), 0, bd(0)));
+                    new Signals("none", null, null, null, null, null));
         }
+
+        LocalDate today = clock.today();
+        Window w12 = Window.trailingMonths(today, 12);
+        Adoption adoption = deals.adoption("sell", w12.from(), w12.to(), storeCode);
+        BigDecimal followRate = adoption.followRatePct().map(BigDecimal::valueOf).orElse(null);
+
+        BigDecimal marginPct = PricingMath.marginPct(m.currentPrice(), m.cost());
+        BigDecimal weeksOfCover = PricingMath.weeksOfCover(m.onHandUnits(), m.units90());
+        String demandLevel = m.demand() != null ? m.demand().level() : null;
+
+        ScoreInputs inputs = new ScoreInputs(demandLevel, m.anchorValue(), m.currentPrice(), m.commodityPct90(),
+                marginPct, weeksOfCover, followRate, adoption.total());
+        Score s = PricingMath.score(inputs);
 
         List<Reason> reasons = new ArrayList<>();
-        double score = 42;
-
-        String demandLevel = m.demand() != null ? m.demand().level() : "none";
-        if (demandLevel.equals("high")) {
-            score += 16;
+        if (s.demand() > 0) {
             reasons.add(new Reason("Demand rising", true));
-        } else if (demandLevel.equals("medium")) {
-            score += 5;
-            reasons.add(new Reason("Demand steady", true));
-        } else if (demandLevel.equals("low")) {
-            score -= 14;
+        } else if (s.demand() < 0) {
             reasons.add(new Reason("Demand falling", false));
+        } else if ("medium".equals(demandLevel)) {
+            reasons.add(new Reason("Demand steady", true));
         }
-
-        double market = m.competitorMedian().orElse(m.peerQ2());
-        double priceGapPct = round1(((market - m.currentPrice()) / m.currentPrice()) * 100);
-        if (priceGapPct > 3) {
-            score += 16;
-            reasons.add(new Reason("Your price " + Fmt.fixed(priceGapPct, 1) + "% below market", true));
-        } else if (priceGapPct >= 0) {
-            score += 5;
-            reasons.add(new Reason("Priced at market", true));
-        } else if (priceGapPct > -6) {
-            score -= 8;
-            reasons.add(new Reason("Priced " + Fmt.fixed(Math.abs(priceGapPct), 1) + "% above market", false));
-        } else {
-            score -= 16;
-            reasons.add(new Reason("Priced " + Fmt.fixed(Math.abs(priceGapPct), 1) + "% above market", false));
+        if (s.priceGapPct() != null) {
+            double g = s.priceGapPct().doubleValue();
+            if (g > 3) {
+                reasons.add(new Reason("Your price " + Fmt.fixed(g, 1) + "% below market", true));
+            } else if (g >= 0) {
+                reasons.add(new Reason("Priced at market", true));
+            } else {
+                reasons.add(new Reason("Priced " + Fmt.fixed(Math.abs(g), 1) + "% above market", false));
+            }
         }
-
-        ProductRef product = catalog.findProduct(itemNumber).orElse(null);
-        String commodityKey = product != null ? product.commodity() : "none";
-        CommodityTrend commodity = catalog.commodityTrend(commodityKey);
-        double commodityPct90 = commodity.pct90();
-        if (commodityPct90 >= 2) {
-            score += 6;
+        if (s.commodity() > 0) {
             reasons.add(new Reason("Market price rising", true));
-        } else if (commodityPct90 <= -1.5) {
-            score -= 5;
+        } else if (s.commodity() < 0) {
             reasons.add(new Reason("Market price softening", false));
         }
-
-        double marginPct = marginPercent(m.currentPrice(), m.cost());
-        if (marginPct >= 30) {
-            score += 5;
+        if (s.margin() > 0) {
             reasons.add(new Reason("Healthy margin", true));
-        } else if (marginPct < 22) {
-            score -= 9;
-            reasons.add(new Reason("Thin margin (" + Math.round(marginPct) + "%)", false));
+        } else if (s.margin() < 0) {
+            reasons.add(new Reason("Thin margin"
+                    + (marginPct != null ? " (" + Math.round(marginPct.doubleValue()) + "%)" : ""), false));
         }
-
-        int units = SellEngine.monthlyUnitsFor(itemNumber, storeCode, m.cost());
-        double weeksOfCover = SellEngine.inventoryFor(itemNumber, storeCode, units).weeksOfCover();
-        if (weeksOfCover >= 4 && weeksOfCover <= 12) {
-            score += 7;
+        if (s.cover() > 0) {
             reasons.add(new Reason("Healthy inventory", true));
-        } else if (weeksOfCover > 16) {
-            score -= 10;
-            reasons.add(new Reason("Overstocked (" + Math.round(weeksOfCover) + " weeks of cover)", false));
-        } else if (weeksOfCover < 3) {
-            score -= 5;
+        } else if (weeksOfCover != null && weeksOfCover.doubleValue() > 16) {
+            reasons.add(new Reason("Overstocked (" + Math.round(weeksOfCover.doubleValue()) + " weeks of cover)", false));
+        } else if (s.cover() < 0) {
             reasons.add(new Reason("Low stock", false));
         }
-
-        int conversionPct = (int) Math.round(Seeded.randRange(key, "conv", 44, 93));
-        if (conversionPct >= 75) {
-            score += 6;
-            reasons.add(new Reason("High conversion", true));
-        } else if (conversionPct < 55) {
-            score -= 7;
-            reasons.add(new Reason("Low conversion", false));
+        if (s.followRate() > 0) {
+            reasons.add(new Reason("High follow rate", true));
+        } else if (s.followRate() < 0) {
+            reasons.add(new Reason("Low follow rate", false));
         }
 
-        int finalScore = (int) Math.max(5, Math.min(97, Math.round(score)));
-        String tier = finalScore >= 75 ? "strong" : finalScore >= 45 ? "watch" : "risk";
-
         reasons.sort((a, b) -> a.good() == b.good() ? 0 : a.good() ? -1 : 1);
-        if (tier.equals("risk")) {
+        if (Score.RISK.equals(s.tier())) {
             java.util.Collections.reverse(reasons);
         }
         List<Reason> top5 = reasons.subList(0, Math.min(5, reasons.size()));
 
-        return new OpportunityScoreView(itemNumber, storeCode, finalScore, tier, tierLabel(tier), List.copyOf(top5),
-                new Signals(demandLevel, bd(priceGapPct), bd(round1(marginPct)), bd(weeksOfCover), conversionPct,
-                        bd(commodityPct90)));
+        return new OpportunityScoreView(itemNumber, storeCode, s.score(), s.tier(), tierLabel(s.tier()),
+                List.copyOf(top5),
+                new Signals(demandLevel == null ? "none" : demandLevel, s.priceGapPct(), marginPct, weeksOfCover,
+                        adoption.total() == 0 ? null : (int) Math.round(followRate == null ? 0 : followRate.doubleValue()),
+                        m.commodityPct90()));
     }
 
     @Override
     public List<OpportunityScoreView> rankRegion(String regionKey, int limit) {
-        List<StoreRef> stores = catalog.allStores().stream()
+        List<com.aatlas.history.Catalogue.StoreRef> stores = catalog.allStores().stream()
                 .filter(s -> regionKey == null || regionKey.isBlank() || regionKey.equals(s.regionKey()))
                 .toList();
-        List<ProductRef> products = catalog.sellableProducts();
+        List<com.aatlas.history.Catalogue.ProductRef> products = catalog.sellableProducts();
         List<OpportunityScoreView> all = new ArrayList<>();
-        for (ProductRef p : products) {
-            for (StoreRef s : stores) {
+        for (var p : products) {
+            for (var s : stores) {
                 OpportunityScoreView v = score(p.itemNumber(), s.storeCode());
                 if (v.score() > 0) {
                     all.add(v);

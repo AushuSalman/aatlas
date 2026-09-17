@@ -1,13 +1,17 @@
 package com.aatlas.sell.internal.engine;
 
-import static com.aatlas.sell.internal.engine.PricingEngine.marginPercent;
 import static com.aatlas.sell.internal.engine.Wire.bd;
 
-import com.aatlas.common.seed.Seeded;
-import com.aatlas.sell.internal.buy.BuySupplierGateway;
-import com.aatlas.sell.internal.buy.SupplierRef;
+import com.aatlas.common.time.AatlasClock;
+import com.aatlas.history.PricingMath;
+import com.aatlas.history.PurchaseHistory;
+import com.aatlas.history.PurchaseHistory.PoStats;
+import com.aatlas.history.PurchaseHistory.SupplierPurchases;
+import com.aatlas.history.PurchaseHistory.SupplierShare;
+import com.aatlas.history.Suppliers;
+import com.aatlas.history.Window;
 import com.aatlas.sell.internal.catalog.CatalogGateway;
-import com.aatlas.sell.internal.catalog.CatalogRefs.CustomerRef;
+import com.aatlas.sell.internal.catalog.CatalogGateway.TopCustomer;
 import com.aatlas.sell.internal.dto.Sell2Dtos.AtpAllocationDto;
 import com.aatlas.sell.internal.dto.Sell2Dtos.AtpFromDto;
 import com.aatlas.sell.internal.dto.Sell2Dtos.AtpLineDto;
@@ -15,76 +19,49 @@ import com.aatlas.sell.internal.dto.Sell2Dtos.AtpLotDto;
 import com.aatlas.sell.internal.dto.Sell2Dtos.AtpOrderDto;
 import com.aatlas.sell.internal.dto.Sell2Dtos.CustomerProfileDto;
 import com.aatlas.sell.internal.dto.SellDtos.SellIntelDto;
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Locale;
+import java.util.Optional;
 import org.springframework.stereotype.Component;
 
 /**
  * Available-to-promise: who gets the stock on hand.
  *
- * <p>Port of {@code allocateInventory} in {@code sell2.ts}, EXCEPT for where the stock lots
- * come from. The TypeScript reads {@code getBuyIntel(...).incumbent} / {@code .suppliers} -
- * a landed cost per supplier across freight, duty and commercial terms that Track Buy owns
- * (see {@link BuySupplierGateway}'s own doc comment). This engine still needs a panel and
- * an incumbent to allocate against, so it works out the incumbent the same way {@code
- * currentSupplierFor(item)} does (rank by price index, seed-pick a half of the panel) and
- * approximates "next best" by on-time percent rather than the full effective-cost sort.
- *
- * <p>The order-allocation logic itself (SLA priority, reliable-stock-to-tight-SLA, the
- * reserve taken from the least reliable lot) is ported exactly; only the three input lots
- * are a stand-in. TODO(merge): once Track Buy's engine is in this tree, replace {@link
- * #lotSuppliers} with real {@code getBuyIntel(...).incumbent}/{@code .suppliers}.
+ * <p>Port of {@code allocateInventory} in {@code sell2.ts}, over real inputs: the lots come
+ * from the item's actual purchase-order suppliers ({@code history.PurchaseHistory}), spend
+ * share standing in for "how much of the shelf is theirs" since individual PO lines are not
+ * exposed at this layer; the orders come from the real customers who bought this pair
+ * ({@link CatalogGateway#topCustomersFor}), not a fixed trio of ids.
  */
 @Component
 public class AtpEngine {
 
-    private static final double[] SHARES = {0.5, 0.3, 0.2};
-
     private final CatalogGateway catalog;
-    private final BuySupplierGateway suppliers;
+    private final PurchaseHistory purchases;
+    private final Suppliers suppliers;
     private final Sell2Engine sell2;
+    private final AatlasClock clock;
 
-    public AtpEngine(CatalogGateway catalog, BuySupplierGateway suppliers, Sell2Engine sell2) {
+    public AtpEngine(CatalogGateway catalog, PurchaseHistory purchases, Suppliers suppliers, Sell2Engine sell2,
+            AatlasClock clock) {
         this.catalog = catalog;
+        this.purchases = purchases;
         this.suppliers = suppliers;
         this.sell2 = sell2;
-    }
-
-    /** {@code currentSupplierFor(item)}: rank by price index, seed-pick a half of the panel. */
-    private SupplierRef incumbentFor(String itemNumber, List<SupplierRef> panel) {
-        List<SupplierRef> ranked = panel.stream()
-                .sorted(Comparator.comparingDouble(SupplierRef::priceIndex))
-                .toList();
-        int half = (int) Math.ceil(ranked.size() / 2.0);
-        List<SupplierRef> pool = Seeded.rand(itemNumber, "inc-tier") > 0.3
-                ? ranked.subList(0, half) : ranked.subList(half, ranked.size());
-        return Seeded.pick(itemNumber, "current-sup", pool);
-    }
-
-    private List<SupplierRef> lotSuppliers(String itemNumber) {
-        List<SupplierRef> panel = suppliers.seededPanel();
-        SupplierRef incumbent = incumbentFor(itemNumber, panel);
-        List<SupplierRef> others = panel.stream()
-                .filter(s -> !s.supplierId().equals(incumbent.supplierId()))
-                .sorted(Comparator.comparingDouble(SupplierRef::otifPct).reversed())
-                .limit(2)
-                .toList();
-        List<SupplierRef> out = new ArrayList<>();
-        out.add(incumbent);
-        out.addAll(others);
-        return out;
+        this.clock = clock;
     }
 
     private static final class Lot {
         final String supplierId;
         final String supplierName;
-        final double reliabilityPct;
+        final BigDecimal reliabilityPct;
         int units;
         int remaining;
 
-        Lot(String supplierId, String supplierName, double reliabilityPct, int units) {
+        Lot(String supplierId, String supplierName, BigDecimal reliabilityPct, int units) {
             this.supplierId = supplierId;
             this.supplierName = supplierName;
             this.reliabilityPct = reliabilityPct;
@@ -93,81 +70,103 @@ public class AtpEngine {
         }
     }
 
+    private BigDecimal reliabilityOf(String supplierKey, LocalDate today) {
+        SupplierPurchases sp = purchases.supplier(supplierKey, today);
+        PoStats w12 = sp.w12();
+        if (w12 != null && w12.received() >= 5 && w12.otifPct() != null) {
+            return w12.otifPct();
+        }
+        return suppliers.supplier(supplierKey).map(Suppliers.SupplierRef::otifPct).orElse(null);
+    }
+
+    private List<Lot> buildLots(String itemNumber, int available, LocalDate today) {
+        Window w12 = Window.trailingMonths(today, 12);
+        List<SupplierShare> shares = purchases.item(itemNumber, w12).suppliers();
+        List<Lot> lots = new ArrayList<>();
+        if (shares.isEmpty()) {
+            lots.add(new Lot("unknown", "On hand — supplier unknown", null, available));
+            return lots;
+        }
+        List<SupplierShare> top = shares.subList(0, Math.min(3, shares.size()));
+        BigDecimal totalShare = top.stream().map(SupplierShare::sharePct).filter(java.util.Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        int allocated = 0;
+        for (int i = 0; i < top.size(); i++) {
+            SupplierShare s = top.get(i);
+            int units;
+            if (i == top.size() - 1) {
+                units = available - allocated;
+            } else {
+                double weight = totalShare.signum() > 0 && s.sharePct() != null
+                        ? s.sharePct().doubleValue() / totalShare.doubleValue() : 1.0 / top.size();
+                units = (int) Math.round(available * weight);
+                allocated += units;
+            }
+            lots.add(new Lot(s.supplierKey(), s.name(), reliabilityOf(s.supplierKey(), today), Math.max(0, units)));
+        }
+        return lots;
+    }
+
     public AtpAllocationDto allocate(SellIntelDto intel) {
-        int available = intel.inventoryUnits();
+        LocalDate today = clock.today();
+        int available = intel.inventoryUnits() == null ? 0 : intel.inventoryUnits();
         int reserve = (int) Math.round(available * 0.1);
 
-        List<SupplierRef> lotSuppliers = lotSuppliers(intel.itemNumber());
-        List<Lot> lots = new ArrayList<>();
-        for (int i = 0; i < lotSuppliers.size(); i++) {
-            SupplierRef s = lotSuppliers.get(i);
-            int units;
-            if (i == lotSuppliers.size() - 1) {
-                double sumFromI = 0;
-                for (int j = i; j < SHARES.length; j++) {
-                    sumFromI += SHARES[j];
-                }
-                units = available - (int) Math.round(available * (1 - sumFromI));
-            } else {
-                units = (int) Math.round(available * SHARES[i]);
-            }
-            lots.add(new Lot(s.supplierId(), s.name(), s.otifPct(), units));
-        }
+        List<Lot> lots = buildLots(intel.itemNumber(), available, today);
         int lotSum = lots.stream().mapToInt(l -> l.units).sum();
-        lots.get(0).units += available - lotSum;
-        lots.get(0).remaining = lots.get(0).units;
-
-        Lot reserveLot = lots.stream().min(Comparator.comparingDouble(l -> l.reliabilityPct)).orElseThrow();
-        reserveLot.remaining = Math.max(0, reserveLot.remaining - reserve);
-
-        CustomerRef c3 = catalog.findCustomer("c-3").orElse(null);
-        CustomerRef c2 = catalog.findCustomer("c-2").orElse(null);
-        CustomerRef c5 = catalog.findCustomer("c-5").orElse(null);
-        List<CustomerRef> wanted = new ArrayList<>();
-        for (CustomerRef c : List.of(c3, c2, c5)) {
-            if (c != null) {
-                wanted.add(c);
-            }
+        if (!lots.isEmpty()) {
+            lots.get(0).units += available - lotSum;
+            lots.get(0).remaining = lots.get(0).units;
         }
-        int usable = available - reserve;
-        int baseTotal = wanted.stream().mapToInt(CustomerRef::typicalQty).sum();
-        if (baseTotal == 0) {
-            baseTotal = 1;
-        }
-        double scale = (usable * 1.12) / baseTotal;
 
-        double recommended = intel.recommended().doubleValue();
-        double cost = intel.cost().doubleValue();
+        Lot reserveLot = lots.stream()
+                .min(Comparator.comparingDouble(l -> l.reliabilityPct == null ? 0 : l.reliabilityPct.doubleValue()))
+                .orElse(null);
+        if (reserveLot != null) {
+            reserveLot.remaining = Math.max(0, reserveLot.remaining - reserve);
+        }
+
+        Optional<com.aatlas.history.Catalogue.ProductRef> product = catalog.findProduct(intel.itemNumber());
+        Optional<com.aatlas.history.Catalogue.StoreRef> store = (intel.storeId() == null) ? Optional.empty()
+                : catalog.findStore(intel.storeId());
+        List<TopCustomer> wanted = product.isEmpty() || store.isEmpty() ? List.of()
+                : catalog.topCustomersFor(product.get().id(), store.get().id(), 3,
+                        Window.trailingDays(today, 90).from(), today);
+
+        double recommended = intel.recommended() == null ? 0 : intel.recommended().doubleValue();
+        BigDecimal cost = intel.cost();
         List<AtpOrderDto> orders = new ArrayList<>();
-        for (CustomerRef c : wanted) {
+        for (TopCustomer tc : wanted) {
+            var c = tc.customer();
             CustomerProfileDto p = sell2.customerProfile(c);
             double price = recommended * (1 - c.agreedDiscountPct().doubleValue() / 100);
-            int qty = (int) Math.max(1, Math.round(c.typicalQty() * scale));
+            int qty = tc.orders() > 0 ? (int) Math.max(1, Math.round(tc.units().doubleValue() / tc.orders())) : 1;
             orders.add(new AtpOrderDto(c.code(), c.name(), p.profile(), p.label(), p.slaDays(), qty,
-                    bd(marginPercent(price, cost))));
+                    PricingMath.marginPct(bd(price), cost)));
         }
 
         List<AtpOrderDto> byPriority = orders.stream()
                 .sorted(Comparator.comparingInt(AtpOrderDto::slaDays)
-                        .thenComparing(Comparator.comparing(AtpOrderDto::marginPct).reversed()))
+                        .thenComparing(o -> o.marginPct() == null ? BigDecimal.ZERO : o.marginPct(),
+                                Comparator.reverseOrder()))
                 .toList();
         List<Lot> lotsByReliability = lots.stream()
-                .sorted(Comparator.comparingDouble((Lot l) -> l.reliabilityPct).reversed())
+                .sorted(Comparator.comparingDouble((Lot l) -> l.reliabilityPct == null ? -1 : l.reliabilityPct.doubleValue())
+                        .reversed())
                 .toList();
 
         List<AtpLineDto> lines = new ArrayList<>();
         for (AtpOrderDto o : byPriority) {
             int need = o.qty();
             List<AtpFromDto> from = new ArrayList<>();
-            List<Lot> order = o.slaDays() >= 10
-                    ? reversedCopy(lotsByReliability) : lotsByReliability;
+            List<Lot> order = o.slaDays() >= 10 ? reversedCopy(lotsByReliability) : lotsByReliability;
             for (Lot lot : order) {
                 if (need <= 0) {
                     break;
                 }
                 int take = Math.min(need, lot.remaining);
                 if (take > 0) {
-                    from.add(new AtpFromDto(lot.supplierName, take, bd(lot.reliabilityPct)));
+                    from.add(new AtpFromDto(lot.supplierName, take, lot.reliabilityPct));
                     lot.remaining -= take;
                     need -= take;
                 }
@@ -177,9 +176,9 @@ public class AtpEngine {
             if (need > 0) {
                 note = "Short " + Fmt.groupInt(need) + " units: source them before promising.";
             } else if (o.slaDays() <= 2) {
-                double pct = from.isEmpty() ? 0 : from.get(0).reliabilityPct().doubleValue();
-                note = "Filled from the most reliable stock (" + Fmt.fixed(pct, 0) + "% on-time supplier) to "
-                        + "protect a " + o.slaDays() + "-day SLA.";
+                BigDecimal pct = from.isEmpty() ? null : from.get(0).reliabilityPct();
+                note = "Filled from the most reliable stock (" + (pct != null ? Fmt.fixed(pct.doubleValue(), 0) + "%" : "unknown")
+                        + " on-time supplier) to protect a " + o.slaDays() + "-day SLA.";
             } else if (o.slaDays() >= 10) {
                 note = "Filled from the lower-cost, slower lots; the delivery window allows it.";
             } else {
@@ -192,21 +191,20 @@ public class AtpEngine {
         int unmet = lines.stream().mapToInt(AtpLineDto::shortUnits).sum();
         AtpLineDto tight = lines.stream().filter(l -> l.order().slaDays() <= 2).findFirst().orElse(null);
 
-        String explanation = Fmt.groupInt(available) + " units on hand from " + lots.size() + " suppliers, "
-                + Fmt.groupInt(reserve) + " held in reserve. "
-                + (tight != null
-                        ? tight.order().name() + " (" + tight.order().slaDays() + "-day SLA) is served first from "
-                                + "the " + (tight.from().isEmpty() ? "—"
-                                        : Fmt.fixed(tight.from().get(0).reliabilityPct().doubleValue(), 0))
-                                + "% on-time lot. "
-                        : "")
-                + (unmet > 0
-                        ? Fmt.groupInt(unmet) + " units cannot be promised from stock: the Buy screen has the "
-                                + "supplier answer."
-                        : "Every order is covered.");
+        String explanation = orders.isEmpty()
+                ? "No customer demand on file for this pair."
+                : Fmt.groupInt(available) + " units on hand from " + lots.size() + " supplier(s), "
+                        + Fmt.groupInt(reserve) + " held in reserve. "
+                        + (tight != null
+                                ? tight.order().name() + " (" + tight.order().slaDays() + "-day SLA) is served first. "
+                                : "")
+                        + (unmet > 0
+                                ? Fmt.groupInt(unmet) + " units cannot be promised from stock: the Buy screen has the "
+                                        + "supplier answer."
+                                : "Every order is covered.");
 
         List<AtpLotDto> lotDtos = lots.stream()
-                .map(l -> new AtpLotDto(l.supplierId, l.supplierName, bd(l.reliabilityPct), l.units, l.remaining))
+                .map(l -> new AtpLotDto(l.supplierId, l.supplierName, l.reliabilityPct, l.units, l.remaining))
                 .toList();
 
         return new AtpAllocationDto(available, reserve, lotDtos, lines, demanded, unmet, explanation);

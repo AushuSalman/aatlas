@@ -29,7 +29,7 @@ public record OpportunityScoreView(
             BigDecimal priceGapPct,
             BigDecimal marginPct,
             BigDecimal weeksOfCover,
-            int conversionPct,
+            Integer conversionPct,
             BigDecimal commodityPct90) {
     }
 }

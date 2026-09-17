@@ -4,13 +4,20 @@ import static com.aatlas.sell.internal.engine.Round.round1;
 import static com.aatlas.sell.internal.engine.Round.round2;
 import static com.aatlas.sell.internal.engine.Wire.bd;
 
-import com.aatlas.common.seed.Seeded;
 import com.aatlas.common.time.AatlasClock;
-import com.aatlas.sell.internal.buy.BuySupplierGateway;
-import com.aatlas.sell.internal.buy.SupplierRef;
+import com.aatlas.history.Catalogue.ProductRef;
+import com.aatlas.history.PurchaseHistory;
+import com.aatlas.history.PurchaseHistory.PoMonth;
+import com.aatlas.history.PurchaseHistory.SupplierShare;
+import com.aatlas.history.SalesHistory;
+import com.aatlas.history.SalesHistory.CoPurchase;
+import com.aatlas.history.SalesHistory.MonthPoint;
+import com.aatlas.history.Stats;
+import com.aatlas.history.Stats.Ols;
+import com.aatlas.history.Suppliers;
+import com.aatlas.history.Suppliers.SupplierRef;
+import com.aatlas.history.Window;
 import com.aatlas.sell.internal.catalog.CatalogGateway;
-import com.aatlas.sell.internal.catalog.CatalogRefs.ProductRef;
-import com.aatlas.sell.internal.catalog.SeedOrder;
 import com.aatlas.sell.internal.dto.ForecastElasticityDtos.CrossItemDto;
 import com.aatlas.sell.internal.dto.ForecastElasticityDtos.ElasticityModelDto;
 import com.aatlas.sell.internal.dto.ForecastElasticityDtos.ExperimentRowDto;
@@ -18,218 +25,185 @@ import com.aatlas.sell.internal.dto.ForecastElasticityDtos.ResponsePointDto;
 import com.aatlas.sell.internal.dto.PricingDtos.CalcStepDto;
 import com.aatlas.sell.internal.dto.PricingDtos.FactorWeightDto;
 import com.aatlas.sell.internal.engine.PricingTypes.PricingModel;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.function.Function;
-import java.util.stream.Collectors;
+import java.util.Optional;
 import org.springframework.stereotype.Component;
 
-/** Port of {@code src/lib/platform/elasticity.ts}: {@code getElasticityModel}, both sides. */
+/**
+ * Port of {@code src/lib/platform/elasticity.ts}: {@code getElasticityModel}, both sides,
+ * now real - sell over {@code history.SalesHistory.elasticity} (already resolved on the
+ * pricing model), buy over an own-price fit of the supplier's monthly landed cost against
+ * the quantity it moved.
+ */
 @Component
 public class ElasticityEngine {
 
     private final CatalogGateway catalog;
     private final PricingEngine pricing;
-    private final BuySupplierGateway suppliers;
+    private final SalesHistory sales;
+    private final PurchaseHistory purchases;
+    private final Suppliers suppliers;
     private final AatlasClock clock;
 
-    public ElasticityEngine(CatalogGateway catalog, PricingEngine pricing, BuySupplierGateway suppliers,
-            AatlasClock clock) {
+    public ElasticityEngine(CatalogGateway catalog, PricingEngine pricing, SalesHistory sales,
+            PurchaseHistory purchases, Suppliers suppliers, AatlasClock clock) {
         this.catalog = catalog;
         this.pricing = pricing;
+        this.sales = sales;
+        this.purchases = purchases;
         this.suppliers = suppliers;
         this.clock = clock;
     }
 
-    private String daysAgo(int days) {
-        LocalDate date = clock.today().minusDays(days);
-        return date.toString();
+    private static boolean blank(String s) {
+        return s == null || s.isBlank();
     }
 
     public ElasticityModelDto getElasticityModel(String itemNumber, String side, String counterpartyId) {
-        ProductRef product = catalog.findProduct(itemNumber).orElse(null);
-        String description = product != null ? product.description() : itemNumber;
-        String key = "el:" + side + ":" + itemNumber + ":" + (blank(counterpartyId) ? "default" : counterpartyId);
-
-        if (product == null || !product.hasSales()) {
-            return new ElasticityModelDto(itemNumber, description, side, "—", false, bd(0), 0,
-                    List.of(bd(0), bd(0)), "—", false, List.of(), List.of(), List.of(), List.of(), List.of());
+        Optional<ProductRef> productOpt = catalog.findProduct(itemNumber);
+        String description = productOpt.map(ProductRef::description).orElse(itemNumber);
+        if (productOpt.isEmpty()) {
+            return new ElasticityModelDto(itemNumber, description, side, "—", false, null, 0,
+                    List.of(), "—", false, List.of(), List.of(), List.of(), List.of(), List.of());
         }
-
-        int confidenceScore = (int) Math.round(Seeded.randRange(key, "conf", 38, 96));
-        boolean usedFallback = confidenceScore < 55;
-        double dataVolume = round1(Seeded.randRange(key, "vol", 20, 96));
-        double priceVariation = round1(Seeded.randRange(key, "pv", 15, 92));
-        double confounderControl = round1(Seeded.randRange(key, "cc", 30, 95));
-        double backtestStability = round1(Seeded.randRange(key, "bt", 25, 97));
-
-        double wSum = dataVolume + priceVariation + confounderControl + backtestStability;
-        double[] raw = {dataVolume, priceVariation, confounderControl, backtestStability};
-        String[] labels = {"Data volume observed", "Price variation in the window", "Confounder control",
-                "Back-test stability"};
-        double[] pct = new double[4];
-        double sumFirst3 = 0;
-        for (int i = 0; i < 3; i++) {
-            pct[i] = round1((raw[i] / wSum) * 100);
-            sumFirst3 += pct[i];
+        if ("buy".equals(side)) {
+            return buySide(itemNumber, productOpt.get(), description, counterpartyId);
         }
-        pct[3] = round1(100 - sumFirst3);
-        List<FactorWeightDto> weights = new ArrayList<>();
-        for (int i = 0; i < 4; i++) {
-            weights.add(new FactorWeightDto(labels[i], bd(pct[i]), null, null));
-        }
-
-        if (side.equals("sell")) {
-            return sellSide(itemNumber, product, description, key, counterpartyId, dataVolume, confounderControl,
-                    backtestStability, usedFallback, weights, confidenceScore);
-        }
-        return buySide(itemNumber, description, key, counterpartyId, dataVolume, backtestStability, usedFallback,
-                weights, confidenceScore);
+        return sellSide(itemNumber, productOpt.get(), description, counterpartyId);
     }
 
-    private ElasticityModelDto sellSide(String itemNumber, ProductRef product, String description, String key,
-            String counterpartyId, double dataVolume, double confounderControl, double backtestStability,
-            boolean usedFallback, List<FactorWeightDto> weights, int confidenceScore) {
+    // -- sell side ---------------------------------------------------------------------------
+
+    private ElasticityModelDto sellSide(String itemNumber, ProductRef product, String description,
+            String counterpartyId) {
         String counterparty = !blank(counterpartyId) ? counterpartyId
-                : (product.defaultStoreCode() != null ? product.defaultStoreCode() : "100349");
+                : (product.defaultStoreCode() != null ? product.defaultStoreCode() : "");
         PricingModel m = pricing.getPricingModel(itemNumber, counterparty);
 
-        double coefficient = round2(-1 * Seeded.randRange(key, "coef", 0.35, 2.6));
-        double bandLo = round2(coefficient - Seeded.randRange(key, "bandlo", 0.1, 0.45));
-        double bandHi = round2(coefficient + Seeded.randRange(key, "bandhi", 0.1, 0.45));
+        BigDecimal coefficient = m.beta();
+        boolean usedFallback = !SalesHistory.Elasticity.ITEM_STORE.equals(m.elasticityBasis());
+        double r2 = m.betaR2() == null ? 0 : m.betaR2().doubleValue();
+        int n = m.units90() != null ? (int) m.totalTransactions() : 0;
+        int confidenceScore = SalesHistory.Elasticity.DEFAULT.equals(m.elasticityBasis()) ? 35
+                : (int) Math.round(Stats.clamp(25 + 55 * r2 + 0.8 * Math.min(n, 24), 20, 95));
+        List<BigDecimal> band = SalesHistory.Elasticity.DEFAULT.equals(m.elasticityBasis())
+                ? List.of(new BigDecimal("-1.80"), new BigDecimal("-0.60"))
+                : List.of(BigDecimal.valueOf(round2(coefficient.doubleValue() - 0.3)),
+                        BigDecimal.valueOf(round2(coefficient.doubleValue() + 0.3)));
 
-        Map<String, ProductRef> byItem = catalog.sellableProducts().stream()
-                .collect(Collectors.toMap(ProductRef::itemNumber, Function.identity(), (a, b) -> a));
-        List<ProductRef> others = new ArrayList<>();
-        for (String it : SeedOrder.ITEM_NUMBERS) {
-            if (it.equals(itemNumber)) {
-                continue;
-            }
-            ProductRef p = byItem.get(it);
-            if (p != null) {
-                others.add(p);
-            }
-        }
+        Window w12 = Window.trailingMonths(clock.today(), 12);
+        List<CoPurchase> co = sales.coPurchased(product.id(), 3, w12);
         List<CrossItemDto> cross = new ArrayList<>();
-        for (int i = 0; i < 3 && !others.isEmpty(); i++) {
-            ProductRef other = Seeded.pick(key + ":cross", String.valueOf(i), others);
-            double effect = round1(Seeded.randRange(key + ":cross:" + i, "fx", -22, 8));
-            cross.add(new CrossItemDto(other.description(), other.itemNumber(), bd(effect),
-                    effect < 0 ? "cannibalisation" : "halo"));
-        }
-
-        List<ExperimentRowDto> experiments = new ArrayList<>();
-        String[] expLabels = {"Geo-split price test", "Staged rollout, 3 branches"};
-        for (int i = 0; i < 2; i++) {
-            String expKey = key + ":exp:" + i;
-            double predicted = round2(coefficient * Seeded.randRange(expKey, "p", 0.85, 1.1));
-            double realised = round2(predicted * Seeded.randRange(expKey, "r", 0.8, 1.22));
-            String date = daysAgo(Seeded.randInt(expKey, "date", 30, 300));
-            experiments.add(new ExperimentRowDto(key + "-exp-" + i, expLabels[i], date, bd(predicted), bd(realised)));
+        List<MonthPoint> ownPrices = sales.monthly(product.id(), null, 24, clock.today());
+        double[] priceSeries = toPriceArray(ownPrices);
+        for (CoPurchase c : co) {
+            List<MonthPoint> otherUnits = sales.monthly(c.productId(), null, 24, clock.today());
+            double[] unitSeries = toUnitArray(otherUnits);
+            Ols fit = Stats.olsLogLog(priceSeries, unitSeries);
+            BigDecimal effectPct = (fit.available() && fit.n() >= 8 && fit.r2() >= 0.2)
+                    ? BigDecimal.valueOf(round1(fit.coefficient())) : null;
+            cross.add(new CrossItemDto(c.shortName(), "on " + Fmt.fixed(c.attachPct().doubleValue(), 0)
+                    + "% of orders", effectPct, "complement"));
         }
 
         List<CalcStepDto> steps = List.of(
-                new CalcStepDto("Method",
-                        usedFallback ? "Category prior, hierarchically pooled" : "Double machine learning",
+                new CalcStepDto("Method", usedFallback ? "Category prior, pooled" : "Log-log regression, item-store",
                         usedFallback
-                                ? "Too little of this item’s own price variation to trust an item-level estimate "
-                                        + "— falls back to the category, visibly."
-                                : "Controls for confounders on this item’s own price history",
+                                ? "Too little of this item's own price variation to trust an item-level estimate - "
+                                        + "falls back to " + m.elasticityBasis() + "."
+                                : "Fit to this pair's own price/volume co-movement over the trailing 24 months.",
                         "step"),
-                new CalcStepDto("Granularity", "Item–store",
+                new CalcStepDto("Granularity", m.elasticityBasis(),
                         Fmt.groupInt(m.totalTransactions()) + " transactions in the window", "step"),
-                new CalcStepDto("Data volume observed", Fmt.jsNum(dataVolume) + "/100", null, "step"),
-                new CalcStepDto("Confounder control", Fmt.jsNum(confounderControl) + "/100",
-                        "Demand shocks, seasonality and promo separated from the price effect", "step"),
-                new CalcStepDto("Back-test stability", Fmt.jsNum(backtestStability) + "/100",
-                        "Held out historical price moves, re-scored", "step"),
-                new CalcStepDto("Own-price elasticity", Fmt.jsNum(coefficient),
-                        "A 1% price rise moves quantity " + Fmt.fixed(coefficient, 2) + "% — "
-                                + (Math.abs(coefficient) > 1 ? "elastic: revenue-sensitive to price"
-                                        : "inelastic: revenue is more forgiving of price"),
+                new CalcStepDto("R-squared", Fmt.fixed(r2, 2), null, "step"),
+                new CalcStepDto("Own-price elasticity", Fmt.jsNum(coefficient.doubleValue()),
+                        "A 1% price rise moves quantity " + Fmt.fixed(coefficient.doubleValue(), 2) + "% - "
+                                + (Math.abs(coefficient.doubleValue()) > 1 ? "elastic" : "inelastic"),
                         "result"));
 
         List<ResponsePointDto> curve = new ArrayList<>();
-        for (int pct = -20; pct <= 20; pct += 5) {
-            double priceRatio = 1 + pct / 100.0;
-            double qtyRatio = Math.pow(priceRatio, coefficient);
-            curve.add(new ResponsePointDto(bd(pct), bd(round1((qtyRatio - 1) * 100))));
+        BigDecimal units90 = m.units90();
+        for (int i = -3; i <= 3; i++) {
+            double x = 1 + i * 0.05;
+            double y = units90 != null ? units90.doubleValue() * Math.pow(x, coefficient.doubleValue()) : 0;
+            curve.add(new ResponsePointDto(BigDecimal.valueOf(round2(x)), BigDecimal.valueOf(round1(y))));
         }
 
-        return new ElasticityModelDto(itemNumber, description, "sell", counterparty, true, bd(coefficient),
-                confidenceScore, List.of(bd(bandLo), bd(bandHi)),
-                usedFallback ? "Category prior" : "Item–store", usedFallback, curve, cross, experiments, weights,
-                steps);
+        return new ElasticityModelDto(itemNumber, description, "sell", counterparty, true, coefficient,
+                confidenceScore, band, m.elasticityBasis(), usedFallback, curve, cross, List.of(),
+                List.of(new FactorWeightDto("R-squared", bd(round1(r2 * 100)), null, null)), steps);
     }
 
-    private ElasticityModelDto buySide(String itemNumber, String description, String key, String counterpartyId,
-            double dataVolume, double backtestStability, boolean usedFallback, List<FactorWeightDto> weights,
-            int confidenceScore) {
-        List<SupplierRef> panel = suppliers.seededPanel();
-        SupplierRef supplier;
-        if (!blank(counterpartyId)) {
-            supplier = panel.stream().filter(s -> s.supplierId().equals(counterpartyId)).findFirst()
-                    .orElseGet(() -> Seeded.pick(key, "sup", panel));
-        } else {
-            supplier = Seeded.pick(key, "sup", panel);
+    private static double[] toPriceArray(List<MonthPoint> points) {
+        double[] out = new double[points.size()];
+        for (int i = 0; i < points.size(); i++) {
+            var p = points.get(i).avgPrice();
+            out[i] = p == null ? 0 : p.doubleValue();
         }
+        return out;
+    }
 
-        double coefficient = round2(-1 * Seeded.randRange(key, "bcoef", 0.6, 4.2));
-        double bandLo = round2(coefficient - Seeded.randRange(key, "bblo", 0.2, 0.8));
-        double bandHi = round2(coefficient + Seeded.randRange(key, "bbhi", 0.2, 0.8));
-
-        List<CrossItemDto> cross = List.of(
-                new CrossItemDto("Contract tenor: 12 → 24 months", "Term response",
-                        bd(round1(-1 * Seeded.randRange(key, "t1", 0.8, 3.4))), "sensitivity"),
-                new CrossItemDto("Payment terms: Net 30 → Net 60", "Cost-of-capital adjusted",
-                        bd(round1(-1 * Seeded.randRange(key, "t2", 0.3, 1.6))), "sensitivity"),
-                new CrossItemDto("Order consolidation across branches", "Fewer, larger releases",
-                        bd(round1(-1 * Seeded.randRange(key, "t3", 0.5, 2.8))), "sensitivity"));
-
-        List<ExperimentRowDto> experiments = new ArrayList<>();
-        String[] expLabels = {"Volume-tier renegotiation", "Consolidated award, 2 branches"};
-        for (int i = 0; i < 2; i++) {
-            String expKey = key + ":exp:" + i;
-            double predicted = round2(coefficient * Seeded.randRange(expKey, "p", 0.85, 1.1));
-            double realised = round2(predicted * Seeded.randRange(expKey, "r", 0.75, 1.25));
-            String date = daysAgo(Seeded.randInt(expKey, "date", 40, 310));
-            experiments.add(new ExperimentRowDto(key + "-exp-" + i, expLabels[i], date, bd(predicted), bd(realised)));
+    private static double[] toUnitArray(List<MonthPoint> points) {
+        double[] out = new double[points.size()];
+        for (int i = 0; i < points.size(); i++) {
+            var u = points.get(i).units();
+            out[i] = u == null ? 0 : u.doubleValue();
         }
+        return out;
+    }
+
+    // -- buy side ----------------------------------------------------------------------------
+
+    private ElasticityModelDto buySide(String itemNumber, ProductRef product, String description,
+            String counterpartyId) {
+        LocalDate today = clock.today();
+        Window w12 = Window.trailingMonths(today, 12);
+        List<SupplierShare> shares = purchases.item(itemNumber, w12).suppliers();
+
+        String supplierKey = !blank(counterpartyId) ? counterpartyId
+                : shares.stream().findFirst().map(SupplierShare::supplierKey).orElse(null);
+        if (supplierKey == null) {
+            return new ElasticityModelDto(itemNumber, description, "buy", "—", false, null, 0,
+                    List.of(), "—", true, List.of(), List.of(), List.of(), List.of(), List.of());
+        }
+        Optional<SupplierRef> supplier = suppliers.supplier(supplierKey);
+        String supplierName = supplier.map(SupplierRef::name).orElse(supplierKey);
+
+        List<PoMonth> months = purchases.monthly(itemNumber, supplierKey, 24, today);
+        double[] landed = new double[months.size()];
+        double[] qty = new double[months.size()];
+        for (int i = 0; i < months.size(); i++) {
+            PoMonth pm = months.get(i);
+            landed[i] = pm.avgLanded() == null ? 0 : pm.avgLanded().doubleValue();
+            qty[i] = pm.units() == null ? 0 : pm.units().doubleValue();
+        }
+        Ols fit = Stats.olsLogLog(landed, qty);
+        boolean usedFallback = !(fit.available() && fit.n() >= 8 && fit.r2() >= 0.25);
+        BigDecimal coefficient = usedFallback ? new BigDecimal("-0.80") : BigDecimal.valueOf(round2(fit.coefficient()));
+        List<BigDecimal> band = usedFallback ? List.of(new BigDecimal("-1.20"), new BigDecimal("-0.40"))
+                : List.of(BigDecimal.valueOf(round2(fit.coefficient() - 0.3)),
+                        BigDecimal.valueOf(round2(fit.coefficient() + 0.3)));
+        int confidenceScore = usedFallback ? 35
+                : (int) Math.round(Stats.clamp(25 + 55 * fit.r2() + 0.8 * Math.min(fit.n(), 24), 20, 95));
+
+        List<CrossItemDto> cross = List.of();
+        List<ExperimentRowDto> experiments = List.of();
 
         List<CalcStepDto> steps = List.of(
-                new CalcStepDto("Method",
-                        usedFallback ? "Category prior, hierarchically pooled" : "Hierarchical regression, isotonic fit",
-                        usedFallback
-                                ? "Not enough of this supplier’s own commitment history — falls back to the "
-                                        + "category curve, visibly."
-                                : "Fit to this supplier’s own PO and contract history, monotonicity enforced",
+                new CalcStepDto("Method", usedFallback ? "Category default" : "Log-log regression on monthly POs",
+                        usedFallback ? "Not enough of this supplier's own commitment history for this item."
+                                : "Fit to this supplier's own monthly landed cost and quantity for this item.",
                         "step"),
-                new CalcStepDto("Driver variables", null,
-                        "Committed volume, order frequency, consolidation, exclusivity", "step"),
-                new CalcStepDto("Data volume observed", Fmt.jsNum(dataVolume) + "/100", null, "step"),
-                new CalcStepDto("Back-test stability", Fmt.jsNum(backtestStability) + "/100",
-                        "Held-out renewals, re-scored", "step"),
-                new CalcStepDto("Volume–price response", Fmt.jsNum(coefficient) + "%",
-                        "Unit cost moves " + Fmt.fixed(coefficient, 2) + "% for every +10% committed volume with "
-                                + supplier.name(),
-                        "result"));
+                new CalcStepDto("Data volume observed", months.size() + " months", null, "step"),
+                new CalcStepDto("Volume-price response", Fmt.jsNum(coefficient.doubleValue()),
+                        "Quantity moves " + Fmt.fixed(coefficient.doubleValue(), 2) + "% for every 1% landed-cost "
+                                + "change with " + supplierName, "result"));
 
-        List<ResponsePointDto> curve = new ArrayList<>();
-        for (int pct = -20; pct <= 60; pct += 10) {
-            double volRatio = 1 + pct / 100.0;
-            double costRatio = Math.pow(volRatio, coefficient / 10);
-            curve.add(new ResponsePointDto(bd(pct), bd(round1((costRatio - 1) * 100))));
-        }
-
-        return new ElasticityModelDto(itemNumber, description, "buy", supplier.name(), true, bd(coefficient),
-                confidenceScore, List.of(bd(bandLo), bd(bandHi)),
-                usedFallback ? "Category prior" : "Supplier–item", usedFallback, curve, cross, experiments, weights,
-                steps);
-    }
-
-    private static boolean blank(String s) {
-        return s == null || s.isBlank();
+        return new ElasticityModelDto(itemNumber, description, "buy", supplierName, true, coefficient,
+                confidenceScore, band, usedFallback ? "Category prior" : "Supplier-item", usedFallback, List.of(),
+                cross, experiments, List.of(), steps);
     }
 }

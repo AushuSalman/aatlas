@@ -2,7 +2,9 @@ package com.aatlas.sell.internal.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 
 /** Wire records mirroring {@code src/lib/intel/sell.ts}'s {@code SellIntel} and friends. */
 public final class SellDtos {
@@ -87,10 +89,18 @@ public final class SellDtos {
             BigDecimal elasticity,
             int monthlyUnits,
             int annualUnits,
-            int inventoryUnits,
+            Integer inventoryUnits,
             BigDecimal inventoryValue,
             BigDecimal weeksOfCover,
 
-            BigDecimal monthlyOpportunity) {
+            BigDecimal monthlyOpportunity,
+
+            /** {@code com.aatlas.history.Resolved}/{@code Anchor} labels: {@code cost}, {@code currentPrice},
+             *  {@code anchor}, {@code units}, {@code inventory}. */
+            Map<String, String> sources,
+            /** Section keys the UI must hide: {@code margin}, {@code inventory}, {@code demand},
+             *  {@code forecast}, {@code competitors}. */
+            List<String> locked,
+            LocalDate inventoryAsOf) {
     }
 }

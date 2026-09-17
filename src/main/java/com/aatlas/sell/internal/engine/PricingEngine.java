@@ -1,14 +1,29 @@
 package com.aatlas.sell.internal.engine;
 
-import static com.aatlas.sell.internal.engine.Round.clamp;
-import static com.aatlas.sell.internal.engine.Round.round1;
 import static com.aatlas.sell.internal.engine.Round.round2;
 import static com.aatlas.sell.internal.engine.Wire.bd;
 
-import com.aatlas.common.seed.Seeded;
+import com.aatlas.common.time.AatlasClock;
+import com.aatlas.history.Anchor;
+import com.aatlas.history.Catalogue.ProductRef;
+import com.aatlas.history.Catalogue.StoreRef;
+import com.aatlas.history.CompetitorPrices;
+import com.aatlas.history.CompetitorPrices.Observation;
+import com.aatlas.history.Inventory;
+import com.aatlas.history.PriceLadder;
+import com.aatlas.history.PricingMath;
+import com.aatlas.history.Reference;
+import com.aatlas.history.Resolved;
+import com.aatlas.history.SalesHistory;
+import com.aatlas.history.SalesHistory.Bucket;
+import com.aatlas.history.SalesHistory.PeerBand;
+import com.aatlas.history.SalesHistory.PriceBand;
+import com.aatlas.history.SalesHistory.Velocity;
+import com.aatlas.history.SalesStats;
+import com.aatlas.history.Stats;
+import com.aatlas.history.Window;
 import com.aatlas.sell.internal.catalog.CatalogGateway;
-import com.aatlas.sell.internal.catalog.CatalogRefs.ProductRef;
-import com.aatlas.sell.internal.catalog.CatalogRefs.StoreRef;
+import com.aatlas.sell.internal.catalog.CatalogRefs.CommodityTrend;
 import com.aatlas.sell.internal.dto.PricingDtos.BenchmarksDto;
 import com.aatlas.sell.internal.dto.PricingDtos.CalcStepDto;
 import com.aatlas.sell.internal.dto.PricingDtos.CompetitorDto;
@@ -20,159 +35,217 @@ import com.aatlas.sell.internal.dto.PricingDtos.SellDerivationDto;
 import com.aatlas.sell.internal.engine.PricingTypes.Competitor;
 import com.aatlas.sell.internal.engine.PricingTypes.DemandModel;
 import com.aatlas.sell.internal.engine.PricingTypes.PricingModel;
+import java.math.BigDecimal;
+import java.net.URI;
+import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
-import java.util.Locale;
-import java.util.OptionalDouble;
+import java.util.Optional;
+import java.util.UUID;
 import org.springframework.stereotype.Component;
 
 /**
- * Port of {@code src/lib/mock/pricing.ts}: the pure function of (item, store) every other
- * sell engine builds on. See that file's own doc comment for why the split between "the
- * number" (here) and "the decision" ({@code sell.ts}, {@link SellEngine}) exists.
+ * The one place an (item, store) pair's price picture is resolved: cost, current price and
+ * market anchor from {@code history.PriceLadder}, the recommendation chain from {@code
+ * history.PricingMath}, everything else (peer band, competitors, demand, commodity,
+ * elasticity, inventory) from the rest of {@code history}. Every other sell engine calls
+ * {@link #getPricingModel} rather than reading {@code history} a second time, so the number
+ * and its label agree on every screen.
  */
 @Component
 public class PricingEngine {
 
-    /** {@code COMPETITOR_DOMAINS} in {@code src/lib/mock/catalog.ts}, in order. */
-    private static final List<Domain> COMPETITOR_DOMAINS = List.of(
-            new Domain("Northline Supply", "northline.example.com"),
-            new Domain("Castellan Trade", "castellan.example.com"),
-            new Domain("Redhawk Building Supply", "redhawk.example.com"),
-            new Domain("Vantage Wholesale", "vantage.example.com"),
-            new Domain("Ironbridge Industrial", "ironbridge.example.com"),
-            new Domain("Cobalt Depot", "cobalt.example.com"),
-            new Domain("Fairhaven Supply", "fairhaven.example.com"),
-            new Domain("Pemberton Trade Group", "pemberton.example.com"),
-            new Domain("Granite & Co.", "granite.example.com"),
-            new Domain("Larkspur Distribution", "larkspur.example.com"));
-
-    private record Domain(String name, String domain) {
-    }
-
     private final CatalogGateway catalog;
+    private final SalesHistory sales;
+    private final PriceLadder ladder;
+    private final Inventory inventory;
+    private final CompetitorPrices competitorPrices;
+    private final Reference reference;
+    private final AatlasClock clock;
 
-    public PricingEngine(CatalogGateway catalog) {
+    public PricingEngine(CatalogGateway catalog, SalesHistory sales, PriceLadder ladder, Inventory inventory,
+            CompetitorPrices competitorPrices, Reference reference, AatlasClock clock) {
         this.catalog = catalog;
+        this.sales = sales;
+        this.ladder = ladder;
+        this.inventory = inventory;
+        this.competitorPrices = competitorPrices;
+        this.reference = reference;
+        this.clock = clock;
     }
 
-    // -- s1: base cost --------------------------------------------------------------------
-
-    static double baseCost(String item) {
-        double r = Seeded.rand(item, "cost");
-        long tier = Seeded.hashString(item) % 10;
-        if (tier <= 4) {
-            return round2(1.2 + r * 12);
-        }
-        if (tier <= 8) {
-            return round2(18 + r * 120);
-        }
-        return round2(320 + r * 900);
-    }
-
-    // -- demand -----------------------------------------------------------------------------
-
-    static DemandModel buildDemand(String item, String storeId) {
-        String key = item + "|" + storeId;
-        boolean applied = Seeded.rand(key, "demand-applied") > 0.25;
-        if (!applied) {
+    private static String domainOf(String sourceUrl) {
+        if (sourceUrl == null || sourceUrl.isBlank()) {
             return null;
         }
-        double roll = Seeded.rand(key, "demand-level");
-        String level = roll > 0.62 ? "high" : roll > 0.3 ? "medium" : "low";
-        int maxAdjustmentPct = 3;
-        double confWeight = round2(Seeded.randRange(key, "demand-conf", 0.35, 0.95));
-        int direction = level.equals("high") ? 1 : level.equals("low") ? -1 : 0;
-        double movePercent = Math.round(direction * maxAdjustmentPct * confWeight * 10) / 10.0;
-        double expectedVelocity = round2(Seeded.randRange(key, "demand-exp", 0.4, 9));
-        double ratio = switch (level) {
-            case "high" -> Seeded.randRange(key, "demand-ratio", 1.15, 1.9);
-            case "low" -> Seeded.randRange(key, "demand-ratio", 0.45, 0.85);
-            default -> Seeded.randRange(key, "demand-ratio", 0.9, 1.1);
-        };
-        String label = level.equals("high") ? "High demand" : level.equals("low") ? "Low demand" : "Stable demand";
-        String confidence = confWeight > 0.75 ? "high" : confWeight > 0.5 ? "medium" : "low";
-        String trendDirection = level.equals("high") ? "INCREASING" : level.equals("low") ? "DECREASING" : "STABLE";
-        int historyDays = (int) Math.round(Seeded.randRange(key, "demand-hist", 90, 540));
-        double index = Math.round(ratio * 1000) / 1000.0;
-        double recentVelocity = round2(expectedVelocity * ratio);
-        return new DemandModel(level, label, index, movePercent, confidence, confWeight, recentVelocity,
-                expectedVelocity, maxAdjustmentPct, trendDirection, historyDays);
-    }
-
-    // -- competitors --------------------------------------------------------------------------
-
-    static List<Competitor> buildCompetitors(String item, String storeId, double currentPrice) {
-        String key = item + "|" + storeId;
-        if (Seeded.rand(key, "comp-none") > 0.86) {
-            return List.of();
+        try {
+            String host = URI.create(sourceUrl).getHost();
+            return host != null ? host : sourceUrl;
+        } catch (RuntimeException ex) {
+            return sourceUrl;
         }
-        int count = (int) (4 + Math.floor(Seeded.rand(key, "comp-count") * 6));
-        List<Competitor> out = new ArrayList<>();
-        for (int i = 0; i < Math.min(count, COMPETITOR_DOMAINS.size()); i++) {
-            Domain c = COMPETITOR_DOMAINS.get(i);
-            double spread = Seeded.randRange(key, "comp-" + c.domain(), 0.82, 1.24);
-            double price = round2(currentPrice * spread);
-            out.add(new Competitor(c.name(), c.domain(), price, round2(price - currentPrice)));
-        }
-        return List.copyOf(out);
     }
-
-    // -- the resolver -------------------------------------------------------------------------
 
     public PricingModel getPricingModel(String item, String storeId) {
-        String key = item + "|" + storeId;
+        LocalDate today = clock.today();
+        Optional<ProductRef> productOpt = catalog.findProduct(item);
         boolean hasStoreId = storeId != null && !storeId.isBlank();
-        ProductRef product = catalog.findProduct(item).orElse(null);
-        StoreRef store = hasStoreId ? catalog.findStore(storeId).orElse(null) : null;
-        boolean hasSales = product != null && product.hasSales();
-        boolean sellsHere = hasStoreId && hasSales && catalog.sells(item, storeId);
-        boolean priceable = product != null && hasSales && (!hasStoreId || sellsHere);
+        Optional<StoreRef> storeOpt = hasStoreId ? catalog.findStore(storeId) : Optional.empty();
 
-        double cost = baseCost(item);
-        double currentPrice = round2(cost * Seeded.randRange(key, "current", 1.32, 2.15));
-        double peerQ2 = round2(cost * Seeded.randRange(item, "peer", 1.45, 2.1));
-        double peerQ1 = round2(peerQ2 * 0.88);
-        double peerQ3 = round2(peerQ2 * 1.19);
-        List<Competitor> competitors = buildCompetitors(item, storeId, currentPrice);
-
-        double[] compPrices = competitors.stream().mapToDouble(Competitor::price).sorted().toArray();
-        OptionalDouble competitorMedian = compPrices.length == 0 ? OptionalDouble.empty()
-                : OptionalDouble.of(round2(compPrices[compPrices.length / 2]));
-
-        double hardFloor = round2(cost / 0.75);
-        double historyFloor = round2(Math.max(hardFloor, peerQ1 * 0.97));
-        double ceilingAnchor = competitorMedian.orElse(peerQ3);
-        double ceilingPrice = round2(Math.max(peerQ3, ceilingAnchor * 1.18));
-
-        OptionalDouble rpp = (store != null && store.rpp() != null)
-                ? OptionalDouble.of(store.rpp().doubleValue()) : OptionalDouble.empty();
-        String msaMode = Seeded.rand(key, "msa-mode") > 0.94 ? "off" : "competition";
-        double mult = (rpp.isEmpty() || msaMode.equals("off")) ? 1 : 1 - ((rpp.getAsDouble() - 100) / 100) * 0.55;
-
-        double anchor = competitorMedian.orElse(peerQ1);
-        double optimal = anchor * Seeded.randRange(key, "opt", 0.95, 1.04) * mult;
-        DemandModel demand = buildDemand(item, storeId);
-        if (demand != null) {
-            optimal = optimal * (1 + demand.movePercent() / 100);
+        if (productOpt.isEmpty()) {
+            return emptyModel(item, storeId);
         }
-        double optimalPrice = round2(clamp(optimal, hardFloor, ceilingPrice));
-        double aggressivePrice = round2(Math.min(
-                Math.max(optimalPrice * Seeded.randRange(key, "agg", 1.06, 1.19), optimalPrice + 0.05),
-                ceilingPrice * 1.02));
+        ProductRef product = productOpt.get();
+        StoreRef store = storeOpt.orElse(null);
+        UUID productId = product.id();
+        UUID storeUuid = store != null ? store.id() : null;
 
-        String segment = (store != null && store.segment() != null) ? store.segment() : "occasional";
-        String recommendedTier = segment.equals("regular") ? "aggressive" : "optimal";
-        int totalTransactions = (int) Math.round(Seeded.randRange(key, "txns", 8, 240));
-        int totalCompanies = (int) Math.round(Seeded.randRange(item, "companies", 12, 380));
-        double observedMin = round2(Math.min(currentPrice, optimalPrice) * Seeded.randRange(key, "omin", 0.72, 0.93));
-        double observedMax = round2(Math.max(currentPrice, aggressivePrice) * Seeded.randRange(key, "omax", 1.06, 1.34));
-        double msaMult = Math.round(mult * 10000) / 10000.0;
+        List<String> locked = new ArrayList<>();
 
-        return new PricingModel(item, storeId, priceable, cost, currentPrice, optimalPrice, aggressivePrice,
-                recommendedTier, historyFloor, ceilingPrice, peerQ1, peerQ2, peerQ3, competitors, competitorMedian,
-                msaMult, msaMode, demand, segment, totalTransactions, totalCompanies, observedMin, observedMax);
+        Optional<Resolved> currentPriceR = ladder.currentPrice(productId, storeUuid, today);
+        Optional<Resolved> costR = ladder.cost(productId, storeUuid, today);
+        Optional<Anchor> anchorR = ladder.anchor(productId, storeUuid, today);
+
+        boolean priceable = currentPriceR.map(r -> r.value() != null && r.value().signum() > 0).orElse(false);
+        if (costR.isEmpty()) {
+            locked.add("margin");
+        }
+
+        Window w12 = Window.trailingMonths(today, 12);
+        SalesStats itemStoreStats = storeUuid != null ? sales.itemStore(productId, storeUuid, w12)
+                : sales.item(productId, w12);
+        BigDecimal ownRef = itemStoreStats.lastPrice();
+
+        Velocity velocity = sales.velocity(productId, storeUuid, today);
+        PricingMath.Demand demand = PricingMath.demand(velocity);
+        DemandModel demandModel = demand == null ? null : toDemandModel(demand);
+        if (demand == null) {
+            locked.add("demand");
+        }
+
+        Reference.Guardrails guardrails = reference.guardrails();
+
+        boolean storeHeavy = storeUuid != null && itemStoreStats.txns() >= 8;
+        Optional<PriceBand> band = storeHeavy ? sales.priceBandAtStore(productId, storeUuid, w12)
+                : sales.priceBand(productId, w12);
+        BigDecimal bandQ1 = band.map(PriceBand::q1).orElse(null);
+        List<Bucket> buckets = band.map(PriceBand::buckets).orElse(List.of());
+
+        Optional<PeerBand> peer = storeUuid != null ? sales.peerBand(productId, storeUuid, w12) : Optional.empty();
+        BigDecimal peerQ1 = peer.map(PeerBand::q1).orElse(null);
+        BigDecimal peerQ2 = peer.map(PeerBand::q2).orElse(null);
+        BigDecimal peerQ3 = peer.map(PeerBand::q3).orElse(null);
+        int peerStores = peer.map(PeerBand::stores).orElse(0);
+
+        String regionKey = store != null ? store.regionKey() : null;
+        List<Observation> observations = competitorPrices.forItem(productId, regionKey, storeUuid, today);
+        BigDecimal currentPriceValue = currentPriceR.map(Resolved::value).orElse(null);
+        List<Competitor> competitors = new ArrayList<>();
+        for (Observation o : observations) {
+            BigDecimal delta = currentPriceValue == null ? null : o.price().subtract(currentPriceValue);
+            competitors.add(new Competitor(o.competitor(), domainOf(o.sourceUrl()), o.price(), delta));
+        }
+        if (competitors.isEmpty()) {
+            locked.add("competitors");
+        }
+        Optional<Anchor> competitorAnchor = competitorPrices.anchor(productId, regionKey, storeUuid, today);
+        BigDecimal competitorMedian = competitorAnchor.map(Anchor::value).orElse(null);
+
+        CommodityTrend commodity = product.commodity() == null ? null : catalog.commodityTrend(product.commodity());
+        BigDecimal commodityPct90 = commodity == null ? null : BigDecimal.valueOf(commodity.pct90());
+        String commodityLabel = commodity == null ? null : commodity.label();
+        LocalDate commodityAsOf = commodity == null ? null : commodity.asOf();
+
+        BigDecimal rpp = store != null ? store.rpp() : null;
+        double msaMultD = rpp != null ? 1 - ((rpp.doubleValue() - 100) / 100) * 0.55 : 1;
+        BigDecimal msaMult = BigDecimal.valueOf(msaMultD);
+        String msaMode = rpp != null ? "competition" : "off";
+
+        SalesHistory.Elasticity elasticity = sales.elasticity(productId, storeUuid, today);
+        BigDecimal beta = elasticity.coefficient();
+
+        Window w90 = Window.trailingDays(today, 90);
+        SalesStats w90Stats = storeUuid != null ? sales.itemStore(productId, storeUuid, w90) : sales.item(productId, w90);
+        SalesStats w90pStats = storeUuid != null ? sales.itemStore(productId, storeUuid, w90.prior())
+                : sales.item(productId, w90.prior());
+        Window w30 = Window.trailingDays(today, 30);
+        SalesStats w30Stats = storeUuid != null ? sales.itemStore(productId, storeUuid, w30) : sales.item(productId, w30);
+
+        Optional<Inventory.OnHand> onHand = inventory.onHand(productId, storeUuid);
+        BigDecimal onHandUnits = null;
+        LocalDate inventoryAsOf = null;
+        boolean stale = false;
+        if (onHand.isPresent()) {
+            onHandUnits = onHand.get().units();
+            inventoryAsOf = onHand.get().asOf();
+            stale = onHand.get().stale(today);
+        }
+        if (onHand.isEmpty() || stale) {
+            locked.add("inventory");
+        }
+
+        Optional<PricingMath.Recommendation> recOpt = PricingMath.recommend(costR.map(Resolved::value).orElse(null),
+                anchorR.orElse(null), ownRef, demand, commodityPct90, msaMultD, beta.doubleValue(), guardrails,
+                bandQ1, peerQ3);
+        PricingMath.Recommendation rec = recOpt.orElse(null);
+
+        String segment = store != null && store.segment() != null ? store.segment() : "occasional";
+        String recommendedTier = "regular".equals(segment) ? "aggressive" : "optimal";
+
+        return new PricingModel(item, productId, storeId, storeUuid, priceable,
+                costR.map(Resolved::value).orElse(null), costR.map(Resolved::source).orElse(null),
+                costR.map(Resolved::asOf).orElse(null),
+                currentPriceValue, currentPriceR.map(Resolved::source).orElse(null),
+                currentPriceR.map(Resolved::asOf).orElse(null),
+                ownRef,
+                anchorR.map(Anchor::value).orElse(null), anchorR.map(Anchor::source).orElse(null),
+                anchorR.map(Anchor::observations).orElse(0),
+                rec != null ? rec.optimal() : null, rec != null ? rec.aggressive() : null, recommendedTier,
+                rec != null ? rec.floor() : null, rec != null ? rec.ceiling() : null,
+                peerQ1, peerQ2, peerQ3, peerStores,
+                List.copyOf(competitors), competitorMedian,
+                msaMult, msaMode, rpp,
+                demandModel,
+                segment,
+                itemStoreStats.txns(), itemStoreStats.customers(),
+                band.map(PriceBand::min).orElse(null), band.map(PriceBand::max).orElse(null),
+                beta, elasticity.r2(), elasticity.basis(),
+
+                commodityPct90, commodityLabel, commodityAsOf,
+                w90Stats.units(), w90pStats.units(), itemStoreStats.units(), w30Stats.avgPrice(), w90pStats.avgPrice(),
+                onHandUnits, inventoryAsOf, stale,
+                buckets, rec,
+                List.copyOf(locked));
+    }
+
+    private static PricingModel emptyModel(String item, String storeId) {
+        return new PricingModel(item, null, storeId, null, false,
+                null, null, null, null, null, null, null,
+                null, null, 0,
+                null, null, "optimal", null, null,
+                null, null, null, 0,
+                List.of(), null,
+                BigDecimal.ONE, "off", null,
+                null,
+                "occasional",
+                0, 0,
+                null, null,
+                SalesHistory.Elasticity.defaultValue().coefficient(), null, SalesHistory.Elasticity.DEFAULT,
+                null, null, null,
+                null, null, null, null, null,
+                null, null, false,
+                List.of(), null,
+                List.of("margin", "demand", "inventory", "competitors", "forecast"));
+    }
+
+    private static DemandModel toDemandModel(PricingMath.Demand d) {
+        return new DemandModel(d.level(), d.label(), BigDecimal.valueOf(d.index()), BigDecimal.valueOf(d.movePercent()),
+                d.confidence(), BigDecimal.valueOf(d.confWeight()), d.recentVelocity(), d.expectedVelocity(),
+                (int) d.maxAdjustmentPct(), d.trendDirection(), d.historyDays());
+    }
+
+    static BigDecimal marginPercent(BigDecimal price, BigDecimal cost) {
+        return PricingMath.marginPct(price, cost);
     }
 
     /**
@@ -182,91 +255,67 @@ public class PricingEngine {
      */
     public SellDerivationDto getSellDerivation(String itemNumber, String storeId) {
         PricingModel m = getPricingModel(itemNumber, storeId);
-        ProductRef product = catalog.findProduct(itemNumber).orElse(null);
-        StoreRef store = catalog.findStore(storeId).orElse(null);
-        String description = product != null ? product.description() : itemNumber;
+        Optional<ProductRef> product = catalog.findProduct(itemNumber);
+        Optional<StoreRef> store = (storeId == null || storeId.isBlank()) ? Optional.empty()
+                : catalog.findStore(storeId);
+        String description = product.map(ProductRef::description).orElse(itemNumber);
 
         PriceTierDto optimal = tierView("Optimal", m.optimalPrice(), m,
                 "Best balance of margin and win rate. Sits inside the band this store already sells in.");
         PriceTierDto aggressive = tierView("Aggressive", m.aggressivePrice(), m,
                 "Higher margin, higher risk of losing the line. Use where the customer is not shopping the price.");
 
-        return new SellDerivationDto(itemNumber, description, storeId, Labels.dataStoreName(storeId, store),
-                m.priceable(), bd(m.cost()), bd(m.currentPrice()), bd(marginPercent(m.currentPrice(), m.cost())),
+        return new SellDerivationDto(itemNumber, description, storeId,
+                Labels.dataStoreName(storeId, store.orElse(null)),
+                m.priceable(), m.cost(), m.currentPrice(), marginPercent(m.currentPrice(), m.cost()),
                 optimal, aggressive, m.recommendedTier(), demandDto(m.demand()), competitorDtos(m.competitors()),
-                buildBenchmarks(m), buildBands(m, "12M"), bd(m.observedMin()), bd(m.observedMax()),
-                m.totalTransactions(), buildCalcSteps(m, m.recommendedTier()), buildWeights(m, m.recommendedTier()),
-                bd(round2(m.cost() / 0.75)), bd(m.floorPrice()), bd(m.ceilingPrice()));
+                buildBenchmarks(m), buildBands(m), m.observedMin(), m.observedMax(),
+                (int) m.totalTransactions(), buildCalcSteps(m, m.recommendedTier()), buildWeights(m, m.recommendedTier()),
+                m.floorPrice(), m.peerQ1(), m.ceilingPrice());
     }
 
-    private static PriceTierDto tierView(String label, double price, PricingModel m, String blurb) {
-        double delta = round2(price - m.currentPrice());
-        double deltaPct = round2((delta / m.currentPrice()) * 100);
-        return new PriceTierDto(label, bd(price), bd(marginPercent(price, m.cost())), bd(delta), bd(deltaPct),
-                bd(delta), blurb);
+    private static PriceTierDto tierView(String label, BigDecimal price, PricingModel m, String blurb) {
+        if (price == null || m.currentPrice() == null) {
+            return new PriceTierDto(label, price, marginPercent(price, m.cost()), null, null, null, blurb);
+        }
+        BigDecimal delta = PricingMath.round2(price.subtract(m.currentPrice()));
+        BigDecimal deltaPct = PricingMath.pct(delta, m.currentPrice());
+        return new PriceTierDto(label, price, marginPercent(price, m.cost()), delta, deltaPct, delta, blurb);
     }
 
     // -- pure derivations ------------------------------------------------------------------
-
-    static double marginPercent(double price, double cost) {
-        if (price == 0) {
-            return 0;
-        }
-        return round2(((price - cost) / price) * 100);
-    }
-
-    static double markupPercent(double price, double cost) {
-        if (cost == 0) {
-            return 0;
-        }
-        return round2(((price - cost) / cost) * 100);
-    }
-
-    static double periodScale(String period) {
-        return switch (period) {
-            case "3M" -> 0.28;
-            case "6M" -> 0.55;
-            case "12M" -> 1.0;
-            default -> 1.35;
-        };
-    }
-
-    static int transactionsForPeriod(PricingModel m, String period) {
-        return (int) Math.max(1, Math.round(m.totalTransactions() * periodScale(period)));
-    }
 
     static BenchmarksDto buildBenchmarks(PricingModel m) {
         if (m.competitors().isEmpty()) {
             return new BenchmarksDto(null, null, null);
         }
-        double[] prices = m.competitors().stream().mapToDouble(Competitor::price).toArray();
-        double lowest = round2(Arrays.stream(prices).min().orElse(0));
-        double highest = round2(Arrays.stream(prices).max().orElse(0));
-        double average = round2(Arrays.stream(prices).sum() / prices.length);
-        return new BenchmarksDto(bd(lowest), bd(average), bd(highest));
+        BigDecimal lowest = null;
+        BigDecimal highest = null;
+        BigDecimal sum = BigDecimal.ZERO;
+        int n = 0;
+        for (Competitor c : m.competitors()) {
+            if (c.price() == null) {
+                continue;
+            }
+            lowest = lowest == null || c.price().compareTo(lowest) < 0 ? c.price() : lowest;
+            highest = highest == null || c.price().compareTo(highest) > 0 ? c.price() : highest;
+            sum = sum.add(c.price());
+            n++;
+        }
+        BigDecimal average = n == 0 ? null : sum.divide(BigDecimal.valueOf(n), 2, java.math.RoundingMode.HALF_UP);
+        return new BenchmarksDto(lowest, average, highest);
     }
 
-    static List<PriceBandDto> buildBands(PricingModel m, String period) {
-        if (!m.priceable()) {
+    /** Real quartile buckets from {@code SalesHistory.PriceBand}: no jitter, no fabrication. */
+    static List<PriceBandDto> buildBands(PricingModel m) {
+        if (!m.priceable() || m.buckets().isEmpty()) {
             return List.of();
         }
-        double lo = m.observedMin();
-        double hi = m.observedMax();
-        double width = (hi - lo) / 4;
-        if (width <= 0) {
-            return List.of();
-        }
-        double scale = periodScale(period);
-        double[] shape = {0.18, 0.34, 0.31, 0.17};
         List<PriceBandDto> out = new ArrayList<>();
-        String key = m.item() + "|" + m.storeId();
-        for (int i = 0; i < 4; i++) {
-            double min = round2(lo + width * i);
-            double max = round2(i == 3 ? hi : lo + width * (i + 1) - 0.01);
-            double jitter = Seeded.randRange(key, "band-" + period + "-" + i, 0.7, 1.3);
-            int count = (int) Math.max(1, Math.round(m.totalTransactions() * scale * shape[i] * jitter));
-            String label = Fmt.fmtMoney(min) + "-" + Fmt.fmtMoney(max);
-            out.add(new PriceBandDto(label, bd(min), bd(max), count));
+        for (Bucket b : m.buckets()) {
+            String label = Fmt.fmtMoney(b.lo() == null ? 0 : b.lo().doubleValue()) + "-"
+                    + Fmt.fmtMoney(b.hi() == null ? 0 : b.hi().doubleValue());
+            out.add(new PriceBandDto(label, b.lo(), b.hi(), (int) b.n()));
         }
         return out;
     }
@@ -275,108 +324,112 @@ public class PricingEngine {
         if (d == null) {
             return null;
         }
-        return new DemandInfoDto(d.level(), d.label(), bd(d.index()), bd(d.movePercent()), d.confidence(),
-                bd(d.confWeight()), bd(d.recentVelocity()), bd(d.expectedVelocity()), d.maxAdjustmentPct(),
+        return new DemandInfoDto(d.level(), d.label(), d.index(), d.movePercent(), d.confidence(),
+                d.confWeight(), d.recentVelocity(), d.expectedVelocity(), d.maxAdjustmentPct(),
                 d.trendDirection(), d.historyDays());
     }
 
     static List<CompetitorDto> competitorDtos(List<Competitor> competitors) {
         return competitors.stream()
-                .map(c -> new CompetitorDto(c.name(), c.domain(), bd(c.price()), bd(c.deltaVsCurrent())))
+                .map(c -> new CompetitorDto(c.name(), c.domain(), c.price(), c.deltaVsCurrent()))
                 .toList();
     }
 
-    /** {@code buildCalcSteps}: cost -> competitor benchmark -> peer band -> local market -> demand -> guardrails -> result. */
+    /** The real recommendation chain, {@code PricingMath.recommend}'s own running values. */
     static List<CalcStepDto> buildCalcSteps(PricingModel m, String tier) {
-        double price = tier.equals("aggressive") ? m.aggressivePrice() : m.optimalPrice();
-        double anchor = m.competitorMedian().orElse(m.peerQ1());
-        boolean hasCompetitorMedian = m.competitorMedian().isPresent();
         List<CalcStepDto> steps = new ArrayList<>();
+        if (m.cost() != null) {
+            steps.add(new CalcStepDto("Cost foundation", Fmt.fmtMoney(m.cost().doubleValue()),
+                    "Your landed cost for this item at this store (" + m.costSource() + ").", "step"));
+        } else {
+            steps.add(new CalcStepDto("Cost foundation", "No cost on file", "skipped: no cost on file", "step"));
+        }
 
-        steps.add(new CalcStepDto("Cost foundation", Fmt.fmtMoney(m.cost()),
-                "Your landed cost for this item at this store.", "step"));
+        PricingMath.Recommendation rec = m.recommendation();
+        if (rec == null) {
+            steps.add(new CalcStepDto("Recommended price", "Not priceable",
+                    "No market anchor and no sales history for this pair.", "result"));
+            return steps;
+        }
 
-        steps.add(new CalcStepDto(
-                hasCompetitorMedian ? "Competitor benchmark" : "Peer store benchmark",
-                Fmt.fmtMoney(anchor),
-                hasCompetitorMedian
-                        ? "Median of " + m.competitors().size() + " scraped competitor prices."
-                        : "No trusted competitor prices here, so the lowest typical price other stores in the "
-                                + "network charge was used instead.",
+        boolean hasAnchor = m.anchorValue() != null;
+        steps.add(new CalcStepDto(hasAnchor ? m.anchorSource() + " benchmark" : "Own reference price",
+                hasAnchor ? Fmt.fmtMoney(m.anchorValue().doubleValue()) : "—",
+                hasAnchor ? m.anchorObservations() + " observation(s) behind the " + m.anchorSource() + " anchor."
+                        : "No market anchor; the pair's own last price is the starting point.",
                 "step"));
 
-        steps.add(new CalcStepDto("Peer pricing band",
-                Fmt.fmtMoney(m.peerQ1()) + " – " + Fmt.fmtMoney(m.peerQ3()),
-                "Q1 to Q3 of what other stores in the network charge for this item.", "step"));
-
-        boolean rppOff = m.msaMode().equals("off");
-        String localValue = rppOff ? "not applied" : Fmt.fixed((m.msaMult() - 1) * 100, 1) + "%";
-        String localNote = rppOff
-                ? "Local-market pricing is switched off for this store, so no location adjustment was made."
-                : m.msaMult() < 1
-                        ? "A busier market with more supply houses nearby, so the calculated price was eased "
-                                + "down to win the sale."
-                        : "Fewer competitors nearby than average, so the calculated price was lifted a little.";
-        steps.add(new CalcStepDto("Local market (RPP)", localValue, localNote, "step"));
+        if (m.peerQ1() != null && m.peerQ3() != null) {
+            steps.add(new CalcStepDto("Peer pricing band",
+                    Fmt.fmtMoney(m.peerQ1().doubleValue()) + " – " + Fmt.fmtMoney(m.peerQ3().doubleValue()),
+                    "Q1 to Q3 of what other stores in the network charge for this item.", "step"));
+        }
 
         if (m.demand() != null) {
             DemandModel d = m.demand();
-            String value = (d.movePercent() > 0 ? "+" : "") + Fmt.fixed(d.movePercent(), 1) + "%";
-            String note = d.label() + " — recent pace " + Fmt.jsNum(d.recentVelocity()) + "/day against an "
-                    + "expected " + Fmt.jsNum(d.expectedVelocity()) + "/day baseline, scaled by "
-                    + Math.round(d.confWeight() * 100) + "% confidence and bounded to ±"
-                    + d.maxAdjustmentPct() + "%.";
-            steps.add(new CalcStepDto("Demand (recent sales pace)", value, note, "demand"));
+            steps.add(new CalcStepDto("Demand (recent sales pace)",
+                    (d.movePercent().signum() > 0 ? "+" : "") + Fmt.fixed(d.movePercent().doubleValue(), 1) + "%",
+                    d.label() + " — recent pace " + Fmt.jsNum(d.recentVelocity().doubleValue()) + "/wk against "
+                            + Fmt.jsNum(d.expectedVelocity().doubleValue()) + "/wk expected.",
+                    "demand"));
         }
 
-        steps.add(new CalcStepDto("Guardrails",
-                "floor " + Fmt.fmtMoney(round2(m.cost() / 0.75)) + " · ceiling " + Fmt.fmtMoney(m.ceilingPrice()),
-                "A 25% margin floor and a market ceiling bound every recommendation. Neither the local-market "
-                        + "shift nor the demand move can push a price outside them.",
-                "step"));
+        if (m.commodityPct90() != null) {
+            steps.add(new CalcStepDto("Commodity pass-through",
+                    Fmt.fixed(m.commodityPct90().doubleValue(), 1) + "%",
+                    (m.commodityLabel() != null ? m.commodityLabel() : "Commodity index") + " (reference, as of "
+                            + m.commodityAsOf() + "); a quarter of the 90-day move reaches the price.",
+                    "step"));
+        }
 
-        String resultLabel = tier.equals("aggressive") ? "Aggressive price" : "Optimal price";
-        List<String> lines = new ArrayList<>();
-        lines.add("Start from the " + (hasCompetitorMedian ? "competitor median" : "peer anchor") + " of "
-                + Fmt.fmtMoney(anchor) + ".");
-        lines.add(rppOff
-                ? "No local-market adjustment (switched off for this store)."
-                : "Apply the local-market multiplier " + Fmt.fixed(m.msaMult(), 4) + ".");
-        lines.add(m.demand() != null
-                ? "Apply the demand move of " + (m.demand().movePercent() > 0 ? "+" : "")
-                        + Fmt.fixed(m.demand().movePercent(), 1) + "%."
-                : "No actionable demand signal for this item at this store, so no demand move.");
-        lines.add(tier.equals("aggressive")
-                ? "Take the top of what this store’s history and the market support."
-                : "Take the price that wins the sale while keeping a healthy margin.");
-        lines.add("Clamp to the guardrails, giving " + Fmt.fmtMoney(price) + ".");
-        lines.add("That keeps about " + Fmt.fixed(marginPercent(price, m.cost()), 1)
-                + "% gross margin ((price − cost) ÷ price).");
-        steps.add(new CalcStepDto(resultLabel, Fmt.fmtMoney(price), String.join("\n", lines), "result"));
+        boolean rppOff = "off".equals(m.msaMode());
+        steps.add(new CalcStepDto("Local market (RPP)",
+                rppOff ? "not applied" : Fmt.fixed((m.msaMult().doubleValue() - 1) * 100, 1) + "%",
+                rppOff ? "This branch is priced nationally." : "Regional price parity adjustment.", "step"));
+
+        String floorLabel = m.cost() != null ? Fmt.fmtMoney(rec.floor().doubleValue())
+                : "own lower quartile " + Fmt.fmtMoney(rec.floor() == null ? 0 : rec.floor().doubleValue());
+        steps.add(new CalcStepDto("Guardrails",
+                "floor " + floorLabel + " · ceiling " + Fmt.fmtMoney(rec.ceiling().doubleValue()),
+                "A minimum-margin floor and a market ceiling bound every recommendation.", "step"));
+
+        BigDecimal price = "aggressive".equals(tier) ? rec.aggressive() : rec.optimal();
+        String resultLabel = "aggressive".equals(tier) ? "Aggressive price" : "Optimal price";
+        steps.add(new CalcStepDto(resultLabel, Fmt.fmtMoney(price.doubleValue()),
+                "Clamped to the guardrails; keeps about "
+                        + Fmt.fixed(marginPercent(price, m.cost()) == null ? 0 : marginPercent(price, m.cost()).doubleValue(), 1)
+                        + "% gross margin.",
+                "result"));
         return steps;
     }
 
-    /** {@code buildWeights}: renormalised so the bars sum to exactly 100. */
+    /** {@code buildWeights}: a share of the move each real factor contributed, summing to 100. */
     static List<FactorWeightDto> buildWeights(PricingModel m, String tier) {
-        String key = m.item() + "|" + m.storeId() + "|" + tier;
         record Raw(String label, double w, String direction) {
         }
         List<Raw> raw = new ArrayList<>();
-        double anchor = m.competitorMedian().orElse(m.peerQ1());
-        raw.add(new Raw(
-                m.competitorMedian().isPresent() ? "Competitor benchmark" : "Peer store prices",
-                Seeded.randRange(key, "w1", 30, 48),
-                anchor > m.currentPrice() ? "up" : "down"));
-        raw.add(new Raw("Cost + margin floor", Seeded.randRange(key, "w2", 16, 28), "up"));
-        raw.add(new Raw("Customer segment", Seeded.randRange(key, "w3", 8, 20),
-                m.segment().equals("regular") ? "up" : "down"));
-        if (m.msaMode().equals("competition") && Math.abs(m.msaMult() - 1) > 0.005) {
-            raw.add(new Raw("Local market (RPP)", Seeded.randRange(key, "w4", 6, 16),
-                    m.msaMult() > 1 ? "up" : "down"));
+        boolean hasAnchor = m.anchorValue() != null;
+        if (hasAnchor) {
+            double w = switch (m.anchorSource() == null ? "" : m.anchorSource()) {
+                case Anchor.COMPETITOR -> PricingMath.WEIGHT_COMPETITOR;
+                case Anchor.PEER -> PricingMath.WEIGHT_PEER;
+                case Anchor.BENCHMARK -> PricingMath.WEIGHT_BENCHMARK;
+                default -> 0.15;
+            };
+            raw.add(new Raw(m.anchorSource() != null ? capitalize(m.anchorSource()) + " benchmark" : "Market",
+                    Math.max(0.05, w) * 100,
+                    m.currentPrice() != null && m.anchorValue().compareTo(m.currentPrice()) > 0 ? "up" : "down"));
         }
-        if (m.demand() != null && m.demand().movePercent() != 0) {
-            raw.add(new Raw("Demand (sales pace)", Seeded.randRange(key, "w5", 4, 14),
-                    m.demand().movePercent() > 0 ? "up" : "down"));
+        raw.add(new Raw("Cost + margin floor", 22, "up"));
+        if (m.demand() != null && m.demand().movePercent().signum() != 0) {
+            raw.add(new Raw("Demand (sales pace)", 10 + Math.min(10, Math.abs(m.demand().movePercent().doubleValue())),
+                    m.demand().movePercent().signum() > 0 ? "up" : "down"));
+        }
+        if (!"off".equals(m.msaMode()) && m.msaMult() != null && Math.abs(m.msaMult().doubleValue() - 1) > 0.005) {
+            raw.add(new Raw("Local market (RPP)", 10, m.msaMult().doubleValue() > 1 ? "up" : "down"));
+        }
+        if (raw.isEmpty()) {
+            return List.of();
         }
         double total = raw.stream().mapToDouble(Raw::w).sum();
         List<FactorWeightDto> scaled = new ArrayList<>();
@@ -387,10 +440,15 @@ public class PricingEngine {
             scaled.add(new FactorWeightDto(r.label(), bd(pct), r.direction()));
         }
         int drift = 100 - sumSoFar;
-        if (!scaled.isEmpty()) {
-            FactorWeightDto first = scaled.get(0);
-            scaled.set(0, new FactorWeightDto(first.label(), bd(first.percent().intValue() + drift), first.direction()));
-        }
+        FactorWeightDto first = scaled.get(0);
+        scaled.set(0, new FactorWeightDto(first.label(), bd(first.percent().intValue() + drift), first.direction()));
         return scaled;
+    }
+
+    private static String capitalize(String s) {
+        if (s == null || s.isEmpty()) {
+            return s;
+        }
+        return Character.toUpperCase(s.charAt(0)) + s.substring(1);
     }
 }

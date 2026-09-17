@@ -6,12 +6,11 @@ import com.aatlas.sell.internal.catalog.CatalogGateway;
 import com.aatlas.sell.internal.dto.SellDtos.SellIntelDto;
 import com.aatlas.sell.internal.engine.SellEngine;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/** {@link SellLines} over {@link SellEngine#getSellIntel}. */
+/** {@link SellLines} over {@link SellEngine#getSellIntel}: the real number, real sources, real locks. */
 @Service
 class SellLinesImpl implements SellLines {
 
@@ -37,12 +36,11 @@ class SellLinesImpl implements SellLines {
                 i.itemNumber(), i.storeId(), i.priceable(), i.name(), i.description(), i.storeLabel(), i.category(),
                 d(i.cost()), d(i.currentPrice()), d(i.recommended()), d(i.stretchPrice()), d(i.marginFloor()),
                 d(i.currentMarginPct()), d(i.expectedMarginPct()), d(i.elasticity()),
-                i.monthlyUnits(), i.inventoryUnits(), d(i.inventoryValue()), d(i.weeksOfCover()),
-                d(i.monthlyOpportunity()), demandLevel(i.demandLabel()), d(i.demandPct()),
+                i.monthlyUnits(), i.inventoryUnits() == null ? 0 : i.inventoryUnits(), d(i.inventoryValue()),
+                d(i.weeksOfCover()), d(i.monthlyOpportunity()), demandLevel(i.demandLabel()), d(i.demandPct()),
                 i.confidence(), i.confidenceLabel(),
-                Map.of("cost", "seeded", "currentPrice", "seeded", "anchor", "seeded", "units", "seeded",
-                        "inventory", "seeded"),
-                List.of());
+                i.sources() == null ? java.util.Map.of() : i.sources(),
+                i.locked() == null ? List.of() : i.locked());
     }
 
     private static double d(java.math.BigDecimal v) {

@@ -1,14 +1,18 @@
 package com.aatlas.sell.internal;
 
 import com.aatlas.common.error.ApiException;
+import com.aatlas.common.tenant.TenantContext;
+import com.aatlas.common.time.AatlasClock;
+import com.aatlas.history.Catalogue.ProductRef;
+import com.aatlas.history.PriceBook;
+import com.aatlas.history.PricingMath;
 import com.aatlas.sell.DecisionRecorder;
 import com.aatlas.sell.DecisionRecorder.RecordRequest;
 import com.aatlas.sell.DecisionRecorder.Recorded;
 import com.aatlas.sell.OpportunityScoreView;
 import com.aatlas.sell.OpportunityScores;
 import com.aatlas.sell.internal.catalog.CatalogGateway;
-import com.aatlas.sell.internal.catalog.CatalogRefs.CustomerRef;
-import com.aatlas.sell.internal.catalog.CatalogRefs.ProductRef;
+import com.aatlas.history.Catalogue.CustomerRef;
 import com.aatlas.sell.internal.dto.DealDtos.DealQuoteDto;
 import com.aatlas.sell.internal.dto.ForecastElasticityDtos.ElasticityModelDto;
 import com.aatlas.sell.internal.dto.ForecastElasticityDtos.ForecastModelDto;
@@ -32,15 +36,19 @@ import com.aatlas.sell.internal.engine.DealEngine;
 import com.aatlas.sell.internal.engine.ElasticityEngine;
 import com.aatlas.sell.internal.engine.ForecastEngine;
 import com.aatlas.sell.internal.engine.PricingEngine;
+import com.aatlas.sell.internal.engine.PricingTypes.PricingModel;
 import com.aatlas.sell.internal.engine.Sell2Engine;
 import com.aatlas.sell.internal.engine.SellEngine;
 import com.aatlas.sell.internal.policy.GuardrailValues;
 import com.aatlas.sell.internal.policy.GuardrailsGateway;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -48,8 +56,7 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * Assembles the ported engines into the answers the Sell screen and its endpoints need.
  * Everything is computed on demand in the request thread - no snapshot, no cache - reading
- * catalogue rows already in Postgres via {@link CatalogGateway} and the tenant's guardrails
- * via {@link GuardrailsGateway}.
+ * catalogue rows and history figures already in Postgres.
  */
 @Service
 public class SellService {
@@ -69,10 +76,12 @@ public class SellService {
     private final AtpEngine atp;
     private final DealEngine deal;
     private final DecisionRecorder decisions;
+    private final PriceBook priceBook;
+    private final AatlasClock clock;
 
     public SellService(CatalogGateway catalog, GuardrailsGateway guardrails, PricingEngine pricing, SellEngine sell,
             Sell2Engine sell2, OpportunityScores scores, ForecastEngine forecast, ElasticityEngine elasticity,
-            AtpEngine atp, DealEngine deal, DecisionRecorder decisions) {
+            AtpEngine atp, DealEngine deal, DecisionRecorder decisions, PriceBook priceBook, AatlasClock clock) {
         this.catalog = catalog;
         this.guardrails = guardrails;
         this.pricing = pricing;
@@ -84,6 +93,8 @@ public class SellService {
         this.atp = atp;
         this.deal = deal;
         this.decisions = decisions;
+        this.priceBook = priceBook;
+        this.clock = clock;
     }
 
     private void requireCatalogue() {
@@ -103,7 +114,8 @@ public class SellService {
             return new Answer(raw, null, raw);
         }
         GuardrailCheckDto check = sell2.applyGuardrails(raw, guardrails.current());
-        SellIntelDto intel = check.adjusted() ? SellEngine.withAdjustedPrice(raw, check.finalPrice()) : raw;
+        SellIntelDto intel = (check.adjusted() && check.finalPrice() != null)
+                ? SellEngine.withAdjustedPrice(raw, check.finalPrice()) : raw;
         return new Answer(raw, check, intel);
     }
 
@@ -115,7 +127,7 @@ public class SellService {
         if (!a.raw().priceable()) {
             return new SellRecommendationDto(a.intel(), null, null, null, null, null, opportunity);
         }
-        return new SellRecommendationDto(a.intel(), a.check(), sell2.sellDecisionScore(a.intel(), 70),
+        return new SellRecommendationDto(a.intel(), a.check(), sell2.sellDecisionScore(a.intel(), storeId),
                 sell2.liquidationSignal(a.intel()), sell2.speedPricing(a.intel(), guardrails.current()),
                 sell2.holdVsSell(a.intel(), 30, commodityKey(itemNumber)), opportunity);
     }
@@ -190,22 +202,36 @@ public class SellService {
         return atp.allocate(a.intel());
     }
 
+    /** Top three opportunities by uplift% x trailing-twelve-month revenue, among priceable pairs with ≥5 txns. */
     @Transactional(readOnly = true)
     public List<StarterDto> starters() {
         requireCatalogue();
-        List<StarterDto> rows = new ArrayList<>();
+        record Weighted(double weight, StarterDto row) {
+        }
+        List<Weighted> rows = new ArrayList<>();
         for (ProductRef p : catalog.sellableProducts()) {
             for (var store : catalog.allStores()) {
-                SellIntelDto s = sell.getSellIntel(p.itemNumber(), store.storeCode());
-                if (!s.priceable() || s.upliftPct().doubleValue() < 4) {
+                PricingModel m = pricing.getPricingModel(p.itemNumber(), store.storeCode());
+                if (!m.priceable() || m.recommendation() == null || m.currentPrice() == null
+                        || m.totalTransactions() < 5) {
                     continue;
                 }
-                rows.add(new StarterDto(p.itemNumber(), store.storeCode(), s.name(), s.storeLabel(), s.upliftPct()));
+                BigDecimal optimal = m.recommendation().optimal();
+                BigDecimal upliftPct = PricingMath.pct(optimal.subtract(m.currentPrice()), m.currentPrice());
+                if (upliftPct == null || upliftPct.doubleValue() < 4) {
+                    continue;
+                }
+                BigDecimal revenue12m = m.units12m() == null ? BigDecimal.ZERO
+                        : m.currentPrice().multiply(m.units12m());
+                double weight = upliftPct.doubleValue() * revenue12m.doubleValue();
+                rows.add(new Weighted(weight, new StarterDto(p.itemNumber(), store.storeCode(), p.shortName(),
+                        store.label(), upliftPct)));
             }
         }
         return rows.stream()
-                .sorted(Comparator.comparing(StarterDto::pct).reversed())
+                .sorted(Comparator.comparingDouble(Weighted::weight).reversed())
                 .limit(3)
+                .map(Weighted::row)
                 .toList();
     }
 
@@ -225,8 +251,10 @@ public class SellService {
                 : catalog.findCustomer(customerId).orElse(null);
         GuardrailValues g = guardrails.current();
 
-        DealQuoteDto dealQuote = deal.quoteForDeal(a.intel().recommended(), rec.aggressive().price(),
-                rec.marginFloor(), rec.recommendedTier(), customer, qty);
+        BigDecimal aggressivePrice = rec.aggressive().price() != null ? rec.aggressive().price() : a.intel().recommended();
+        BigDecimal marginFloor = rec.marginFloor() != null ? rec.marginFloor() : BigDecimal.ZERO;
+        DealQuoteDto dealQuote = deal.quoteForDeal(a.intel().recommended(), aggressivePrice, marginFloor,
+                rec.recommendedTier(), customer, qty);
 
         CustomerProfileDto profile = sell2.customerProfile(customer);
         SpeedPricingDto sp = sell2.speedPricing(a.intel(), g);
@@ -239,11 +267,10 @@ public class SellService {
         double discounted = capped
                 ? round2(dealQuote.bookOptimal().doubleValue() * (1 - g.maxDiscountPct() / 100))
                 : dealQuote.optimal().doubleValue();
-        double dealPrice = round2(discounted + tier.premiumAbs().doubleValue());
-        // Not part of any ported TS interface (sell-quote.tsx computes it inline, unrounded,
-        // for fmtMoney(profit, 0) to round at display time); rounded here since this response
-        // shape is this track's own design, not a wire contract pinned by a golden fixture.
-        double profit = round2((dealPrice - a.intel().cost().doubleValue()) * qty);
+        double premium = tier.premiumAbs() == null ? 0 : tier.premiumAbs().doubleValue();
+        double dealPrice = round2(discounted + premium);
+        double cost = a.intel().cost() == null ? 0 : a.intel().cost().doubleValue();
+        double profit = round2((dealPrice - cost) * qty);
 
         return new QuoteResponseDto(dealQuote, profile, tier, capped, requestedPct, BigDecimal.valueOf(dealPrice),
                 BigDecimal.valueOf(profit));
@@ -253,7 +280,7 @@ public class SellService {
         return Math.round(n * 100.0) / 100.0;
     }
 
-    // -- Writes (stand-in DecisionRecorder) --------------------------------------------------
+    // -- Writes --------------------------------------------------------------------------------
 
     @Transactional
     public ApplyResponseDto apply(String itemNumber, String storeId, BigDecimal priceOverride) {
@@ -264,11 +291,11 @@ public class SellService {
         }
         SellIntelDto intel = a.intel();
         BigDecimal applied = priceOverride != null ? priceOverride
-                : (a.check() != null ? a.check().finalPrice() : intel.recommended());
+                : (a.check() != null && a.check().finalPrice() != null ? a.check().finalPrice() : intel.recommended());
 
-        double impactMonthly = SellEngine.runScenario(intel, intel.upliftPct().doubleValue()).profitDelta()
-                .doubleValue() / 12;
-        var decisionScore = sell2.sellDecisionScore(intel, 70);
+        double upliftPct = intel.upliftPct() == null ? 0 : intel.upliftPct().doubleValue();
+        double impactMonthly = SellEngine.runScenario(intel, upliftPct).profitDelta().doubleValue() / 12;
+        var decisionScore = sell2.sellDecisionScore(intel, storeId);
 
         RecordRequest req = new RecordRequest("sell", itemNumber, storeId, intel.storeLabel(), intel.recommended(),
                 applied, intel.monthlyUnits(), intel.cost(), intel.currentPrice(),
@@ -276,7 +303,35 @@ public class SellService {
                         + " margin " + intel.expectedMarginPct() + "% score " + decisionScore.total() + "/100",
                 BigDecimal.valueOf(Math.round(impactMonthly)), "/month", null);
         Recorded recorded = decisions.record(req);
+
+        writeAppliedPrice(itemNumber, storeId, applied, intel, recorded.id());
         return new ApplyResponseDto(recorded);
+    }
+
+    /** Persists the applied price through {@code history.PriceBook} so the next recommendation reflects it. */
+    private void writeAppliedPrice(String itemNumber, String storeId, BigDecimal applied, SellIntelDto intel,
+            Object decisionId) {
+        BigDecimal beta = intel.elasticity();
+        BigDecimal previous = intel.currentPrice();
+        BigDecimal expectedUnitsDeltaPct = (beta != null && previous != null && previous.signum() != 0)
+                ? BigDecimal.valueOf(round2(
+                        (Math.pow(applied.doubleValue() / previous.doubleValue(), beta.doubleValue()) - 1) * 100))
+                : null;
+        Map<String, Object> basis = new LinkedHashMap<>();
+        basis.put("decisionId", String.valueOf(decisionId));
+        basis.put("recommended", intel.recommended());
+        basis.put("previous", previous);
+        basis.put("previousSource", intel.sources() == null ? null : intel.sources().get("currentPrice"));
+        basis.put("expectedUnitsDeltaPct", expectedUnitsDeltaPct);
+
+        LocalDate today = clock.today();
+        try {
+            priceBook.write(
+                    List.of(new PriceBook.PriceWrite(itemNumber, storeId, applied, null, today, basis)),
+                    "applied", TenantContext.currentUserId().orElse(null), null);
+        } catch (RuntimeException ex) {
+            // Never let a price-list write problem fail the apply response itself.
+        }
     }
 
     @Transactional
@@ -292,12 +347,13 @@ public class SellService {
                 : catalog.findCustomer(customerId).orElse(null);
         String customerName = customer != null ? customer.name() : "Walk-in";
 
-        BigDecimal deal = q.dealPrice();
-        RecordRequest req = new RecordRequest("sell", itemNumber, storeId, intel.storeLabel(), deal, deal, qty,
-                intel.cost(), intel.currentPrice(), intel.name() + " quoted to " + customerName,
-                qty + " units at " + deal + " - " + q.customerProfile().label() + ", "
+        BigDecimal dealPrice = q.dealPrice();
+        RecordRequest req = new RecordRequest("sell", itemNumber, storeId, intel.storeLabel(), dealPrice, dealPrice,
+                qty, intel.cost(), intel.currentPrice(), intel.name() + " quoted to " + customerName,
+                qty + " units at " + dealPrice + " - " + q.customerProfile().label() + ", "
                         + q.speedTier().label().toLowerCase(java.util.Locale.ROOT) + " fulfilment",
-                BigDecimal.valueOf(Math.round(deal.subtract(intel.currentPrice()).doubleValue() * qty)),
+                BigDecimal.valueOf(Math.round(dealPrice.subtract(
+                        intel.currentPrice() == null ? dealPrice : intel.currentPrice()).doubleValue() * qty)),
                 "this deal", customerName);
         Recorded recorded = decisions.record(req);
         return new ApplyResponseDto(recorded);

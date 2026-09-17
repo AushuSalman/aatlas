@@ -3,20 +3,36 @@ package com.aatlas.sell.internal.engine;
 import static com.aatlas.sell.internal.engine.Round.round1;
 import static com.aatlas.sell.internal.engine.Wire.bd;
 
-import com.aatlas.common.seed.Seeded;
+import com.aatlas.common.time.AatlasClock;
+import com.aatlas.history.Catalogue.ProductRef;
+import com.aatlas.history.Forecasts;
+import com.aatlas.history.Forecasts.Forecast;
+import com.aatlas.history.Forecasts.Point;
+import com.aatlas.history.SalesHistory;
+import com.aatlas.history.SalesHistory.MonthPoint;
+import com.aatlas.history.SalesHistory.Seasonality;
 import com.aatlas.sell.internal.catalog.CatalogGateway;
-import com.aatlas.sell.internal.catalog.CatalogRefs.ProductRef;
 import com.aatlas.sell.internal.dto.ForecastElasticityDtos.AccuracyDto;
 import com.aatlas.sell.internal.dto.ForecastElasticityDtos.ForecastModelDto;
 import com.aatlas.sell.internal.dto.ForecastElasticityDtos.ForecastPointDto;
 import com.aatlas.sell.internal.dto.PricingDtos.CalcStepDto;
 import com.aatlas.sell.internal.dto.PricingDtos.FactorWeightDto;
 import com.aatlas.sell.internal.engine.PricingTypes.PricingModel;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
+import java.util.Optional;
 import org.springframework.stereotype.Component;
 
-/** Port of {@code src/lib/platform/forecast.ts}: {@code getForecastModel}. */
+/**
+ * Port of {@code src/lib/platform/forecast.ts}: {@code getForecastModel}, now over {@code
+ * history.Forecasts.seasonalNaive} (spec 3.4) - seasonal naive with a damped log-linear
+ * trend, backtested for accuracy, over the real monthly unit series at this store. A cold
+ * start (fewer than six months of the item's own history) scales the category's series
+ * instead; an item with no months at all, or a category with nothing in its last three
+ * months, cannot forecast at all and is {@code locked}.
+ */
 @Component
 public class ForecastEngine {
 
@@ -24,20 +40,21 @@ public class ForecastEngine {
     }
 
     private static final List<Horizon> HORIZONS = List.of(
-            new Horizon("sensing", "Sensing", "0–4 weeks",
-                    "Gradient-boosted and sequence models on high-frequency signals"),
-            new Horizon("operational", "Operational", "1–6 months",
-                    "Hierarchical ML ensembles with causal covariates"),
-            new Horizon("tactical", "Tactical", "6–18 months",
-                    "Structural time series with exogenous drivers"),
-            new Horizon("strategic", "Strategic", "18–60 months", "Scenario-driven long-range models"));
+            new Horizon("sensing", "Sensing", "0-6 weeks", "Seasonal-naive, weekly de-aggregated"),
+            new Horizon("operational", "Operational", "1-6 months", "Seasonal-naive with a damped log-linear trend"),
+            new Horizon("tactical", "Tactical", "3-18 months", "Three-month blocks of the same model"),
+            new Horizon("strategic", "Strategic", "1-5 years", "Yearly sums, trend damped further each year"));
 
     private final CatalogGateway catalog;
     private final PricingEngine pricing;
+    private final SalesHistory sales;
+    private final AatlasClock clock;
 
-    public ForecastEngine(CatalogGateway catalog, PricingEngine pricing) {
+    public ForecastEngine(CatalogGateway catalog, PricingEngine pricing, SalesHistory sales, AatlasClock clock) {
         this.catalog = catalog;
         this.pricing = pricing;
+        this.sales = sales;
+        this.clock = clock;
     }
 
     private static Horizon horizonMeta(String horizon) {
@@ -45,112 +62,130 @@ public class ForecastEngine {
                 .orElseThrow(() -> new IllegalArgumentException("Unknown horizon: " + horizon));
     }
 
-    private static List<String> periodLabels(String horizon, int count) {
-        List<String> out = new ArrayList<>();
-        for (int i = 0; i < count; i++) {
-            out.add(switch (horizon) {
-                case "sensing" -> "Wk " + (i + 1);
-                case "operational" -> "Mo " + (i + 1);
-                case "tactical" -> "Mo " + ((i + 1) * 3);
-                default -> "Yr " + (i + 1);
-            });
+    private static double[] toArray(List<MonthPoint> points) {
+        double[] out = new double[points.size()];
+        for (int i = 0; i < points.size(); i++) {
+            var u = points.get(i).units();
+            out[i] = u == null ? 0 : u.doubleValue();
         }
         return out;
     }
 
     public ForecastModelDto getForecastModel(String itemNumber, String storeId, String horizon) {
-        ProductRef product = catalog.findProduct(itemNumber).orElse(null);
-        String description = product != null ? product.description() : itemNumber;
+        LocalDate today = clock.today();
+        Optional<ProductRef> productOpt = catalog.findProduct(itemNumber);
+        String description = productOpt.map(ProductRef::description).orElse(itemNumber);
 
-        if (product == null || !product.hasSales()) {
+        if (productOpt.isEmpty()) {
             return new ForecastModelDto(itemNumber, description, storeId, horizon, false, List.of(), "flat",
-                    bd(0), false, true, false, new AccuracyDto(bd(0), bd(0), bd(0), bd(0)), List.of(), List.of());
+                    null, false, true, false, new AccuracyDto(null, null, null, null), List.of(), List.of());
         }
-
-        String key = "fc:" + itemNumber + ":" + storeId + ":" + horizon;
+        ProductRef product = productOpt.get();
         PricingModel m = pricing.getPricingModel(itemNumber, storeId);
+        java.util.UUID storeUuid = m.storeUuid();
 
-        double baseWeekly = Math.round(Seeded.randRange(key, "base", 6, 65));
-        boolean intermittent = Seeded.rand(key, "intermittent") > 0.82;
-        boolean coldStart = Seeded.rand(key, "cold") > 0.93;
-        boolean structuralBreak = Seeded.rand(key, "break") > 0.87;
+        List<MonthPoint> series = sales.monthly(product.id(), storeUuid, 24, today);
+        double[] itemUnits = toArray(series);
+        boolean anyUnits = java.util.Arrays.stream(itemUnits).anyMatch(v -> v > 0);
 
-        double trendPct = round1(Seeded.randRange(key, "trend", -9, 15));
-        String trend = trendPct > 2 ? "up" : trendPct < -2 ? "down" : "flat";
+        double[] usedSeries = itemUnits;
+        boolean coldStartInput = false;
+        if (!anyUnits || monthsSinceFirst(itemUnits) < Forecasts.COLD_START_MONTHS) {
+            List<MonthPoint> catSeries = product.category() == null ? List.of()
+                    : sales.monthlyCategory(product.category(), storeUuid, 24, today);
+            double[] catUnits = toArray(catSeries);
+            double[] scaled = Forecasts.coldStartSeries(itemUnits, catUnits);
+            if (scaled == null) {
+                return new ForecastModelDto(itemNumber, description, storeId, horizon, false, List.of(), "flat",
+                        null, false, true, false, new AccuracyDto(null, null, null, null), List.of(), List.of());
+            }
+            usedSeries = scaled;
+            coldStartInput = true;
+        }
 
-        int periodCount = horizon.equals("strategic") ? 5 : 6;
-        List<String> labels = periodLabels(horizon, periodCount);
-        double bandBase = switch (horizon) {
-            case "sensing" -> 9;
-            case "operational" -> 18;
-            case "tactical" -> 30;
-            default -> 46;
+        Optional<Seasonality> seasonality = sales.seasonality(product.id(), today);
+        double[] index = seasonality.map(Seasonality::index).orElse(null);
+        int endMonth = today.getMonthValue();
+        boolean defaultElasticity = SalesHistory.Elasticity.DEFAULT.equals(m.elasticityBasis());
+        double beta = m.beta() == null ? -1.2 : m.beta().doubleValue();
+        double r2 = m.betaR2() == null ? 0 : m.betaR2().doubleValue();
+
+        Forecast forecast = Forecasts.seasonalNaive(usedSeries, endMonth, index, beta, r2, defaultElasticity);
+        if (coldStartInput) {
+            forecast = forecast.asColdStart();
+        }
+
+        List<Point> points = switch (horizon) {
+            case "sensing" -> forecast.sensing();
+            case "operational" -> forecast.operational();
+            case "tactical" -> forecast.tactical();
+            case "strategic" -> forecast.strategic();
+            default -> throw new IllegalArgumentException("Unknown horizon: " + horizon);
         };
+        List<ForecastPointDto> dtoPoints = points.stream()
+                .map(p -> new ForecastPointDto(p.label(), (int) Math.max(0, Math.round(p.p10())),
+                        (int) Math.max(0, Math.round(p.p50())), (int) Math.max(0, Math.round(p.p90()))))
+                .toList();
 
-        List<ForecastPointDto> points = new ArrayList<>();
-        for (int i = 0; i < labels.size(); i++) {
-            double t = periodCount > 1 ? (double) i / (periodCount - 1) : 0;
-            double spike = intermittent ? (Seeded.rand(key + ":" + i, "spike") > 0.62 ? 1.9 : 0.35) : 1;
-            double level = baseWeekly * (1 + (trendPct / 100) * t) * spike;
-            double spread = (bandBase + t * bandBase * 0.85) / 100;
-            int p50 = (int) Math.max(0, Math.round(level));
-            int p10 = (int) Math.max(0, Math.round(p50 * (1 - spread)));
-            int p90 = (int) Math.round(p50 * (1 + spread));
-            points.add(new ForecastPointDto(labels.get(i), p10, p50, p90));
-        }
+        int horizonMonths = switch (horizon) {
+            case "sensing" -> 1;
+            case "operational" -> 6;
+            case "tactical" -> 18;
+            default -> 60;
+        };
+        double trendPct = round1(forecast.trendPct(horizonMonths));
+        String trend = forecast.trend(horizonMonths);
 
-        double naiveMape = round1(Seeded.randRange(key, "naive", 24, 41));
-        double modelMape = round1(naiveMape - Seeded.randRange(key, "modelgain", 7, 17));
-        boolean humanHelped = Seeded.rand(key, "humangood") > 0.42;
-        double humanMape = round1(humanHelped
-                ? modelMape - Seeded.randRange(key, "humangain", 0.4, 3.6)
-                : modelMape + Seeded.randRange(key, "humanloss", 0.4, 4.8));
-
-        double w1 = Seeded.randRange(key, "w1", 18, 34);
-        double w2 = Seeded.randRange(key, "w2", 8, 22);
-        double w3 = Seeded.randRange(key, "w3", 14, 30);
-        double sum = w1 + w2 + w3;
-        double s1 = Math.round((w1 / sum) * 78 * 10) / 10.0;
-        double s2 = Math.round((w2 / sum) * 78 * 10) / 10.0;
-        double s3 = Math.round((w3 / sum) * 78 * 10) / 10.0;
-        double momentum = round1(100 - (s1 + s2 + s3));
-
-        List<FactorWeightDto> weights = List.of(
-                new FactorWeightDto("Own price", bd(s1), "down",
-                        "Read from the elasticity engine — a change in the commercial plan propagates here "
-                                + "automatically."),
-                new FactorWeightDto("Promotion calendar", bd(s2), "up"),
-                new FactorWeightDto("Seasonality", bd(s3), trend.equals("down") ? "down" : "up"),
-                new FactorWeightDto("Trend / momentum", bd(momentum), trend.equals("down") ? "down" : "up"));
-
-        List<CalcStepDto> steps = new ArrayList<>();
-        steps.add(new CalcStepDto("Trailing velocity at this store", Fmt.jsNum(baseWeekly) + "/wk",
-                Fmt.groupInt(m.totalTransactions()) + " transactions behind this series", "step"));
         Horizon meta = horizonMeta(horizon);
-        steps.add(new CalcStepDto("Horizon", meta.label(),
-                meta.span() + " — " + meta.method().toLowerCase(java.util.Locale.ROOT), "step"));
-        steps.add(new CalcStepDto("Price held at", Fmt.fmtMoney(m.currentPrice()),
-                "Today’s price. Move it on the sell side and this curve redraws — nothing here treats price as fixed.",
+        List<CalcStepDto> steps = new ArrayList<>();
+        steps.add(new CalcStepDto("Level at origin", Fmt.jsNum(round1(forecast.level())) + "/mo",
+                "Mean of the last three de-seasonalised months.", "step"));
+        steps.add(new CalcStepDto("Horizon", meta.label(), meta.span() + " - " + meta.method(), "step"));
+        steps.add(new CalcStepDto("Monthly growth", (forecast.growth() >= 0 ? "+" : "")
+                + Fmt.fixed(forecast.growth() * 100, 2) + "%",
+                "Log-linear trend over the last " + Math.min(forecast.months(), 12) + " months, clamped to ±8%.",
                 "step"));
-        steps.add(new CalcStepDto("Trend applied", (trendPct >= 0 ? "+" : "") + Fmt.jsNum(trendPct) + "%",
-                "Across the horizon, " + (trend.equals("flat") ? "essentially flat" : trend.equals("up") ? "growing" : "declining"),
-                "step"));
-        if (intermittent) {
-            steps.add(new CalcStepDto("Intermittent demand flagged", null,
-                    "Sparse, lumpy history — quantile loss is the objective here, not mean accuracy.", "step"));
-        }
-        if (structuralBreak) {
-            steps.add(new CalcStepDto("Structural break flagged", null,
-                    "A contract, competitor or tariff change in the recent history — surfaced, not smoothed away.",
+        if (forecast.seasonal()) {
+            steps.add(new CalcStepDto("Seasonality", "Applied", "Twelve monthly indices from the item's own history.",
                     "step"));
         }
-        ForecastPointDto first = points.get(0);
-        steps.add(new CalcStepDto("Median demand, " + labels.get(0), first.p50() + " units",
-                "P10–P90 range " + first.p10() + "–" + first.p90(), "result"));
+        if (forecast.intermittent()) {
+            steps.add(new CalcStepDto("Intermittent demand flagged", null,
+                    "Four or more zero months in the last twelve.", "step"));
+        }
+        if (forecast.structuralBreak()) {
+            steps.add(new CalcStepDto("Structural break flagged", null,
+                    "The last three months differ from the prior nine by more than two standard deviations.",
+                    "step"));
+        }
+        if (!dtoPoints.isEmpty()) {
+            ForecastPointDto first = dtoPoints.get(0);
+            steps.add(new CalcStepDto("Median demand, " + first.period(), first.p50() + " units",
+                    "P10-P90 range " + first.p10() + "-" + first.p90(), "result"));
+        }
 
-        return new ForecastModelDto(itemNumber, description, storeId, horizon, true, points, trend, bd(trendPct),
-                intermittent, coldStart, structuralBreak,
-                new AccuracyDto(bd(naiveMape), bd(modelMape), bd(humanMape), bd(round1(modelMape - humanMape))),
-                weights, steps);
+        Forecasts.Weights w = forecast.weights();
+        List<FactorWeightDto> weights = List.of(
+                new FactorWeightDto("Own price", bd(round1(w.ownPrice())), "down",
+                        "Read from the elasticity engine - a change in the commercial plan propagates here automatically."),
+                new FactorWeightDto("Seasonality", bd(round1(w.seasonality())), trend.equals("down") ? "down" : "up"),
+                new FactorWeightDto("Trend / momentum", bd(round1(w.trend())), trend.equals("down") ? "down" : "up"),
+                new FactorWeightDto("Unexplained", bd(round1(w.unexplained())), "up"));
+
+        AccuracyDto accuracy = forecast.accuracy().available()
+                ? new AccuracyDto(bd(round1(forecast.accuracy().naiveMape())), bd(round1(forecast.accuracy().modelMape())), null, null)
+                : new AccuracyDto(null, null, null, null);
+
+        return new ForecastModelDto(itemNumber, description, storeId, horizon, true, dtoPoints, trend, bd(trendPct),
+                forecast.intermittent(), forecast.coldStart(), forecast.structuralBreak(), accuracy, weights, steps);
+    }
+
+    private static int monthsSinceFirst(double[] series) {
+        for (int i = 0; i < series.length; i++) {
+            if (series[i] > 0) {
+                return series.length - i;
+            }
+        }
+        return 0;
     }
 }
