@@ -1,44 +1,43 @@
 package com.aatlas.insights.internal;
 
-import com.aatlas.common.seed.Seeded;
-import com.aatlas.insights.internal.BuyEngine.BuyRecommendation;
-import com.aatlas.insights.internal.PricingEngine.PricingModel;
-import com.aatlas.insights.internal.ScoreEngine.OpportunityScore;
-import com.aatlas.insights.internal.SellEngine.SellSummary;
+import com.aatlas.decisions.DealSummaries;
+import com.aatlas.history.PricingMath;
+import com.aatlas.history.SalesHistory;
+import com.aatlas.history.SalesStats;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
+import org.springframework.stereotype.Component;
 
 /**
- * A port of {@code intel/geo.ts}: who is buying, where, and what it means for price.
- * Every store figure that can be derived from the pricing engine is; demand climate,
- * revenue and conversion are stated per region with a point of view, exactly as the
- * TypeScript states them - the fixtures were built around the story ("the South is hot,
- * the West earns, the North converts poorly, the East grows"), not fitted to anything.
+ * Spec 3.8/3.10: who is buying, where, and what it means for price - over the tenant's real
+ * rows. Every branch is {@link SalesHistory#byStore}'s own key (incl. {@code no-branch}, the
+ * synthetic branch for sales with no store on file); every region is {@link Catalogue}'s real
+ * region for the tenant's country, plus a fifth "Needs a region" bucket for stores/sales with
+ * no region assigned - never dropped, just not counted among the four named regions.
  */
-final class GeoEngine {
+@Component
+class GeoEngine {
 
-    private GeoEngine() {
-    }
-
-    record Climate(double demandPct, double marginAdj, double conversionPct, String headline, String note) {
-    }
+    static final String UNASSIGNED = SalesHistory.GroupStats.UNASSIGNED;
+    static final String NO_BRANCH = SalesHistory.GroupStats.NO_BRANCH;
 
     record StoreOpportunity(String itemNumber, String name, String kind, String action, double impact, String href) {
     }
 
-    record ProductRow(String itemNumber, String name, int score, String tier, double current, double recommended) {
+    record ProductRow(String itemNumber, String name, int score, String tier, Double current, Double recommended) {
     }
 
     record StoreIntel(
             String storeId, String label, String city, String state, String regionKey, String regionLabel,
-            String regionName, double revenue, double marginPct, int pricingAccuracyPct, int adoptionPct,
-            double inventoryValue, String inventoryRisk, double demandPct, int conversionPct,
+            String regionName, double revenue, Double marginPct, Integer pricingAccuracyPct, Integer adoptionPct,
+            Double inventoryValue, String inventoryRisk, double demandPct, Integer conversionPct,
             String health, String healthLabel, String healthNote,
-            List<StoreOpportunity> opportunities, List<ProductRow> products) {
+            List<StoreOpportunity> opportunities, List<ProductRow> products, List<String> locked) {
     }
 
     record RegionAction(String label, int count, String href) {
@@ -49,182 +48,25 @@ final class GeoEngine {
 
     record RegionIntel(
             String key, String label, String name, List<String> storeIds, List<StoreIntel> stores,
-            double revenue, double demandPct, double avgSellingPrice, double avgMarginPct, double conversionPct,
+            double revenue, double demandPct, Double avgSellingPrice, Double avgMarginPct, Integer conversionPct,
             double priceTrendPct, String inventoryRisk, String topCategory, FastestGrowing fastestGrowing,
             String headline, String climateNote, List<RegionAction> actions,
-            List<String> raisePrices, List<String> increaseInventory, List<String> reviewSuppliers) {
+            List<String> raisePrices, List<String> increaseInventory, List<String> reviewSuppliers,
+            List<String> locked) {
     }
 
-    // -- The regional climate: stated once, read everywhere (US variant; the fixtures use the
-    // same numbers for every country, only the prose differs) -----------------------------
-    private static final Map<String, Climate> CLIMATE = Map.of(
-            "south", new Climate(14.2, 0.2, 71, "High demand",
-                    "Hot, humid summers: cooling season drives HVAC, PVC and water-heater demand."),
-            "west", new Climate(4.1, 2.6, 67, "High margin",
-                    "Dry heat and long build seasons: steady PEX and fittings volume at the best margins in the network."),
-            "north", new Climate(-2.6, -0.9, 52, "Low conversion",
-                    "Cold winters and a short build season: heating and copper spike in autumn, then the quotes go quiet."),
-            "east", new Climate(9.3, 0.6, 64, "Growing demand",
-                    "Four full seasons and dense housing: renovation work keeps fixtures and valves moving all year."));
+    private final BuyEngine buyEngine;
 
-    static Climate regionClimate(String key) {
-        return CLIMATE.get(key);
+    GeoEngine(BuyEngine buyEngine) {
+        this.buyEngine = buyEngine;
     }
 
-    static String storeCity(StoreRef store) {
-        String source = store.msaName() != null ? store.msaName()
-                : store.legalName() != null ? store.legalName() : store.storeCode();
-        return source.split("-")[0].replace(" Branch", "").trim();
+    // -- 3.10 health, a pure function so it can be unit-tested without a request --------------
+
+    record HealthResult(String status, String label, String note) {
     }
 
-    static String storeLabel(String storeId, CatalogSnapshot snapshot) {
-        StoreRef store = snapshot.store(storeId).orElse(null);
-        String city = store == null ? storeId : storeCity(store);
-        return city + " #" + storeId;
-    }
-
-    /** {@code platform/data.ts}'s {@code storeName}: the network-node name used as a deal counterparty. */
-    static String storeName(StoreRef store) {
-        String source = store.msaName() != null ? store.msaName() : "Branch";
-        return source.split("-")[0] + " — " + store.state();
-    }
-
-    static double storeSeed(String storeId, String salt) {
-        return Seeded.rand("store:" + storeId, salt);
-    }
-
-    static StoreIntel getStoreIntel(String storeId, CatalogSnapshot snapshot, DealsIndex deals) {
-        StoreRef store = snapshot.store(storeId)
-                .orElseThrow(() -> new IllegalStateException("Unknown store " + storeId));
-        MarketRegionRef region = snapshot.marketRegionForState(store.state());
-        Climate climate = CLIMATE.get(region.key());
-
-        double revW = 0;
-        double cogsW = 0;
-        int accurate = 0;
-        double inventoryValue = 0;
-        double coverSum = 0;
-        int priceableCount = 0;
-        List<ProductRow> products = new ArrayList<>();
-        List<StoreOpportunity> opportunities = new ArrayList<>();
-
-        for (ProductRef p : FixtureOrder.sellableProducts(snapshot)) {
-            if (!snapshot.priceable(p.itemNumber(), storeId)) {
-                continue;
-            }
-            priceableCount++;
-            PricingModel m = PricingEngine.compute(p.itemNumber(), storeId, snapshot);
-            SellSummary intel = SellEngine.compute(p.itemNumber(), storeId, snapshot, m);
-            OpportunityScore s = ScoreEngine.compute(p.itemNumber(), storeId, snapshot);
-
-            revW += intel.currentPrice() * intel.monthlyUnits();
-            cogsW += intel.cost() * intel.monthlyUnits();
-            if (Math.abs(intel.recommended() - intel.currentPrice()) / intel.recommended() < 0.05) {
-                accurate++;
-            }
-            inventoryValue += intel.inventoryValue();
-            coverSum += intel.weeksOfCover();
-            products.add(new ProductRow(p.itemNumber(), intel.name(), s.score(), s.tier(),
-                    intel.currentPrice(), intel.recommended()));
-
-            double gapPct = ((intel.recommended() - intel.currentPrice()) / intel.currentPrice()) * 100;
-            if (gapPct > 2) {
-                opportunities.add(new StoreOpportunity(p.itemNumber(), intel.name(), "price",
-                        "Increase price " + Fmt.toFixed(gapPct, 0) + "%", Fmt.round2(intel.monthlyOpportunity()),
-                        "/app/sell?item=" + p.itemNumber() + "&store=" + storeId));
-            } else if (gapPct < -3) {
-                opportunities.add(new StoreOpportunity(p.itemNumber(), intel.name(), "price",
-                        "Reduce price " + Fmt.toFixed(Math.abs(gapPct), 0) + "% to win volume",
-                        Fmt.round2(Math.abs(intel.monthlyOpportunity()) * 0.6),
-                        "/app/sell?item=" + p.itemNumber() + "&store=" + storeId));
-            }
-            // Suppliers seed asynchronously right after a data source connects (see
-            // SuppliersSeedListener); a request that lands in that narrow window would
-            // otherwise hit BuyEngine.currentSupplierFor with an empty panel. Treat "not
-            // seeded yet" the same as "no supplier opportunity to report" rather than 500.
-            BuyRecommendation buy = snapshot.suppliers().isEmpty() ? null
-                    : BuyEngine.compute(p.itemNumber(), storeId, snapshot);
-            if (buy != null && buy.savingPct() > 4) {
-                opportunities.add(new StoreOpportunity(p.itemNumber(), intel.name(), "supplier",
-                        "Supplier renegotiation, " + Fmt.toFixed(buy.savingPct(), 0) + "% over target",
-                        Fmt.round2(buy.annualSaving() / 12),
-                        "/app/buy?item=" + p.itemNumber() + "&region=" + region.key()));
-            }
-            if (m.demand() != null && "low".equals(m.demand().level())) {
-                opportunities.add(new StoreOpportunity(p.itemNumber(), intel.name(), "demand",
-                        "Declining demand, review stock", Fmt.round2(intel.inventoryValue() * 0.02),
-                        "/app/products?item=" + p.itemNumber()));
-            }
-            if (intel.weeksOfCover() > 16) {
-                opportunities.add(new StoreOpportunity(p.itemNumber(), intel.name(), "inventory",
-                        "Overstocked, " + Fmt.toFixed(intel.weeksOfCover(), 0) + " weeks of cover",
-                        Fmt.round2(intel.inventoryValue() * 0.015),
-                        "/app/sell/bulk?store=" + storeId + "&preset=overstock"));
-            }
-        }
-        opportunities.sort((a, b) -> Double.compare(b.impact(), a.impact()));
-        products.sort((a, b) -> Integer.compare(b.score(), a.score()));
-
-        double marginPct = revW > 0 ? Fmt.round1(((revW - cogsW) / revW) * 100 + climate.marginAdj()) : 0;
-        int pricingAccuracyPct = priceableCount > 0 ? (int) Math.round(accurate * 100.0 / priceableCount) : 0;
-        double avgCover = priceableCount > 0 ? coverSum / priceableCount : 0;
-        String inventoryRisk = avgCover > 13 ? "High" : avgCover > 9 ? "Medium" : "Low";
-
-        DealsIndex.Adoption adoption = deals.adoptionFor(storeName(store));
-        int adoptionPct = adoption.any()
-                ? (int) Math.round(adoption.followed() * 100.0 / adoption.total())
-                : (int) Math.round(Seeded.randRange("adopt:" + storeId, "a", 58, 84));
-
-        int txns = store.txns() != null ? store.txns() : 8000;
-        double revenue = Math.round(txns * Seeded.randRange("rev:" + storeId, "ticket", 96, 240));
-        double demandPct = Fmt.round1(climate.demandPct() + (storeSeed(storeId, "demand") - 0.5) * 6);
-        int conversionPct = (int) Math.round(climate.conversionPct() + (storeSeed(storeId, "conv") - 0.5) * 10);
-
-        int points = 0;
-        if (marginPct >= 27) {
-            points++;
-        }
-        if (pricingAccuracyPct >= 40) {
-            points++;
-        }
-        if (adoptionPct >= 62) {
-            points++;
-        }
-        if (!"High".equals(inventoryRisk)) {
-            points++;
-        }
-        String health = points >= 3 ? "healthy" : points == 2 ? "watch" : "attention";
-
-        List<String> issues = new ArrayList<>();
-        if (marginPct < 27) {
-            issues.add("margin is thin");
-        }
-        if (pricingAccuracyPct < 40) {
-            issues.add("prices drift from the recommendation");
-        }
-        if (adoptionPct < 62) {
-            issues.add("too many recommendations are ignored");
-        }
-        if ("High".equals(inventoryRisk)) {
-            issues.add("inventory is heavy");
-        }
-        String issueText = issues.isEmpty() ? "" : capitalise(String.join(", ", issues)) + ".";
-        String healthNote = switch (health) {
-            case "healthy" -> issues.isEmpty()
-                    ? "Margin, pricing accuracy and adoption all where they should be."
-                    : "Broadly on track. " + issueText;
-            case "watch" -> issueText;
-            default -> "Several signals need attention this month. " + issueText;
-        };
-
-        return new StoreIntel(storeId, storeLabel(storeId, snapshot), storeCity(store),
-                store.state() == null ? "" : store.state(), region.key(), region.shortLabel(), region.fullLabel(),
-                revenue, marginPct, pricingAccuracyPct, adoptionPct, Fmt.round2(inventoryValue), inventoryRisk,
-                demandPct, conversionPct, health, healthLabel(health), healthNote,
-                opportunities.size() > 6 ? opportunities.subList(0, 6) : opportunities, products);
-    }
-
-    private static String healthLabel(String health) {
+    static String healthLabel(String health) {
         return switch (health) {
             case "healthy" -> "Healthy";
             case "watch" -> "Watch";
@@ -232,104 +74,431 @@ final class GeoEngine {
         };
     }
 
+    /**
+     * Applicable checks: margin&gt;=27 (cost known), pricing accuracy&gt;=40, adoption&gt;=62
+     * (deals exist), inventory risk != High (stock on file). {@code ratio = passed/applicable};
+     * &gt;=0.75 healthy, &gt;=0.5 watch, else attention. A null input is a skipped check, noted
+     * separately from a failed one.
+     */
+    static HealthResult computeHealth(Double marginPct, Integer pricingAccuracyPct, Double adoptionPct,
+            String inventoryRisk) {
+        int applicable = 0;
+        int passed = 0;
+        List<String> failed = new ArrayList<>();
+        List<String> skipped = new ArrayList<>();
+
+        if (marginPct != null) {
+            applicable++;
+            if (marginPct >= 27) {
+                passed++;
+            } else {
+                failed.add("margin is thin");
+            }
+        } else {
+            skipped.add("no costed sales yet");
+        }
+        if (pricingAccuracyPct != null) {
+            applicable++;
+            if (pricingAccuracyPct >= 40) {
+                passed++;
+            } else {
+                failed.add("prices drift from the recommendation");
+            }
+        }
+        if (adoptionPct != null) {
+            applicable++;
+            if (adoptionPct >= 62) {
+                passed++;
+            } else {
+                failed.add("too many recommendations are ignored");
+            }
+        } else {
+            skipped.add("no decisions yet");
+        }
+        if (inventoryRisk != null) {
+            applicable++;
+            if (!"High".equals(inventoryRisk)) {
+                passed++;
+            } else {
+                failed.add("inventory is heavy");
+            }
+        } else {
+            skipped.add("no stock data");
+        }
+
+        double ratio = applicable == 0 ? 0 : (double) passed / applicable;
+        String status = applicable > 0 && ratio >= 0.75 ? "healthy" : applicable > 0 && ratio >= 0.5 ? "watch" : "attention";
+        List<String> notes = new ArrayList<>(failed);
+        notes.addAll(skipped);
+        String note = notes.isEmpty()
+                ? "Margin, pricing accuracy and adoption all where they should be."
+                : capitalise(String.join(", ", notes)) + ".";
+        return new HealthResult(status, healthLabel(status), note);
+    }
+
     private static String capitalise(String s) {
         return s.isEmpty() ? s : Character.toUpperCase(s.charAt(0)) + s.substring(1);
     }
 
-    static RegionIntel getRegionIntel(String key, CatalogSnapshot snapshot, DealsIndex deals) {
-        MarketRegionRef region = snapshot.marketRegion(key);
-        Climate climate = CLIMATE.get(key);
-        List<String> storeIds = FixtureOrder.stores(snapshot).stream()
-                .filter(s -> snapshot.marketRegionForState(s.state()).key().equals(key))
-                .map(StoreRef::storeCode)
-                .toList();
-        List<StoreIntel> stores = storeIds.stream().map(id -> getStoreIntel(id, snapshot, deals)).toList();
+    // -- 3.8 region headline, a pure function so it can be unit-tested without a request -------
 
-        double revenue = stores.stream().mapToDouble(StoreIntel::revenue).sum();
-        double avgMarginPct = stores.isEmpty() ? 0
-                : Fmt.round1(stores.stream().mapToDouble(StoreIntel::marginPct).average().orElse(0));
-
-        List<Double> prices = new ArrayList<>();
-        List<Double> drifts = new ArrayList<>();
-        Map<String, Double> categoryWeight = new LinkedHashMap<>();
-        FastestGrowing fastest = new FastestGrowing("", "", Double.NEGATIVE_INFINITY);
-        Set<String> raisePrices = new LinkedHashSet<>();
-        Set<String> increaseInventory = new LinkedHashSet<>();
-        Set<String> reviewSuppliers = new LinkedHashSet<>();
-
-        for (String storeId : storeIds) {
-            for (ProductRef p : FixtureOrder.sellableProducts(snapshot)) {
-                if (!snapshot.priceable(p.itemNumber(), storeId)) {
-                    continue;
-                }
-                PricingModel m = PricingEngine.compute(p.itemNumber(), storeId, snapshot);
-                SellSummary intel = SellEngine.compute(p.itemNumber(), storeId, snapshot, m);
-                prices.add(m.currentPrice());
-                double driftPct = priceDriftPct90(m, p, snapshot);
-                drifts.add(driftPct);
-                categoryWeight.merge(p.category(), intel.currentPrice() * intel.monthlyUnits(), Double::sum);
-                double growth = (m.demand() != null ? m.demand().movePercent() * 4 : 0) + driftPct;
-                if (growth > fastest.pct()) {
-                    fastest = new FastestGrowing(p.itemNumber(), intel.name(), Fmt.round1(growth));
-                }
-                if ((intel.recommended() - intel.currentPrice()) / intel.currentPrice() > 0.02) {
-                    raisePrices.add(p.itemNumber());
-                }
-                if (m.demand() != null && "high".equals(m.demand().level()) && intel.weeksOfCover() < 5) {
-                    increaseInventory.add(p.itemNumber());
-                }
-                BuyRecommendation buy = snapshot.suppliers().isEmpty() ? null
-                        : BuyEngine.compute(p.itemNumber(), storeId, snapshot);
-                if (buy != null && buy.savingPct() > 4) {
-                    reviewSuppliers.add(buy.incumbentSupplierName());
-                }
-            }
-        }
-        String topCategory = categoryWeight.entrySet().stream()
-                .max(Map.Entry.comparingByValue())
-                .map(Map.Entry::getKey)
-                .orElse("Plumbing");
-        double avgSellingPrice = prices.isEmpty() ? 0
-                : Fmt.round2(prices.stream().mapToDouble(Double::doubleValue).average().orElse(0));
-        double priceTrendPct = drifts.isEmpty() ? 0
-                : Fmt.round1(drifts.stream().mapToDouble(Double::doubleValue).average().orElse(0));
-        Set<String> risks = stores.stream().map(StoreIntel::inventoryRisk).collect(java.util.stream.Collectors.toSet());
-        String inventoryRisk = risks.contains("High") ? "High" : risks.contains("Medium") ? "Medium" : "Low";
-
-        List<RegionAction> actions = List.of(
-                new RegionAction("Increase inventory", increaseInventory.size(), "/app/products?region=" + key + "&filter=strong"),
-                new RegionAction("Adjust prices", raisePrices.size(), "/app/sell/bulk?region=" + key),
-                new RegionAction("Review suppliers", reviewSuppliers.size(), "/app/buy/bulk?region=" + key));
-
-        return new RegionIntel(key, region.shortLabel(), region.fullLabel(), storeIds, stores, revenue,
-                climate.demandPct(), avgSellingPrice, avgMarginPct, climate.conversionPct(), priceTrendPct,
-                inventoryRisk, topCategory,
-                fastest.itemNumber().isEmpty() ? new FastestGrowing("", "—", 0) : fastest,
-                climate.headline(), climate.note(), actions,
-                List.copyOf(raisePrices), List.copyOf(increaseInventory), List.copyOf(reviewSuppliers));
+    record RegionMetrics(String key, BigDecimal growthPct, BigDecimal marginPct, BigDecimal revenue) {
     }
 
     /**
-     * A port of {@code intel/sell.ts}'s {@code priceDriftPct90}: where this item's price is
-     * heading over 90 days, as a percent move - commodity trend first, the engine's own
-     * demand signal second, a little item-level noise so not every copper line moves
-     * identically. Only the {@code pct} half is read by this module; {@code driver} is a
-     * Sell-screen prose label.
+     * Each region gets exactly one headline: the first rule it is the extreme region for, in
+     * priority order (growth up, margin, growth down, margin down, revenue), ties broken toward
+     * the higher-revenue region. A region that leads no metric reads "Steady".
      */
-    static double priceDriftPct90(PricingModel m, ProductRef meta, CatalogSnapshot snapshot) {
-        CommodityRef commodity = snapshot.commodity(meta.commodity());
-        double demand = m.demand() != null ? m.demand().movePercent() * 1.6 : 0;
-        double noise = Fmt.round1(Seeded.randRange(m.item() + "|" + m.storeId(), "fc-noise", -1.4, 1.4));
-        return Fmt.round1(commodity.pct90AsDouble() * 0.72 + demand + noise);
+    static Map<String, String> regionHeadlines(List<RegionMetrics> regions) {
+        Map<String, String> out = new LinkedHashMap<>();
+        if (regions.isEmpty()) {
+            return out;
+        }
+        RegionMetrics maxGrowth = extreme(regions, RegionMetrics::growthPct, true);
+        RegionMetrics maxMargin = extreme(regions, RegionMetrics::marginPct, true);
+        RegionMetrics minGrowth = extreme(regions, RegionMetrics::growthPct, false);
+        RegionMetrics minMargin = extreme(regions, RegionMetrics::marginPct, false);
+        RegionMetrics maxRevenue = extreme(regions, RegionMetrics::revenue, true);
+
+        for (RegionMetrics r : regions) {
+            String headline;
+            if (r == maxGrowth && r.growthPct() != null && r.growthPct().doubleValue() >= 3) {
+                headline = "Growing demand";
+            } else if (r == maxMargin && r.marginPct() != null) {
+                headline = "High margin";
+            } else if (r == minGrowth && r.growthPct() != null && r.growthPct().doubleValue() <= -3) {
+                headline = "Softening demand";
+            } else if (r == minMargin && r.marginPct() != null) {
+                headline = "Thin margin";
+            } else if (r == maxRevenue) {
+                headline = "Largest market";
+            } else {
+                headline = "Steady";
+            }
+            out.put(r.key(), headline);
+        }
+        return out;
     }
 
-    static List<RegionIntel> allRegions(CatalogSnapshot snapshot, DealsIndex deals) {
-        return snapshot.marketRegions().stream().map(r -> getRegionIntel(r.key(), snapshot, deals)).toList();
+    private static RegionMetrics extreme(List<RegionMetrics> regions, java.util.function.Function<RegionMetrics, BigDecimal> f,
+            boolean max) {
+        RegionMetrics best = null;
+        for (RegionMetrics r : regions) {
+            BigDecimal v = f.apply(r);
+            if (v == null) {
+                continue;
+            }
+            if (best == null) {
+                best = r;
+                continue;
+            }
+            BigDecimal bestValue = f.apply(best);
+            int cmp = v.compareTo(bestValue);
+            boolean better = max ? cmp > 0 : cmp < 0;
+            boolean tie = cmp == 0;
+            if (better || (tie && r.revenue().compareTo(best.revenue()) > 0)) {
+                best = r;
+            }
+        }
+        return best;
     }
 
-    static List<StoreIntel> allStores(CatalogSnapshot snapshot, DealsIndex deals) {
-        return FixtureOrder.stores(snapshot).stream()
-                .map(s -> getStoreIntel(s.storeCode(), snapshot, deals))
-                .toList();
+    // -- store / region intel --------------------------------------------------------------
+
+    StoreIntel storeIntel(String storeCode, InsightsData data) {
+        boolean noBranch = NO_BRANCH.equals(storeCode);
+        var store = noBranch ? null : data.store(storeCode).orElseThrow(() -> notFound(storeCode));
+        List<PairFacts> pairs = data.atStore(storeCode);
+
+        BigDecimal revenue = BigDecimal.ZERO;
+        BigDecimal costedRevenue = BigDecimal.ZERO;
+        BigDecimal cogs = BigDecimal.ZERO;
+        int priceableCount = 0;
+        int accurate = 0;
+        BigDecimal inventoryValue = BigDecimal.ZERO;
+        boolean anyInventory = false;
+        BigDecimal coverSum = BigDecimal.ZERO;
+        int coverCount = 0;
+        BigDecimal driftSum = BigDecimal.ZERO;
+        int driftCount = 0;
+        List<ProductRow> products = new ArrayList<>();
+        List<StoreOpportunity> opportunities = new ArrayList<>();
+
+        for (PairFacts f : pairs) {
+            SalesStats w12 = f.pair().w12();
+            if (w12 != null) {
+                revenue = revenue.add(w12.revenue() == null ? BigDecimal.ZERO : w12.revenue());
+                if (w12.costedRevenue() != null && w12.cogs() != null) {
+                    costedRevenue = costedRevenue.add(w12.costedRevenue());
+                    cogs = cogs.add(w12.cogs());
+                }
+            }
+            if (f.hasInventory()) {
+                anyInventory = true;
+                BigDecimal iv = f.inventoryValue();
+                if (iv != null) {
+                    inventoryValue = inventoryValue.add(iv);
+                }
+                BigDecimal cover = f.weeksOfCover();
+                if (cover != null) {
+                    coverSum = coverSum.add(cover);
+                    coverCount++;
+                }
+            }
+            if (f.demand() != null) {
+                driftSum = driftSum.add(PricingMath.driftPct90(f.commodityPct90(), f.demand().movePercent()));
+                driftCount++;
+            }
+            if (!f.priceable()) {
+                continue;
+            }
+            priceableCount++;
+            BigDecimal current = f.currentPrice();
+            BigDecimal optimal = f.optimalPrice();
+            DealSummaries.Adoption adoption = data.adoptionFor(noBranch ? null : storeCode);
+            ScoreEngine.OpportunityScore score = ScoreEngine.compute(f, adoption);
+            products.add(new ProductRow(f.pair().itemNumber(), f.pair().shortName(), score.score(), score.tier(),
+                    Fmt.dv(current), Fmt.dv(optimal)));
+
+            double gapPct = current.signum() == 0 ? 0
+                    : optimal.subtract(current).divide(current, 6, RoundingMode.HALF_UP).doubleValue() * 100;
+            if (current.subtract(optimal).abs().divide(optimal.signum() == 0 ? BigDecimal.ONE : optimal, 6,
+                    RoundingMode.HALF_UP).doubleValue() < 0.05) {
+                accurate++;
+            }
+            double monthlyOpportunity = Fmt.dv0(f.monthlyOpportunity());
+            if (gapPct > 2) {
+                opportunities.add(new StoreOpportunity(f.pair().itemNumber(), f.pair().shortName(), "price",
+                        "Increase price " + Fmt.toFixed(gapPct, 0) + "%", Fmt.round2(monthlyOpportunity),
+                        "/app/sell?item=" + f.pair().itemNumber() + "&store=" + storeCode));
+            } else if (gapPct < -3) {
+                opportunities.add(new StoreOpportunity(f.pair().itemNumber(), f.pair().shortName(), "price",
+                        "Reduce price " + Fmt.toFixed(Math.abs(gapPct), 0) + "% to win volume",
+                        Fmt.round2(Math.abs(monthlyOpportunity) * 0.6),
+                        "/app/sell?item=" + f.pair().itemNumber() + "&store=" + storeCode));
+            }
+            buyEngine.compute(f, data.today()).ifPresent(buy -> {
+                if (buy.savingPct() != null && buy.savingPct().doubleValue() > 4 && buy.annualSaving() != null) {
+                    opportunities.add(new StoreOpportunity(f.pair().itemNumber(), f.pair().shortName(), "supplier",
+                            "Supplier renegotiation, " + Fmt.toFixed(buy.savingPct().doubleValue(), 0) + "% over target",
+                            Fmt.round2(buy.annualSaving().doubleValue() / 12),
+                            "/app/buy?item=" + f.pair().itemNumber()));
+                }
+            });
+            if (f.demand() != null && "low".equals(f.demand().level())) {
+                opportunities.add(new StoreOpportunity(f.pair().itemNumber(), f.pair().shortName(), "demand",
+                        "Declining demand, review stock", Fmt.round2(Fmt.dv0(f.inventoryValue()) * 0.02),
+                        "/app/products?item=" + f.pair().itemNumber()));
+            }
+            BigDecimal cover = f.weeksOfCover();
+            if (cover != null && cover.doubleValue() > 16) {
+                opportunities.add(new StoreOpportunity(f.pair().itemNumber(), f.pair().shortName(), "inventory",
+                        "Overstocked, " + Fmt.toFixed(cover.doubleValue(), 0) + " weeks of cover",
+                        Fmt.round2(Fmt.dv0(f.inventoryValue()) * 0.015),
+                        "/app/sell/bulk?store=" + storeCode + "&preset=overstock"));
+            }
+        }
+        opportunities.sort((a, b) -> Double.compare(b.impact(), a.impact()));
+        products.sort(Comparator.comparingInt(ProductRow::score).reversed());
+
+        Double marginPct = costedRevenue.signum() > 0
+                ? Fmt.dv(PricingMath.pct(costedRevenue.subtract(cogs), costedRevenue)) : null;
+        Integer pricingAccuracyPct = priceableCount > 0 ? (int) Math.round(accurate * 100.0 / priceableCount) : null;
+        Double avgCover = coverCount > 0 ? coverSum.doubleValue() / coverCount : null;
+        String inventoryRisk = !anyInventory ? null : avgCover > 13 ? "High" : avgCover > 9 ? "Medium" : "Low";
+        double demandPct = driftCount > 0 ? Fmt.round1(driftSum.doubleValue() / driftCount) : 0;
+
+        DealSummaries.Adoption storeAdoption = data.adoptionFor(noBranch ? null : storeCode);
+        Integer adoptionPct = storeAdoption.followRatePct().map(v -> (int) Math.round(v)).orElse(null);
+
+        HealthResult health = computeHealth(marginPct, pricingAccuracyPct, adoptionPct == null ? null
+                : adoptionPct.doubleValue(), inventoryRisk);
+
+        List<String> locked = new ArrayList<>();
+        if (marginPct == null) {
+            locked.add("margin");
+        }
+        if (!anyInventory) {
+            locked.add("inventory");
+        }
+        if (adoptionPct == null) {
+            locked.add("decisions");
+        }
+
+        String regionKey = noBranch ? UNASSIGNED : store.regionKey();
+        String city = noBranch ? "No branch on file" : storeCity(store);
+        String label = noBranch ? "No branch on file" : store.label();
+        String state = noBranch || store.subdivisionCode() == null ? "" : store.subdivisionCode();
+
+        return new StoreIntel(storeCode, label, city, state, regionKey, regionLabel(regionKey), regionKey,
+                Fmt.round2(revenue.doubleValue()), marginPct, pricingAccuracyPct, adoptionPct,
+                anyInventory ? Fmt.dv(inventoryValue) : null, inventoryRisk, demandPct, adoptionPct,
+                health.status(), health.label(), health.note(),
+                opportunities.size() > 6 ? opportunities.subList(0, 6) : opportunities, products, locked);
+    }
+
+    static String storeCity(com.aatlas.history.Catalogue.StoreRef store) {
+        String source = store.msaName() != null && !store.msaName().isBlank() ? store.msaName() : store.legalName();
+        return source.split("-")[0].replace(" Branch", "").trim();
+    }
+
+    private static String regionLabel(String key) {
+        return UNASSIGNED.equals(key) ? "Needs a region" : key;
+    }
+
+    private static IllegalStateException notFound(String storeCode) {
+        return new IllegalStateException("Unknown store " + storeCode);
+    }
+
+    /** Every real branch, plus the synthetic {@code no-branch} row when there are unbranched sales. */
+    List<StoreIntel> allStores(InsightsData data) {
+        List<StoreIntel> out = new ArrayList<>();
+        for (var store : data.stores()) {
+            out.add(storeIntel(store.storeCode(), data));
+        }
+        if (!data.atStore(NO_BRANCH).isEmpty()) {
+            out.add(storeIntel(NO_BRANCH, data));
+        }
+        return out;
+    }
+
+    RegionIntel regionIntel(String key, InsightsData data) {
+        boolean unassigned = UNASSIGNED.equals(key);
+        List<String> storeIds = new ArrayList<>();
+        for (var store : data.stores()) {
+            boolean inRegion = unassigned ? UNASSIGNED.equals(store.regionKey()) : key.equals(store.regionKey());
+            if (inRegion) {
+                storeIds.add(store.storeCode());
+            }
+        }
+        if (unassigned && !data.atStore(NO_BRANCH).isEmpty()) {
+            storeIds.add(NO_BRANCH);
+        }
+        List<StoreIntel> stores = storeIds.stream().map(id -> storeIntel(id, data)).toList();
+
+        SalesHistory.GroupStats group = InsightsData.group(data.byRegion(), key).orElse(null);
+        BigDecimal revenue = group == null ? BigDecimal.ZERO : orZero(group.current().revenue());
+        BigDecimal growthPct = group == null ? null
+                : PricingMath.pct(revenue.subtract(orZero(group.prior().revenue())), orZero(group.prior().revenue()));
+        BigDecimal marginPct = group == null ? null : group.current().grossMarginPct();
+        BigDecimal avgSellingPrice = group != null && group.current().units() != null
+                && group.current().units().signum() > 0 ? PricingMath.div(revenue, group.current().units()) : null;
+        BigDecimal priorAvgPrice = group == null ? null : group.prior().avgPrice();
+        BigDecimal priceTrendPct = group != null && group.current().avgPrice() != null && priorAvgPrice != null
+                ? PricingMath.pct(group.current().avgPrice().subtract(priorAvgPrice), priorAvgPrice) : null;
+
+        double demandPct = growthPct == null ? 0 : growthPct.doubleValue();
+
+        Map<String, BigDecimal> categoryRevenue = new LinkedHashMap<>();
+        String fastestItem = null;
+        String fastestName = null;
+        double fastestPct = Double.NEGATIVE_INFINITY;
+        java.util.Set<String> raisePrices = new java.util.LinkedHashSet<>();
+        java.util.Set<String> increaseInventory = new java.util.LinkedHashSet<>();
+        java.util.Set<String> reviewSuppliers = new java.util.LinkedHashSet<>();
+
+        for (String storeId : storeIds) {
+            for (PairFacts f : data.atStore(storeId)) {
+                BigDecimal itemRevenue = f.pair().w12() == null ? BigDecimal.ZERO : orZero(f.pair().w12().revenue());
+                categoryRevenue.merge(f.pair().category(), itemRevenue, BigDecimal::add);
+                if (f.demand() != null) {
+                    double drift = PricingMath.driftPct90(f.commodityPct90(), f.demand().movePercent()).doubleValue();
+                    if (drift > fastestPct) {
+                        fastestPct = drift;
+                        fastestItem = f.pair().itemNumber();
+                        fastestName = f.pair().shortName();
+                    }
+                }
+                if (!f.priceable()) {
+                    continue;
+                }
+                BigDecimal upliftPct = f.upliftPct();
+                if (upliftPct != null && upliftPct.doubleValue() > 2) {
+                    raisePrices.add(f.pair().itemNumber());
+                }
+                BigDecimal cover = f.weeksOfCover();
+                if (f.demand() != null && "high".equals(f.demand().level()) && cover != null && cover.doubleValue() < 5) {
+                    increaseInventory.add(f.pair().itemNumber());
+                }
+                buyEngine.compute(f, data.today()).ifPresent(buy -> {
+                    if (buy.savingPct() != null && buy.savingPct().doubleValue() > 4 && buy.incumbentSupplierName() != null) {
+                        reviewSuppliers.add(buy.incumbentSupplierName());
+                    }
+                });
+            }
+        }
+        String topCategory = categoryRevenue.entrySet().stream()
+                .max(Map.Entry.comparingByValue()).map(Map.Entry::getKey).orElse("Plumbing");
+        java.util.Set<String> risks = stores.stream().map(StoreIntel::inventoryRisk)
+                .filter(java.util.Objects::nonNull).collect(java.util.stream.Collectors.toSet());
+        String inventoryRisk = risks.contains("High") ? "High" : risks.contains("Medium") ? "Medium" : "Low";
+
+        int followed = 0;
+        int total = 0;
+        for (String storeId : storeIds) {
+            DealSummaries.Adoption a = data.adoptionFor(NO_BRANCH.equals(storeId) ? null : storeId);
+            followed += a.followed();
+            total += a.total();
+        }
+        Integer conversionPct = total == 0 ? null : (int) Math.round(followed * 100.0 / total);
+
+        String climateNote = group == null ? "No sales on file for this region yet."
+                : "Revenue " + Fmt.compact(revenue.doubleValue()) + " in the last twelve months, "
+                        + (growthPct == null ? "n/a" : Fmt.toFixed(growthPct.doubleValue(), 1) + "%")
+                        + " on the prior year; margin "
+                        + (marginPct == null ? "n/a" : Fmt.toFixed(marginPct.doubleValue(), 1) + "%") + ".";
+
+        var region = data.regions().stream().filter(r -> r.key().equals(key)).findFirst().orElse(null);
+        String label = unassigned ? "Needs a region" : region != null ? region.shortLabel() : key;
+        String fullLabel = unassigned ? "Needs a region" : region != null ? region.label() : key;
+
+        List<RegionAction> actions = List.of(
+                new RegionAction("Increase inventory", increaseInventory.size(),
+                        "/app/products?region=" + key + "&filter=strong"),
+                new RegionAction("Adjust prices", raisePrices.size(), "/app/sell/bulk?region=" + key),
+                new RegionAction("Review suppliers", reviewSuppliers.size(), "/app/buy/bulk?region=" + key));
+
+        List<String> locked = new ArrayList<>();
+        if (marginPct == null) {
+            locked.add("margin");
+        }
+
+        return new RegionIntel(key, label, fullLabel, storeIds, stores, Fmt.round2(revenue.doubleValue()), demandPct,
+                Fmt.dv(avgSellingPrice), Fmt.dv(marginPct), conversionPct,
+                priceTrendPct == null ? 0 : Fmt.round1(priceTrendPct.doubleValue()), inventoryRisk, topCategory,
+                fastestItem == null ? new FastestGrowing("", "—", 0) : new FastestGrowing(fastestItem, fastestName, Fmt.round1(fastestPct)),
+                unassigned ? "Needs a region" : headlineFor(key, data), climateNote, actions,
+                List.copyOf(raisePrices), List.copyOf(increaseInventory), List.copyOf(reviewSuppliers), locked);
+    }
+
+    private static BigDecimal orZero(BigDecimal v) {
+        return v == null ? BigDecimal.ZERO : v;
+    }
+
+    private String headlineFor(String key, InsightsData data) {
+        List<RegionMetrics> metrics = new ArrayList<>();
+        for (var region : data.regions()) {
+            SalesHistory.GroupStats g = InsightsData.group(data.byRegion(), region.key()).orElse(null);
+            if (g == null) {
+                continue;
+            }
+            BigDecimal revenue = orZero(g.current().revenue());
+            BigDecimal growth = PricingMath.pct(revenue.subtract(orZero(g.prior().revenue())), orZero(g.prior().revenue()));
+            metrics.add(new RegionMetrics(region.key(), growth, g.current().grossMarginPct(), revenue));
+        }
+        return regionHeadlines(metrics).getOrDefault(key, "Steady");
+    }
+
+    /** Regions with at least one store - the tenant's real regions, never {@code unassigned}. */
+    List<RegionIntel> allRegions(InsightsData data) {
+        List<RegionIntel> out = new ArrayList<>();
+        for (var region : data.regions()) {
+            boolean hasStore = data.stores().stream().anyMatch(s -> region.key().equals(s.regionKey()));
+            if (hasStore) {
+                out.add(regionIntel(region.key(), data));
+            }
+        }
+        return out;
     }
 }

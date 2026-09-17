@@ -6,11 +6,21 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.aatlas.common.time.AatlasClock;
+import com.aatlas.history.Window;
+import com.aatlas.realdata.SampleOracle;
 import com.aatlas.realdata.SampleTenant;
 import com.aatlas.smoke.PostgresIntegrationTest;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.InputStream;
+import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -45,11 +55,16 @@ import org.springframework.test.web.servlet.MvcResult;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class InsightsIT extends PostgresIntegrationTest {
 
+    private static final Pattern DAY_TOKEN = Pattern.compile("D-(\\d+)");
+
     @Autowired
     MockMvc mvc;
 
     @Autowired
     ObjectMapper json;
+
+    @Autowired
+    AatlasClock clock;
 
     private String token;
 
@@ -140,15 +155,25 @@ class InsightsIT extends PostgresIntegrationTest {
     @Test
     @DisplayName("GET /insights/regions and /insights/regions/{key}: the South, with Dallas in it")
     void regionsAndOneRegion() throws Exception {
-        mvc.perform(get("/api/v1/insights/regions").header("Authorization", "Bearer " + token))
+        MvcResult result = mvc.perform(get("/api/v1/insights/regions").header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(4));
+                .andExpect(jsonPath("$.length()").value(4))
+                .andReturn();
+        // No constant CLIMATE map any more: on the sample tenant every one of the four real
+        // regions has stores, so none is the "unassigned" bucket.
+        JsonNode regions = json.readTree(result.getResponse().getContentAsString());
+        for (JsonNode region : regions) {
+            assertThat(region.get("key").asText()).isNotEqualTo("unassigned");
+        }
 
-        mvc.perform(get("/api/v1/insights/regions/{key}", "south").header("Authorization", "Bearer " + token))
+        MvcResult southResult = mvc.perform(get("/api/v1/insights/regions/{key}", "south").header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.key").value("south"))
                 .andExpect(jsonPath("$.storeIds", org.hamcrest.Matchers.hasItem("100959")))
-                .andExpect(jsonPath("$.headline").value("High demand"));
+                .andReturn();
+        JsonNode south = json.readTree(southResult.getResponse().getContentAsString());
+        assertThat(south.get("headline").asText()).isIn(
+                "Growing demand", "High margin", "Softening demand", "Thin margin", "Largest market", "Steady");
     }
 
     @Test
@@ -236,5 +261,126 @@ class InsightsIT extends PostgresIntegrationTest {
         mvc.perform(get("/api/v1/products/{item}/scores", "NOPE-000").header("Authorization", "Bearer " + token))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("not_found"));
+    }
+
+    @Test
+    @DisplayName("kpis[revenue] matches the Hardin sample's real trailing-twelve-month revenue")
+    void revenueKpiMatchesTheOracle() throws Exception {
+        SampleOracle oracle = SampleOracle.load(clock.today());
+        Window w12 = Window.trailingMonths(clock.today(), 12);
+        BigDecimal expected = oracle.revenue(w12);
+
+        MvcResult result = mvc.perform(get("/api/v1/overview").header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andReturn();
+        JsonNode overview = json.readTree(result.getResponse().getContentAsString());
+        JsonNode revenueKpi = kpi(overview, "revenue");
+
+        double tolerance = Math.max(1.00, expected.doubleValue() * 0.0005);
+        assertThat(revenueKpi.get("value").asDouble()).isCloseTo(expected.doubleValue(), org.assertj.core.data.Offset.offset(tolerance));
+        assertThat(revenueKpi.get("foot").asText()).isEqualTo("trailing twelve months");
+    }
+
+    @Test
+    @DisplayName("kpis[adoption]: locked with no decisions, then real after one POST /sell/apply")
+    void adoptionKpiLocksThenReportsARealDecision() throws Exception {
+        String freshToken = signUp(uniqueEmail("adoption"));
+        mvc.perform(post("/api/v1/data-sources")
+                        .header("Authorization", "Bearer " + freshToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"kind\":\"sample\"}"))
+                .andExpect(status().isCreated());
+        SampleTenant.awaitReady(mvc, json, freshToken);
+
+        JsonNode before = kpi(overviewOf(freshToken), "adoption");
+        assertThat(!before.has("value") || before.get("value").isNull()).isTrue();
+        assertThat(before.get("locked").asText()).isEqualTo("no decisions");
+
+        mvc.perform(post("/api/v1/sell/apply")
+                        .header("Authorization", "Bearer " + freshToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"item\":\"HRD118902\",\"store\":\"100959\"}"))
+                .andExpect(status().isOk());
+
+        JsonNode after = kpi(overviewOf(freshToken), "adoption");
+        assertThat(after.has("locked") && !after.get("locked").isNull()).isFalse();
+        assertThat(after.get("foot").asText()).isEqualTo("1 decisions");
+        assertThat(after.get("value").asDouble()).isEqualTo(100.0);
+    }
+
+    private JsonNode overviewOf(String bearerToken) throws Exception {
+        MvcResult result = mvc.perform(get("/api/v1/overview").header("Authorization", "Bearer " + bearerToken))
+                .andExpect(status().isOk())
+                .andReturn();
+        return json.readTree(result.getResponse().getContentAsString());
+    }
+
+    private static JsonNode kpi(JsonNode overview, String key) {
+        for (JsonNode k : overview.get("kpis")) {
+            if (key.equals(k.get("key").asText())) {
+                return k;
+            }
+        }
+        throw new AssertionError("No kpi with key " + key);
+    }
+
+    @Test
+    @DisplayName("GET /insights/demographics: segments sum to total revenue, no Unassigned segment on the sample")
+    void demographicsSegmentsSumToTotalRevenue() throws Exception {
+        MvcResult result = mvc.perform(get("/api/v1/insights/demographics").header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andReturn();
+        JsonNode demo = json.readTree(result.getResponse().getContentAsString());
+
+        double total = demo.get("totalRevenue").asDouble();
+        double sum = 0;
+        for (JsonNode segment : demo.get("segments")) {
+            sum += segment.get("revenue").asDouble();
+            assertThat(segment.get("segment").asText()).isNotEqualToIgnoringCase("unassigned");
+        }
+        assertThat(sum).isCloseTo(total, org.assertj.core.data.Offset.offset(1.0));
+    }
+
+    @Test
+    @DisplayName("a custom sales-only tenant: two stores need a region, an Unassigned segment, inventory locked")
+    void customSalesOnlyTenantNeedsARegionAndHasNoInventory() throws Exception {
+        String customToken = signUp(uniqueEmail("custom"));
+
+        InputStream in = getClass().getResourceAsStream("/realdata/custom-30.template.csv");
+        assertThat(in).isNotNull();
+        String template = new String(in.readAllBytes(), StandardCharsets.UTF_8);
+        Matcher m = DAY_TOKEN.matcher(template);
+        StringBuilder csv = new StringBuilder();
+        while (m.find()) {
+            long daysAgo = Long.parseLong(m.group(1));
+            m.appendReplacement(csv, LocalDate.now().minusDays(daysAgo).toString());
+        }
+        m.appendTail(csv);
+
+        JsonNode committed = SampleTenant.importAndCommit(mvc, json, customToken, "sales", csv.toString());
+        assertThat(committed.get("status").asText()).isEqualTo("COMMITTED");
+
+        MvcResult regionResult = mvc.perform(get("/api/v1/insights/regions/{key}", "unassigned")
+                        .header("Authorization", "Bearer " + customToken))
+                .andExpect(status().isOk())
+                .andReturn();
+        JsonNode unassigned = json.readTree(regionResult.getResponse().getContentAsString());
+        assertThat(unassigned.get("storeIds")).hasSize(2);
+
+        MvcResult demoResult = mvc.perform(get("/api/v1/insights/demographics").header("Authorization", "Bearer " + customToken))
+                .andExpect(status().isOk())
+                .andReturn();
+        JsonNode demo = json.readTree(demoResult.getResponse().getContentAsString());
+        boolean hasUnassigned = false;
+        for (JsonNode segment : demo.get("segments")) {
+            if ("unassigned".equalsIgnoreCase(segment.get("segment").asText())) {
+                hasUnassigned = true;
+            }
+        }
+        assertThat(hasUnassigned).isTrue();
+
+        JsonNode overview = overviewOf(customToken);
+        JsonNode inventoryKpi = kpi(overview, "inventory");
+        assertThat(inventoryKpi.get("locked").asText()).isEqualTo("no inventory");
     }
 }

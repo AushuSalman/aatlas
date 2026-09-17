@@ -1,100 +1,92 @@
 package com.aatlas.insights.internal;
 
-import com.aatlas.common.seed.Seeded;
-import com.aatlas.insights.internal.LogisticsEngine.Lane;
-import com.aatlas.insights.internal.PricingEngine.PricingModel;
+import com.aatlas.history.PricingMath;
+import com.aatlas.history.PurchaseHistory;
+import com.aatlas.history.PurchaseHistory.PoStats;
+import com.aatlas.history.Reference;
+import com.aatlas.history.Suppliers;
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+import org.springframework.stereotype.Component;
 
 /**
- * A port of {@code platform/api.ts}'s {@code buildBuyRecommendation}, trimmed to the
- * fields {@code geo.ts}, {@code demographics.ts} and {@code overview.ts} read: the
- * incumbent supplier, the saving against a target cost, and the landed quote panel.
- * Dropped: the calc-steps/weights UI arrays and the "what if this moved supplier" override
- * path - every call site in this module passes a null supplier id, so the row being priced
- * and the incumbent are always the same row.
- *
- * <p>Not a stand-in: {@code buildBuyRecommendation} composes wave 1's supplier and
- * catalogue rows with this module's own pricing/logistics ports, so it needs no
- * cross-track interface - see the wave-2 brief ("supplier priced above market ... no
- * stand-in needed").
+ * Spec 3.5's buy target cost, over the tenant's real purchase history: the incumbent supplier
+ * ({@code PurchaseHistory.incumbent}), the ladder cost, and a target built from the landed
+ * cost of every supplier with a quote on file ({@code Suppliers.panelFor}'s ex-works, landed
+ * through that supplier's own freight/duty lane). Absent purchase history for the item ->
+ * empty (the caller locks {@code purchases}), never a fabricated saving.
  */
-final class BuyEngine {
-
-    private BuyEngine() {
-    }
-
-    record SupplierQuote(String supplierId, String name, String country, double unitCost, int totalLeadDays, boolean isIncumbent) {
-    }
+@Component
+class BuyEngine {
 
     record BuyRecommendation(
-            String itemNumber,
-            String incumbentSupplierId,
-            String incumbentSupplierName,
-            double incumbentCost,
-            double targetCost,
-            double savingPerUnit,
-            double savingPct,
-            int annualUnits,
-            double annualSaving,
-            List<SupplierQuote> quotes) {
+            String itemNumber, String incumbentSupplierId, String incumbentSupplierName,
+            BigDecimal incumbentCost, BigDecimal targetCost, BigDecimal savingPerUnit, BigDecimal savingPct,
+            BigDecimal annualUnits, BigDecimal annualSaving, int quotedSuppliers) {
     }
 
-    static SupplierRef currentSupplierFor(String item, List<SupplierRef> suppliers) {
-        List<SupplierRef> ranked = new ArrayList<>(suppliers);
-        ranked.sort((a, b) -> Double.compare(a.priceIndex(), b.priceIndex()));
-        int half = (int) Math.ceil(ranked.size() / 2.0);
-        List<SupplierRef> pool = Seeded.rand(item, "inc-tier") > 0.3
-                ? ranked.subList(0, half)
-                : ranked.subList(half, ranked.size());
-        return Seeded.pick(item, "current-sup", pool);
+    private final PurchaseHistory purchaseHistory;
+    private final Suppliers suppliers;
+    private final Reference reference;
+
+    BuyEngine(PurchaseHistory purchaseHistory, Suppliers suppliers, Reference reference) {
+        this.purchaseHistory = purchaseHistory;
+        this.suppliers = suppliers;
+        this.reference = reference;
     }
 
-    static BuyRecommendation compute(String itemNumber, String destinationStoreCode, CatalogSnapshot snapshot) {
-        ProductRef product = snapshot.product(itemNumber)
-                .orElseThrow(() -> new IllegalStateException("Unknown item " + itemNumber));
-        String defaultTenant = product.defaultStoreCode();
-        PricingModel m = PricingEngine.compute(itemNumber, defaultTenant, snapshot);
-        LogisticsLaneRef region = LogisticsEngine.regionForStore(destinationStoreCode, snapshot);
-
-        SupplierRef incumbent = currentSupplierFor(itemNumber, snapshot.suppliers());
-        double base = m.cost();
-
-        List<SupplierQuote> quotes = new ArrayList<>();
-        for (SupplierRef s : snapshot.suppliers()) {
-            double exWorks = Fmt.round2(
-                    base * (s.priceIndex() / 100) * Seeded.randRange(itemNumber + ":" + s.id(), "q", 0.94, 1.05));
-            Lane lane = LogisticsEngine.laneFor(s.country(), region, snapshot);
-            double freight = Fmt.round2(exWorks * (lane.freightPct() / 100));
-            double duty = Fmt.round2(exWorks * (lane.dutyPct() / 100));
-            double unitCost = Fmt.round2(exWorks + freight + duty);
-            int totalLeadDays = s.leadTimeDays() + lane.transitDays();
-            boolean isIncumbent = s.id().equals(incumbent.id());
-            quotes.add(new SupplierQuote(s.id(), s.name(), s.country(), unitCost, totalLeadDays, isIncumbent));
+    Optional<BuyRecommendation> compute(PairFacts facts, LocalDate today) {
+        PoStats purchases12m = facts.pair().purchases12m();
+        if (purchases12m == null || !purchases12m.any()) {
+            return Optional.empty();
         }
-        quotes.sort((a, b) -> Double.compare(a.unitCost(), b.unitCost()));
+        String itemNumber = facts.pair().itemNumber();
+        BigDecimal currentCost = facts.cost() != null ? facts.cost() : purchases12m.avgLanded();
 
-        double marketLow = quotes.get(0).unitCost();
-        double marketHigh = quotes.get(quotes.size() - 1).unitCost();
-        double marketMedian = Fmt.round2(quotes.get(quotes.size() / 2).unitCost());
+        Optional<PurchaseHistory.SupplierShare> incumbent = purchaseHistory.incumbent(itemNumber, today);
 
-        SupplierQuote incumbentQuote = quotes.stream().filter(SupplierQuote::isIncumbent).findFirst()
-                .orElse(quotes.get(0));
-        // The supplier being priced is always the incumbent in this module's call sites
-        // (the override path - "what if this moved?" - is Buy-screen only).
-        double currentCost = incumbentQuote.unitCost();
-        double incumbentCost = currentCost;
+        List<BigDecimal> landedQuotes = new ArrayList<>();
+        for (Suppliers.SupplierLink link : suppliers.panelFor(facts.pair().productId())) {
+            if (link.exWorks() == null) {
+                continue;
+            }
+            Reference.Origin origin = reference.origin(link.supplier().country());
+            BigDecimal multiplier = BigDecimal.ONE
+                    .add(origin.inboundPct().divide(PricingMath.HUNDRED, 6, PricingMath.ROUNDING))
+                    .add(origin.dutyPct().divide(PricingMath.HUNDRED, 6, PricingMath.ROUNDING));
+            landedQuotes.add(link.exWorks().multiply(multiplier).setScale(4, PricingMath.ROUNDING));
+        }
+        landedQuotes.sort(BigDecimal::compareTo);
+        int n = landedQuotes.size();
 
-        double rawTarget = Fmt.round2(marketLow + (marketMedian - marketLow) * 0.35);
-        double targetCost = Fmt.round2(Math.min(currentCost, Math.max(rawTarget, marketLow)));
-        double savingPerUnit = Fmt.round2(currentCost - targetCost);
+        BigDecimal targetCost;
+        if (n >= 2) {
+            BigDecimal low = landedQuotes.get(0);
+            BigDecimal median = landedQuotes.get(n / 2);
+            BigDecimal raw = low.add(median.subtract(low).multiply(new BigDecimal("0.35")));
+            targetCost = PricingMath.min(currentCost, raw);
+        } else if (n == 1) {
+            targetCost = PricingMath.min(currentCost, landedQuotes.get(0));
+        } else {
+            targetCost = null;
+        }
 
-        String key = itemNumber + "|" + incumbent.id() + "|" + destinationStoreCode;
-        int annualUnits = Seeded.randInt(key, "units", 240, 5200);
-        double savingPct = currentCost != 0 ? Fmt.round2((savingPerUnit / currentCost) * 100) : 0;
-        double annualSaving = Fmt.round2(savingPerUnit * annualUnits);
+        BigDecimal savingPerUnit = currentCost != null && targetCost != null
+                ? PricingMath.max(BigDecimal.ZERO, currentCost.subtract(targetCost))
+                : null;
+        BigDecimal annualUnits = purchases12m.units() == null ? BigDecimal.ZERO : purchases12m.units();
+        BigDecimal annualSaving = savingPerUnit == null ? null : savingPerUnit.multiply(annualUnits);
+        BigDecimal savingPct = savingPerUnit != null && currentCost != null && currentCost.signum() > 0
+                ? PricingMath.pct(savingPerUnit, currentCost)
+                : null;
 
-        return new BuyRecommendation(itemNumber, incumbent.id(), incumbent.name(), incumbentCost, targetCost,
-                savingPerUnit, savingPct, annualUnits, annualSaving, List.copyOf(quotes));
+        String supplierId = incumbent.map(PurchaseHistory.SupplierShare::supplierKey).orElse(null);
+        String supplierName = incumbent.map(PurchaseHistory.SupplierShare::name).orElse(null);
+
+        return Optional.of(new BuyRecommendation(itemNumber, supplierId, supplierName, currentCost, targetCost,
+                savingPerUnit, savingPct, annualUnits, annualSaving, n));
     }
 }

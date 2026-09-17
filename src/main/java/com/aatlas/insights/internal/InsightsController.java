@@ -22,7 +22,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 /**
  * Region intel, branch intel and demographics - the Insights-sell and Stores screens.
- * Backs {@code /app/insights} and {@code /app/stores}.
+ * Backs {@code /app/insights} and {@code /app/stores}. Every figure is read from the
+ * tenant's real rows through {@link InsightsDataLoader}.
  */
 @RestController
 @Validated
@@ -34,21 +35,27 @@ import org.springframework.web.bind.annotation.RestController;
 })
 class InsightsController {
 
-    private static final Set<String> REGION_KEYS = Set.of("south", "west", "north", "east");
+    /** {@code south}/{@code west}/{@code north}/{@code east} plus {@code unassigned}: the "Needs a
+     * region" bucket is always reachable directly, even though {@code /insights/regions} omits an
+     * empty region from its list. */
+    private static final Set<String> REGION_KEYS = Set.of("south", "west", "north", "east", "unassigned");
 
-    private final CatalogSnapshotReader reader;
-    private final DealsIndex deals;
+    private final InsightsDataLoader loader;
+    private final GeoEngine geoEngine;
+    private final DemographicsEngine demographicsEngine;
 
-    InsightsController(CatalogSnapshotReader reader, DealsIndex deals) {
-        this.reader = reader;
-        this.deals = deals;
+    InsightsController(InsightsDataLoader loader, GeoEngine geoEngine, DemographicsEngine demographicsEngine) {
+        this.loader = loader;
+        this.geoEngine = geoEngine;
+        this.demographicsEngine = demographicsEngine;
     }
 
-    @Operation(summary = "Every market region", description = "The four regions with their branches and actions.")
+    @Operation(summary = "Every market region with at least one branch",
+            description = "The tenant's real regions, with their branches and actions. A region with no branches "
+                    + "is omitted here; reach it directly at GET /insights/regions/{key}.")
     @GetMapping("/regions")
     List<RegionIntel> regions() {
-        CatalogSnapshot snapshot = reader.load();
-        return GeoEngine.allRegions(snapshot, deals);
+        return geoEngine.allRegions(loader.load());
     }
 
     @Operation(summary = "One market region", description = "With its branches and actions.")
@@ -59,24 +66,25 @@ class InsightsController {
         if (!REGION_KEYS.contains(normalised)) {
             throw ApiException.notFound("Region", key);
         }
-        CatalogSnapshot snapshot = reader.load();
-        return GeoEngine.getRegionIntel(normalised, snapshot, deals);
+        return geoEngine.regionIntel(normalised, loader.load());
     }
 
-    @Operation(summary = "Every branch", description = "Backs the Stores screen's list.")
+    @Operation(summary = "Every branch", description = "Backs the Stores screen's list; includes the synthetic "
+            + "no-branch row when the tenant has sales with no store on file.")
     @GetMapping("/stores")
     List<StoreIntel> stores() {
-        CatalogSnapshot snapshot = reader.load();
-        return GeoEngine.allStores(snapshot, deals);
+        return geoEngine.allStores(loader.load());
     }
 
     @Operation(summary = "One branch", description = "With its opportunities and priced products.")
     @ApiResponse(responseCode = "404", description = "not_found: no such branch.")
     @GetMapping("/stores/{id}")
     StoreIntel store(@Parameter(example = "100959") @PathVariable String id) {
-        CatalogSnapshot snapshot = reader.load();
-        StoreRef store = snapshot.storeByCodeOrId(id).orElseThrow(() -> ApiException.notFound("Store", id));
-        return GeoEngine.getStoreIntel(store.storeCode(), snapshot, deals);
+        InsightsData data = loader.load();
+        if (!"no-branch".equals(id) && data.store(id).isEmpty()) {
+            throw ApiException.notFound("Store", id);
+        }
+        return geoEngine.storeIntel(id, data);
     }
 
     @Operation(summary = "Demographics", description = "Segments, categories, places and origins for the given scope.")
@@ -88,9 +96,9 @@ class InsightsController {
             @RequestParam(defaultValue = "all") String segment,
             @RequestParam(defaultValue = "all") String category,
             @RequestParam(defaultValue = "12m") String period) {
-        CatalogSnapshot snapshot = reader.load();
+        InsightsData data = loader.load();
         Filter filter = new Filter(region, state, store, segment, category, period);
-        return DemographicsEngine.compute(filter, snapshot, deals);
+        return demographicsEngine.compute(filter, data);
     }
 
     @Operation(summary = "Biggest expected 90-day price moves in scope")
@@ -99,7 +107,6 @@ class InsightsController {
             @RequestParam(required = false) String region,
             @RequestParam(required = false) String store,
             @RequestParam(required = false) String category) {
-        CatalogSnapshot snapshot = reader.load();
-        return PriceMovesEngine.compute(region, store, category, snapshot);
+        return PriceMovesEngine.compute(region, store, category, loader.load());
     }
 }

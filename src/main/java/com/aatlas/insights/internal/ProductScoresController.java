@@ -18,14 +18,8 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * Opportunity scores for the Products screen: {@code GET /products/scores} (one row per
  * priceable item-branch pair in scope) and {@code GET /products/{item}/scores} (one
- * product's score at every branch, with reasons). Both return the frontend's
- * {@code ProductScoreRow} shape - see {@link ProductScoresEngine} - and the screen folds
- * them into "best branch per product" itself, exactly as it does today reading the
- * fixtures directly.
- *
- * <p>{@code ScoreEngine} is this module's own port of {@code intel/score.ts} -
- * TODO(merge): replace with the {@code sell} module's canonical {@code OpportunityScores}
- * reader once that track is merged; see {@link ScoreEngine}.
+ * product's score at every branch, with reasons) - real scores, over
+ * {@link ScoreEngine}/{@code history.PricingMath}.
  */
 @RestController
 @Validated
@@ -37,10 +31,10 @@ import org.springframework.web.bind.annotation.RestController;
 })
 class ProductScoresController {
 
-    private final CatalogSnapshotReader reader;
+    private final InsightsDataLoader loader;
 
-    ProductScoresController(CatalogSnapshotReader reader) {
-        this.reader = reader;
+    ProductScoresController(InsightsDataLoader loader) {
+        this.loader = loader;
     }
 
     @Operation(summary = "Products by opportunity",
@@ -51,19 +45,18 @@ class ProductScoresController {
             @Parameter(description = "Market region key, or omitted/`all` for the whole network.") @RequestParam(required = false) String region,
             @Parameter(description = "strong, watch or risk; omitted/`all` for every tier.") @RequestParam(required = false) String filter,
             @Parameter(description = "score (default), trend or opportunity.") @RequestParam(required = false) String sort) {
-        CatalogSnapshot snapshot = reader.load();
-        return ProductScoresEngine.scores(region, filter, sort, snapshot);
+        return ProductScoresEngine.scores(region, filter, sort, loader.load());
     }
 
     @Operation(summary = "One product's score at every branch", description = "Unscoped, with the reasons behind each score.")
     @ApiResponse(responseCode = "404", description = "not_found: no such item number, or it has no sales history anywhere.")
     @GetMapping("/{item}/scores")
     List<ProductScoresEngine.ProductScoreRow> productScores(@Parameter(example = "HRD118902") @PathVariable String item) {
-        CatalogSnapshot snapshot = reader.load();
-        if (snapshot.product(item).isEmpty()) {
+        InsightsData data = loader.load();
+        if (data.product(item).isEmpty()) {
             throw ApiException.notFound("Product", item);
         }
-        List<ProductScoresEngine.ProductScoreRow> rows = ProductScoresEngine.forItem(item, snapshot);
+        List<ProductScoresEngine.ProductScoreRow> rows = ProductScoresEngine.forItem(item, data);
         if (rows.isEmpty()) {
             throw ApiException.notFound("Product", item);
         }
