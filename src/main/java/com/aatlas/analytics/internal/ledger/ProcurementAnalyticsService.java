@@ -9,16 +9,21 @@ import com.aatlas.common.error.ApiException;
 import com.aatlas.common.tenant.TenantContext;
 import com.aatlas.common.time.AatlasClock;
 import com.aatlas.common.web.CursorPage;
-import com.aatlas.analytics.internal.fixtures.Fixtures;
-import com.aatlas.analytics.internal.fixtures.Lane;
-import com.aatlas.analytics.internal.fixtures.RegionFixture;
-import com.aatlas.analytics.internal.fixtures.SupplierFixture;
+import com.aatlas.history.Catalogue;
+import com.aatlas.history.HistoryCaches;
+import com.aatlas.history.PurchaseHistory;
+import com.aatlas.history.Reference;
+import com.aatlas.history.Suppliers;
 import jakarta.persistence.criteria.Predicate;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
@@ -35,10 +40,21 @@ public class ProcurementAnalyticsService implements ProcurementAnalytics, Procur
 
     private final PurchaseOrderRepository repository;
     private final AatlasClock clock;
+    private final Catalogue catalogue;
+    private final Suppliers suppliers;
+    private final Reference reference;
+    private final PurchaseHistory purchaseHistory;
+    private final HistoryCaches caches;
 
-    ProcurementAnalyticsService(PurchaseOrderRepository repository, AatlasClock clock) {
+    ProcurementAnalyticsService(PurchaseOrderRepository repository, AatlasClock clock, Catalogue catalogue,
+            Suppliers suppliers, Reference reference, PurchaseHistory purchaseHistory, HistoryCaches caches) {
         this.repository = repository;
         this.clock = clock;
+        this.catalogue = catalogue;
+        this.suppliers = suppliers;
+        this.reference = reference;
+        this.purchaseHistory = purchaseHistory;
+        this.caches = caches;
     }
 
     private List<PoRow> ledger(UUID tenantId) {
@@ -49,6 +65,24 @@ public class ProcurementAnalyticsService implements ProcurementAnalytics, Procur
             throw noLedger();
         }
         return rows;
+    }
+
+    /**
+     * The supplier panel's own facts for every supplier id the ledger's rows carry, one lookup
+     * per distinct supplier (a handful, never per row) - {@link SupplierFacts#EMPTY} for a
+     * supplier id the panel no longer has (should not happen, guarded rather than assumed).
+     */
+    private Map<String, SupplierFacts> supplierFacts(List<PoRow> rows) {
+        Map<String, SupplierFacts> out = new LinkedHashMap<>();
+        for (String id : rows.stream().map(PoRow::supplierId).distinct().toList()) {
+            SupplierFacts facts = suppliers.supplier(id)
+                    .map(ref -> new SupplierFacts(ref.vendorCode(), ref.priceIndex(), ref.leadTimeDays(),
+                            suppliers.terms(id).map(Suppliers.Terms::qualityPpm).orElse(null),
+                            suppliers.terms(id).map(Suppliers.Terms::creditDays).orElse(null)))
+                    .orElse(SupplierFacts.EMPTY);
+            out.put(id, facts);
+        }
+        return out;
     }
 
     private static ApiException noLedger() {
@@ -78,7 +112,8 @@ public class ProcurementAnalyticsService implements ProcurementAnalytics, Procur
     public BuyAnalytics analyze(String rangeKey, LocalDate from, LocalDate to, String branch, String category) {
         UUID tenantId = TenantContext.requireTenantId();
         DateRange range = resolveRange(rangeKey, from, to);
-        return BuyAnalyticsEngine.compute(range, filters(branch, category), ledger(tenantId));
+        List<PoRow> rows = ledger(tenantId);
+        return BuyAnalyticsEngine.compute(range, filters(branch, category), rows, supplierFacts(rows));
     }
 
     public List<MixSlice> mix(String dimension, String rangeKey, LocalDate from, LocalDate to, String branch, String category) {
@@ -87,12 +122,15 @@ public class ProcurementAnalyticsService implements ProcurementAnalytics, Procur
         Filters f = filters(branch, category);
         List<PoRow> allRows = ledger(tenantId);
         String dim = dimension == null ? "supplier" : dimension.toLowerCase(Locale.ROOT).strip();
+        if ("branch".equals(dim)) {
+            return BuyAnalyticsEngine.branchMix(range, f, allRows);
+        }
+        Map<String, SupplierFacts> facts = supplierFacts(allRows);
         return switch (dim) {
-            case "category" -> BuyAnalyticsEngine.compute(range, f, allRows).categoryMix();
-            case "branch" -> BuyAnalyticsEngine.branchMix(range, f, allRows);
-            case "region" -> BuyAnalyticsEngine.compute(range, f, allRows).regionMix();
-            case "origin" -> BuyAnalyticsEngine.compute(range, f, allRows).originMix();
-            case "supplier" -> BuyAnalyticsEngine.compute(range, f, allRows).supplierMix();
+            case "category" -> BuyAnalyticsEngine.compute(range, f, allRows, facts).categoryMix();
+            case "region" -> BuyAnalyticsEngine.compute(range, f, allRows, facts).regionMix();
+            case "origin" -> BuyAnalyticsEngine.compute(range, f, allRows, facts).originMix();
+            case "supplier" -> BuyAnalyticsEngine.compute(range, f, allRows, facts).supplierMix();
             default -> throw ApiException.badRequest("invalid_dimension",
                     "dimension must be one of supplier, category, branch, region, origin.");
         };
@@ -155,7 +193,8 @@ public class ProcurementAnalyticsService implements ProcurementAnalytics, Procur
             return new BuyImpactSummary(0, 0, 0, 0, List.of());
         }
         DateRange range = DateRanges.resolveRange("12m", clock.today());
-        BuyAnalytics a = BuyAnalyticsEngine.compute(range, Filters.none(), ledger(tenantId));
+        List<PoRow> rows = ledger(tenantId);
+        BuyAnalytics a = BuyAnalyticsEngine.compute(range, Filters.none(), rows, supplierFacts(rows));
         List<BuyImpactSummary.MonthPoint> byMonth = a.timeline().stream()
                 .map(t -> new BuyImpactSummary.MonthPoint(t.bucket().label(), t.saved(), t.leaked()))
                 .toList();
@@ -168,7 +207,8 @@ public class ProcurementAnalyticsService implements ProcurementAnalytics, Procur
     @Transactional
     public PurchaseOrderRecord recordAward(RecordAward award) {
         UUID tenantId = TenantContext.requireTenantId();
-        LocalDate orderDate = award.orderDate() != null ? award.orderDate() : clock.today();
+        LocalDate today = clock.today();
+        LocalDate orderDate = award.orderDate() != null ? award.orderDate() : today;
 
         double exWorks = award.exWorks().doubleValue();
         double freight = award.freight().doubleValue();
@@ -178,17 +218,30 @@ public class ProcurementAnalyticsService implements ProcurementAnalytics, Procur
         double target = award.target() != null ? award.target().doubleValue() : landed;
         double spend = landed * award.qty();
 
-        RegionFixture region = Fixtures.regionForStore(award.branchId());
-        Lane lane = Fixtures.laneFor(award.country(), region);
-        int promisedDays = 0;
-        SupplierFixture supplier = Fixtures.findSupplier(award.supplierId());
-        if (supplier != null) {
-            promisedDays = supplier.leadTimeDays() + lane.transitDays();
+        Optional<Catalogue.StoreRef> store = catalogue.store(award.branchId());
+        String regionKey = store.map(Catalogue.StoreRef::regionKey).orElse("unassigned");
+        String regionLabel = "unassigned".equals(regionKey)
+                ? "Needs a region"
+                : catalogue.region(regionKey).map(Catalogue.RegionRef::label).orElse(regionKey);
+        String branchName = store.map(Catalogue.StoreRef::legalName).orElse(award.branchId());
+
+        // Promised days: the supplier's own known lead time, else what has actually been
+        // observed from them, plus the reference transit time for their country - never a
+        // fabricated number; absent when neither the file nor history says anything.
+        Integer supplierLeadDays = suppliers.supplier(award.supplierId())
+                .map(Suppliers.SupplierRef::leadTimeDays).orElse(null);
+        if (supplierLeadDays == null) {
+            BigDecimal observed = purchaseHistory.supplier(award.supplierId(), today).allTime().avgLeadDays();
+            supplierLeadDays = observed == null ? null : observed.setScale(0, RoundingMode.HALF_UP).intValue();
         }
+        Reference.Origin origin = reference.origin(award.country());
+        Integer promisedDays = supplierLeadDays == null ? null : supplierLeadDays + origin.inboundDays();
+        LocalDate promisedDate = promisedDays == null ? null : orderDate.plusDays(promisedDays);
 
         String category = award.category() != null && !award.category().isBlank()
                 ? award.category()
-                : Categories.categoryOf(award.itemNumber());
+                : catalogue.product(award.itemNumber()).map(Catalogue.ProductRef::category)
+                        .orElse(Categories.UNCATEGORISED);
 
         int seq = (int) Math.min(Integer.MAX_VALUE, repository.countByTenantId(tenantId) + 1_000_000L);
         String poNumber = "PO-AWD-" + orderDate.toString().replace("-", "") + "-" + seq;
@@ -196,17 +249,26 @@ public class ProcurementAnalyticsService implements ProcurementAnalytics, Procur
         PoRow row = new PoRow(
                 seq, poNumber, orderDate, award.supplierId(), award.supplierName(), award.country(),
                 award.itemNumber(), award.description() == null ? award.itemNumber() : award.description(), category,
-                award.branchId(), Fixtures.storeName(award.branchId()),
-                region.key(), region.label(), award.qty(),
+                award.branchId(), branchName,
+                regionKey, regionLabel, award.qty(),
                 exWorks, freight, duty, landed, baseline, target, landed <= target + 0.005,
                 spend, baseline * award.qty(), Math.max(0, baseline - landed) * award.qty(),
                 Math.max(0, landed - target) * award.qty(),
-                "open", promisedDays, null, null, null, orderDate.plusDays(promisedDays), null, poNumber, "award");
+                "open", promisedDays, null, null, null, promisedDate, null, poNumber, "award");
 
         PurchaseOrderEntity entity = new PurchaseOrderEntity(row);
         entity.setTenantId(tenantId);
         entity.setDecisionId(award.decisionId());
+        if (store.isPresent()) {
+            entity.setStoreId(store.get().id());
+        }
+        Optional<Catalogue.ProductRef> product = catalogue.product(award.itemNumber());
+        if (product.isPresent()) {
+            entity.setProductId(product.get().id());
+        }
         entity = repository.save(entity);
+
+        caches.evictAfterCommit(tenantId);
 
         return new PurchaseOrderRecord(entity.getId(), entity.getPoNumber(), entity.getOrderDate(),
                 BigDecimal.valueOf(landed), BigDecimal.valueOf(spend));

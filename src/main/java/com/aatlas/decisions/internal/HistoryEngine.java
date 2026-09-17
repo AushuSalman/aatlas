@@ -5,15 +5,13 @@ import com.aatlas.decisions.DealRecord;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * The pure arithmetic behind the History screen and the impact rollup: decision history is
  * every recommendation, what was applied, what actually happened. Ported field for field from
  * {@code intel/history.ts} ({@code getHistory}) and the impact half of {@code platform/api.ts}
  * ({@code summarise}, {@code summariseBuy}, {@code buildImpact}).
- *
- * <p>Stateless and Spring-free so it can be golden-tested directly against
- * {@code golden/history.json} without a database - see {@code HistoryEngineGoldenTest}.
  */
 final class HistoryEngine {
 
@@ -21,11 +19,23 @@ final class HistoryEngine {
     private static final String[] MONTH_ABBR =
             {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
 
-    /** The order {@code summarise}'s {@code byMonth} iterates in - a trailing twelve ending at the fixture "now". */
-    private static final String[] SELL_MONTH_ORDER =
-            {"Oct", "Nov", "Dec", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep"};
-
     private HistoryEngine() {
+    }
+
+    /**
+     * The order {@code summarise}'s {@code byMonth} iterates in: the twelve calendar months
+     * ending this month, oldest first - real, from {@code AatlasClock.today()}, not a fixture
+     * "now". Twelve consecutive months always cover twelve distinct calendar months, so every
+     * abbreviation appears exactly once.
+     */
+    private static String[] sellMonthOrder(LocalDate today) {
+        String[] order = new String[12];
+        LocalDate month = today.minusMonths(11);
+        for (int i = 0; i < 12; i++) {
+            order[i] = MONTH_ABBR[month.getMonthValue() - 1];
+            month = month.plusMonths(1);
+        }
+        return order;
     }
 
     private static double round2(double n) {
@@ -50,7 +60,7 @@ final class HistoryEngine {
      * What the tool has been worth for one side, reduced from every deal on that side. Ports
      * {@code platform/api.ts}'s {@code summarise}.
      */
-    static ImpactSummary summarise(String side, List<DealRecord> allDeals) {
+    static ImpactSummary summarise(String side, List<DealRecord> allDeals, LocalDate today) {
         List<DealRecord> deals = allDeals.stream().filter(d -> side.equals(d.side())).toList();
         int followed = (int) deals.stream().filter(DealRecord::followed).count();
         double gained = round2(deals.stream().mapToDouble(d -> d.gain().doubleValue()).sum());
@@ -65,7 +75,7 @@ final class HistoryEngine {
                         : (d.baselinePrice().doubleValue() - d.actualPrice().doubleValue()) * d.qty()).sum());
 
         List<ImpactSummary.MonthPoint> byMonth = new ArrayList<>();
-        for (String label : SELL_MONTH_ORDER) {
+        for (String label : sellMonthOrder(today)) {
             List<DealRecord> inMonth = deals.stream().filter(d -> monthOf(d.date()).equals(label)).toList();
             byMonth.add(new ImpactSummary.MonthPoint(label,
                     round2(inMonth.stream().mapToDouble(d -> d.gain().doubleValue()).sum()),
@@ -91,13 +101,21 @@ final class HistoryEngine {
                 round2(a.savedTotal() - a.leakedTotal()), byMonth);
     }
 
-    static ImpactData buildImpact(List<DealRecord> allDealsSorted, List<DealRecord> recorded, BuyImpactSummary buyImpact) {
-        return new ImpactData(summarise("sell", allDealsSorted), summariseBuy(buyImpact), allDealsSorted, recorded);
+    static ImpactData buildImpact(List<DealRecord> allDealsSorted, List<DealRecord> recorded,
+            BuyImpactSummary buyImpact, LocalDate today) {
+        return new ImpactData(summarise("sell", allDealsSorted, today), summariseBuy(buyImpact), allDealsSorted, recorded);
     }
 
     // -- getHistory -------------------------------------------------------------------------
 
-    static HistorySummary getHistory(ImpactData impact, List<com.aatlas.decisions.Decision> decisions) {
+    /**
+     * @param shortNames {@code item_number -> history.Catalogue.ProductRef.shortName()} for
+     *     every product the tenant has, fetched once by the caller; a deal whose item is not
+     *     on file (or carries no short name) falls back to the deal's own description, then the
+     *     item number itself - {@code ProductNames}' old fallback order, over real rows.
+     */
+    static HistorySummary getHistory(ImpactData impact, List<com.aatlas.decisions.Decision> decisions,
+            Map<String, String> shortNames) {
         List<HistoryRow> rows = new ArrayList<>();
         for (DealRecord d : impact.deals()) {
             double actual = d.actualPrice().doubleValue();
@@ -122,9 +140,13 @@ final class HistoryEngine {
                     : "negative".equals(outcome) ? "Missed"
                     : d.followed() ? "Followed" : "Neutral";
 
+            String name = shortNames.get(d.itemNumber());
+            if (name == null || name.isBlank()) {
+                name = d.description() != null && !d.description().isBlank() ? d.description() : d.itemNumber();
+            }
+
             rows.add(new HistoryRow(
-                    d.id(), d.date(), d.side(), d.itemNumber(),
-                    ProductNames.shortName(d.itemNumber(), d.description()),
+                    d.id(), d.date(), d.side(), d.itemNumber(), name,
                     d.counterparty(), d.qty(), suggested, applied, actual, marginPct, d.followed(),
                     outcome, outcomeLabel, value, recorded, d.customer()));
         }

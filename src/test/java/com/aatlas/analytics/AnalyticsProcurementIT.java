@@ -11,6 +11,7 @@ import com.aatlas.realdata.SampleTenant;
 import com.aatlas.smoke.PostgresIntegrationTest;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.math.BigDecimal;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
@@ -19,6 +20,7 @@ import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.TestPropertySource;
@@ -27,8 +29,9 @@ import org.springframework.test.web.servlet.MvcResult;
 
 /**
  * {@code analytics} end to end: signup, connect the sample data source (whose purchase
- * history now loads through the import path), then every Group N endpoint. One tenant for
- * the class; every test is a read.
+ * history loads through the real import path - no more ~800-row hashed fixture, see V22 and
+ * the foundation commit), then every Group N endpoint reduced from the real
+ * {@code purchase_order} table. One tenant for the class; every test against it is a read.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -82,6 +85,22 @@ class AnalyticsProcurementIT extends PostgresIntegrationTest {
     }
 
     @Test
+    @DisplayName("?range=24m spend equals the oracle's landed spend over the same 729-day window, over real rows")
+    void spendMatchesOracle() throws Exception {
+        SampleOracle oracle = SampleTenant.oracle(clock);
+        // DateRanges.resolveRange("24m", today) is today-729d .. today (729 = 24 x 30.4).
+        BigDecimal expected = oracle.spend(clock.today().minusDays(729), clock.today());
+
+        MvcResult result = mvc.perform(get("/api/v1/analytics/procurement?range=24m")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andReturn();
+        JsonNode body = json.readTree(result.getResponse().getContentAsString());
+        double actual = body.get("spend").get("value").asDouble();
+        assertThat(actual).isCloseTo(expected.doubleValue(), org.assertj.core.data.Offset.offset(1.0));
+    }
+
+    @Test
     @DisplayName("GET /analytics/procurement/timeline, /suppliers, /delivery, /opportunities all answer")
     void subViews() throws Exception {
         mvc.perform(get("/api/v1/analytics/procurement/timeline?range=12m").header("Authorization", "Bearer " + token))
@@ -115,12 +134,13 @@ class AnalyticsProcurementIT extends PostgresIntegrationTest {
     }
 
     @Test
-    @DisplayName("GET /analytics/procurement/ledger is searchable, status-filterable and keyset paged")
+    @DisplayName("GET /analytics/procurement/ledger is searchable, status-filterable and keyset paged, and carries poRef")
     void ledgerSearch() throws Exception {
         MvcResult first = mvc.perform(get("/api/v1/analytics/procurement/ledger?limit=25")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items.length()").value(25))
+                .andExpect(jsonPath("$.items[0].poRef").isNotEmpty())
                 .andReturn();
         JsonNode page1 = json.readTree(first.getResponse().getContentAsString());
         String cursor = page1.get("nextCursor").asText();
@@ -138,11 +158,36 @@ class AnalyticsProcurementIT extends PostgresIntegrationTest {
     }
 
     @Test
+    @DisplayName("GET /analytics/procurement/ledger with a high limit returns exactly the oracle's row count")
+    void ledgerCountMatchesOracle() throws Exception {
+        SampleOracle oracle = SampleTenant.oracle(clock);
+        MvcResult result = mvc.perform(get("/api/v1/analytics/procurement/ledger?limit=" + (oracle.purchaseRows() + 1))
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andReturn();
+        JsonNode body = json.readTree(result.getResponse().getContentAsString());
+        assertThat(body.get("items").size()).isEqualTo(oracle.purchaseRows());
+        // Jackson NON_NULL drops nextCursor from the JSON entirely at the end of the ledger -
+        // path() (never Java null, unlike get()) reports that as a MissingNode.
+        JsonNode nextCursor = body.path("nextCursor");
+        assertThat(nextCursor.isMissingNode() || nextCursor.isNull() || nextCursor.asText().isEmpty()).isTrue();
+    }
+
+    @Test
     @DisplayName("GET /analytics/procurement/ranges lists the presets and the earliest order")
     void ranges() throws Exception {
         mvc.perform(get("/api/v1/analytics/procurement/ranges").header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.ranges.length()").value(7))
                 .andExpect(jsonPath("$.earliestOrder").isNotEmpty());
+    }
+
+    @Test
+    @DisplayName("a tenant with no purchase history gets 404 no_ledger, not an empty dashboard")
+    void noLedgerFor404() throws Exception {
+        String freshToken = SampleTenant.signUp(mvc, json, "both", "US");
+        mvc.perform(get("/api/v1/analytics/procurement?range=30d").header("Authorization", "Bearer " + freshToken))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("no_ledger"));
     }
 }
