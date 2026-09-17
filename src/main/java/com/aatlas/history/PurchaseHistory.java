@@ -23,6 +23,15 @@ public interface PurchaseHistory {
 
     ItemPurchases item(String itemNumber, Window w);
 
+    /**
+     * The item's lines shipped to one branch, any supplier. The cost ladder's purchases rung
+     * reads the branch first and falls back to every branch; a default so an implementation
+     * that has no branch dimension still answers.
+     */
+    default PoStats itemAtStore(String itemNumber, java.util.UUID storeId, Window w) {
+        return item(itemNumber, w).all();
+    }
+
     /** The supplier with the largest share of the item's spend in the trailing twelve months, else the last order's. */
     Optional<SupplierShare> incumbent(String itemNumber, LocalDate today);
 
