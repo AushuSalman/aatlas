@@ -3,12 +3,16 @@ package com.aatlas.suppliers.internal.csv;
 import java.util.List;
 
 /**
- * One supplier read out of a file, normalised and ready to become a panel row.
+ * One supplier read out of a file, typed in by hand, or merged from an existing record during
+ * a patch - normalised and ready to become a panel row.
  *
- * <p>Every field is already clamped to its allowed range and every absent optional has its
- * assumed value filled in, so nothing downstream has to ask "was this supplied?". What was
- * assumed rather than read is reported as a warning against the row instead, which is the
- * only way a buyer can tell a real 100 price index from a missing one.
+ * <p>The manual-entry and CSV-import routes always fill in every optional with an assumed
+ * value (see {@code SupplierImportValidator}, {@code AddSupplierRequest.toDraft}), reporting
+ * what was assumed as a warning rather than leaving it absent. A patch on a supplier the
+ * platform only knows from a purchase order is different: some figures may genuinely never
+ * have been provided, and {@code null} there is "not provided", not an assumption to derive a
+ * star from. The numeric fields are boxed for exactly that second case; {@link SupplierWriter}
+ * treats a null the same way whichever route produced it.
  *
  * @param key {@code name|country}, normalised. Two rows sharing it are one supplier.
  * @param priceIndex 100 is market; 94 is six per cent under
@@ -22,20 +26,20 @@ public record SupplierDraft(
         String city,
         String website,
         String category,
-        int yearsTrading,
+        Integer yearsTrading,
         List<String> certifications,
-        int leadTimeDays,
-        double otifPct,
-        double priceIndex,
-        double defectPct,
-        boolean holdsStock,
-        double communication,
+        Integer leadTimeDays,
+        Double otifPct,
+        Double priceIndex,
+        Double defectPct,
+        Boolean holdsStock,
+        Double communication,
         String contactName,
         String contactEmail,
         String contactPhone,
         int line) {
 
-    /** What an absent optional column becomes. Mirrors {@code BLANK_DRAFT} in the frontend. */
+    /** What an absent optional column becomes on manual entry or CSV import. Mirrors {@code BLANK_DRAFT} in the frontend. */
     public static final double DEFAULT_PRICE_INDEX = 100;
     public static final double DEFAULT_DEFECT_PCT = 1.5;
     public static final double DEFAULT_COMMUNICATION = 3.5;

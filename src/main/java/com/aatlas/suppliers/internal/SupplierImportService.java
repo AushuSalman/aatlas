@@ -118,7 +118,8 @@ public class SupplierImportService {
                 writer.update(existing.get(), draft, SupplierWriter.IMPORTED_SOURCE);
                 updated++;
             } else {
-                writer.create(tenantId, supplierKey, draft, userId, SupplierWriter.IMPORTED_SOURCE);
+                writer.create(tenantId, supplierKey, draft, userId, SupplierWriter.IMPORT_SOURCE,
+                        SupplierWriter.IMPORTED_SOURCE);
                 created++;
             }
         }

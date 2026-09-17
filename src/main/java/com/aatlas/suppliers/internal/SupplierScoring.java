@@ -3,25 +3,22 @@ package com.aatlas.suppliers.internal;
 import static com.aatlas.suppliers.internal.Js.clamp;
 import static com.aatlas.suppliers.internal.Js.round1;
 
-import com.aatlas.common.seed.Seeded;
-import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 /**
  * Stars, derived from what the platform already measures. A port of the star-scoring half of
  * the frontend's {@code intel/suppliers.ts}: the on-time record, the lead time and stock
- * position, the price index and the defect rate it seeds, plus the one seeded component
- * (communication) that the platform cannot otherwise measure.
+ * position, and the price index - plus {@code communication}, the one dimension nothing in
+ * the system measures, which is accepted as given rather than derived.
  *
- * <p>Arithmetic must match the TypeScript to the last digit - two screens must never
- * disagree about a supplier's stars - so every constant, salt and rounding step here is
- * copied verbatim rather than "simplified". {@code SupplierScoringGoldenTest} pins it against
- * {@code golden/suppliers.json}.
+ * <p>Every star function is null-safe: a supplier known only from a purchase order, or one
+ * being edited with some fields still absent, has no defect rate, price index or on-time rate
+ * on file for some dimensions, and the corresponding star is {@code null} rather than a
+ * hashed guess. {@link #overall} takes the weighted mean over whichever dimensions are
+ * present, with the remaining weights renormalised - never zero-filling an absent one.
  */
 final class SupplierScoring {
 
@@ -64,153 +61,85 @@ final class SupplierScoring {
     }
 
     /**
-     * Whether the supplier ships from stock (or will rush). The same two seeds the Buy
-     * screen's route model reads, so the star here and the route there can never disagree.
+     * Delivery speed, from the supplier's own gate plus the lane's inbound transit, floored
+     * when they are known to hold stock (or rush). {@code holdsStock} is the file/observed
+     * fact, never a hash of the supplier's id; {@code null} means unknown, which carries no
+     * floor. Null when the lead time itself was never provided.
      */
-    static boolean holdsStock(String id) {
-        return Seeded.rand("route:" + id, "stkD") > 0.42 && Seeded.rand("srisk:" + id, "cap") > 0.22;
-    }
-
-    static double speedStars(String id, String country, double leadTimeDays) {
+    static Double speedStars(String country, Integer leadTimeDays, Boolean holdsStock) {
+        if (leadTimeDays == null) {
+            return null;
+        }
         double own = leadStars(leadTimeDays + inboundDays(country));
-        if (!holdsStock(id)) {
+        if (!Boolean.TRUE.equals(holdsStock)) {
             return own;
         }
         double stockFloor = "USA".equals(country) ? 5 : "Mexico".equals(country) ? 4.6 : 4.2;
         return Math.max(own, stockFloor);
     }
 
-    /** Delivery as a buyer experiences it: the on-time record, and how fast the goods can be here. */
-    static double deliveryStars(String id, String country, double leadTimeDays, double otif) {
-        return round1(0.55 * otifStars(otif) + 0.45 * speedStars(id, country, leadTimeDays));
+    /**
+     * Delivery as a buyer experiences it: the on-time record, and how fast the goods can be
+     * here. Null when neither the lead time nor the on-time rate is known; a weighted mean of
+     * whichever of the two is present when only one is.
+     */
+    static Double deliveryStars(String country, Integer leadTimeDays, Double otifPct, Boolean holdsStock) {
+        Double speed = speedStars(country, leadTimeDays, holdsStock);
+        Double otif = otifPct == null ? null : otifStars(otifPct);
+        if (speed == null && otif == null) {
+            return null;
+        }
+        if (speed == null) {
+            return round1(otif);
+        }
+        if (otif == null) {
+            return round1(speed);
+        }
+        return round1(0.55 * otif + 0.45 * speed);
     }
 
-    /** Price index to stars. A vetted panel sits between three and five: 89 is five, 114 is three. */
-    static double pricingStars(double idx) {
-        return clamp(round1(5 - ((idx - 89) / 25) * 2), 3, 5);
+    /** Price index to stars. A vetted panel sits between three and five: 89 is five, 114 is three. Null without a price index. */
+    static Double pricingStars(Double idx) {
+        return idx == null ? null : clamp(round1(5 - ((idx - 89) / 25) * 2), 3, 5);
     }
 
     static double indexFromStars(double stars) {
         return Js.round2(89 + ((5 - stars) / 2) * 25);
     }
 
-    /** Defect rate to stars, on the same scale: 0.2% is five, 3.4% is three. */
-    static double qualityStars(double defect) {
-        return clamp(round1(5 - ((defect - 0.2) / 3.2) * 2), 3, 5);
-    }
-
-    /** The Buy screen's defect rate for a supplier - same key, same salt, so the two agree. */
-    static double seededDefect(String id) {
-        return round1(Seeded.randRange("sup:" + id, "defect", 0.2, 3.4));
+    /** Defect rate to stars, on the same scale: 0.2% is five, 3.4% is three. Null without a defect rate. */
+    static Double qualityStars(Double defect) {
+        return defect == null ? null : clamp(round1(5 - ((defect - 0.2) / 3.2) * 2), 3, 5);
     }
 
     /** Delivery carries the most weight: for a distributor, "did it arrive when promised" is the review. */
     static final Map<String, Double> WEIGHTS = Map.of(
             "quality", 0.15, "delivery", 0.4, "communication", 0.3, "pricing", 0.15);
 
-    /** The one seeded component. A new salt for this feature; nothing else reads it. */
-    static final String COMM_SALT = "rating-comm-78";
-
-    static double communicationStars(String key) {
-        return round1(Seeded.randRange(key, COMM_SALT, 1, 5));
+    /**
+     * The weighted mean over whichever dimensions are present, with the remaining weights
+     * renormalised so an absent dimension is skipped rather than scored as zero. Null when no
+     * dimension is present at all - the caller writes no {@code supplier_ratings} row for it.
+     */
+    static Double overall(RatingBreakdown b) {
+        double sum = 0;
+        double weight = 0;
+        for (String k : RatingBreakdown.KEYS) {
+            Double v = b.get(k);
+            if (v != null) {
+                double w = WEIGHTS.get(k);
+                sum += v * w;
+                weight += w;
+            }
+        }
+        return weight == 0 ? null : clamp(round1(sum / weight), 1, 5);
     }
 
-    static double overall(RatingBreakdown b) {
-        return clamp(round1(
-                b.quality() * WEIGHTS.get("quality") + b.delivery() * WEIGHTS.get("delivery")
-                        + b.communication() * WEIGHTS.get("communication") + b.pricing() * WEIGHTS.get("pricing")),
-                1, 5);
-    }
-
-    static String ratingLabel(double rating) {
+    static String ratingLabel(Double rating) {
+        if (rating == null) {
+            return "Not assessed";
+        }
         return rating >= 4.5 ? "Excellent" : rating >= 4 ? "Good" : rating >= 3.3 ? "Fair" : "Weak";
-    }
-
-    // -- Certifications -----------------------------------------------------------------------
-
-    private static final Map<String, List<String>> CERTS = Map.of(
-            "Copper & brass", List.of("ISO 9001", "ASTM B88", "NSF/ANSI 61", "ISO 14001", "UL"),
-            "Valves", List.of("ISO 9001", "API 607", "CE PED", "ISO 14001", "UL", "CSA"),
-            "Polymers", List.of("ISO 9001", "NSF/ANSI 14", "ASTM F876", "ISO 14001", "UL"),
-            "Steel", List.of("ISO 9001", "ASTM A53", "EN 10204 3.1", "ISO 14001", "API 5L"),
-            "Tooling", List.of("ISO 9001", "ISO 14001", "CE", "UL", "ANSI B107"),
-            "Fittings", List.of("ISO 9001", "ASME B16", "NSF/ANSI 61", "UL", "ISO 14001", "CSA"));
-
-    /** ISO 9001 always; then two to four from the category's list. */
-    static List<String> certsFor(String key, String category) {
-        List<String> pool = CERTS.get(category);
-        int n = Seeded.randInt(key, "certs-n", 2, 4);
-        List<String> out = new ArrayList<>();
-        out.add(pool.get(0));
-        int i = 1 + Seeded.randInt(key, "certs-o", 0, pool.size() - 2);
-        while (out.size() < n) {
-            String c = pool.get(1 + (i % (pool.size() - 1)));
-            if (!out.contains(c)) {
-                out.add(c);
-            }
-            i++;
-        }
-        return out;
-    }
-
-    // -- Reviews ------------------------------------------------------------------------------
-
-    private static final List<String> REVIEWERS = List.of(
-            "Purchasing manager, mechanical contractor",
-            "Category buyer, plumbing distributor",
-            "Branch manager, HVAC wholesaler",
-            "Procurement lead, industrial MRO",
-            "Owner, plumbing contractor",
-            "Buyer, regional distributor",
-            "Operations director, building services",
-            "Supply chain manager, facilities group");
-
-    private static final List<String> WHEN = List.of(
-            "2 weeks ago", "1 month ago", "6 weeks ago", "2 months ago", "3 months ago", "5 months ago",
-            "8 months ago", "last year");
-
-    private static final List<String> POSITIVE = List.of(
-            "Two years in and not a single short shipment. Their account manager answers the same day.",
-            "Certs come with every lot without asking. Pricing moved with the index, never above it.",
-            "Handled a rush order over a holiday weekend. Not the cheapest quote we had, but the one that showed up.",
-            "Consistent quality across three plants. We stopped incoming inspection on their lines last year.",
-            "Straightforward to deal with. Quotes are itemised, freight is quoted up front, no surprises on the invoice.",
-            "Lead times quoted are lead times delivered. That alone is worth a few points on price.",
-            "Took a spec change mid-order without drama or a re-quote. Rare.");
-
-    private static final List<String> MIXED = List.of(
-            "Good product, slow paperwork. Expect to chase the certificate of analysis and the packing list.",
-            "Pricing is sharp but the lead time slipped twice this year. Fine for stock replenishment, not for a job with a date.",
-            "Solid on standard items; anything non-standard takes weeks to quote.",
-            "Delivered what we ordered, though communication went quiet for a week mid-order.",
-            "Decent value. Packaging could be better - two dented cartons on the last pallet.");
-
-    private static final List<String> NEGATIVE = List.of(
-            "Two of the last five deliveries were a week late with no notice. Had to source elsewhere for a contract job.",
-            "Quality has drifted. Rejected a lot for out-of-spec dimensions and it took a month to get the credit.",
-            "Cheap for a reason. Invoices did not match the quote and nobody picked up the phone.",
-            "Minimum order jumped without warning. Not a partner for a smaller branch.",
-            "Three quote requests, one answer. We moved the line.");
-
-    /** Three reviews around the rating: one warmer, one on it, one cooler. Never the same text twice. */
-    static List<SupplierReview> reviewsFor(String key, double rating) {
-        double[] offsets = {0.6, 0, -1.1};
-        Set<String> used = new HashSet<>();
-        List<SupplierReview> out = new ArrayList<>(3);
-        for (int i = 0; i < offsets.length; i++) {
-            int stars = (int) clamp(Math.round(rating + offsets[i]), 1, 5);
-            List<String> pool = stars >= 4 ? POSITIVE : stars == 3 ? MIXED : NEGATIVE;
-            int idx = (int) Math.floor(Seeded.rand(key, "rv-" + i) * pool.size());
-            while (used.contains(pool.get(idx % pool.size()))) {
-                idx++;
-            }
-            String text = pool.get(idx % pool.size());
-            used.add(text);
-            String author = Seeded.pick(key, "rva-" + i, REVIEWERS);
-            String when = WHEN.get(Math.min(WHEN.size() - 1, i * 2 + Seeded.randInt(key, "rvw-" + i, 0, 1)));
-            out.add(new SupplierReview(author, when, stars, text));
-        }
-        return out;
     }
 
     // -- One sentence ---------------------------------------------------------------------------
@@ -222,12 +151,18 @@ final class SupplierScoring {
             "pricing", "negotiate before every order");
 
     /** What to do about this supplier, in one plain sentence. {@code preview} is the lookup card, before they are on the panel. */
-    static String recommendation(double rating, int reviewCount, RatingBreakdown breakdown, double priceIndex,
+    static String recommendation(double rating, int reviewCount, RatingBreakdown breakdown, Double priceIndex,
             boolean preview) {
         String label = ratingLabel(rating);
         Map<String, Double> entries = new LinkedHashMap<>();
         for (String k : RatingBreakdown.KEYS) {
-            entries.put(k, breakdown.get(k));
+            Double v = breakdown.get(k);
+            if (v != null) {
+                entries.put(k, v);
+            }
+        }
+        if (entries.isEmpty()) {
+            return "Not enough information to recommend this supplier yet.";
         }
         String strongest = entries.entrySet().stream()
                 .sorted(Comparator.<Map.Entry<String, Double>>comparingDouble(Map.Entry::getValue).reversed())
@@ -237,11 +172,13 @@ final class SupplierScoring {
                 .findFirst().orElseThrow().getKey();
         String stars = Js.toFixed(rating, 1) + " ★";
         String from = "from " + Js.localeInt(reviewCount) + " buyers";
-        String price = priceIndex < 99.5
-                ? "priced " + Math.round(100 - priceIndex) + "% under market"
-                : priceIndex > 100.5
-                        ? "priced " + Math.round(priceIndex - 100) + "% over market"
-                        : "priced at market";
+        String price = priceIndex == null
+                ? "no price index on file"
+                : priceIndex < 99.5
+                        ? "priced " + Math.round(100 - priceIndex) + "% under market"
+                        : priceIndex > 100.5
+                                ? "priced " + Math.round(priceIndex - 100) + "% over market"
+                                : "priced at market";
         if ("Excellent".equals(label)) {
             return (preview ? "Add to the panel" : "Core supplier") + ": " + stars + " " + from + ", strong on "
                     + strongest + ", " + price + ".";
@@ -258,35 +195,21 @@ final class SupplierScoring {
                 + ".";
     }
 
-    /**
-     * Six months of on-time record around a supplier's own OTIF, for a supplier added
-     * outside the seeded panel. A port of {@code otifTrendFor} in the frontend's
-     * {@code platform/data.ts}: a supplier that misses dates does not suddenly become
-     * reliable last month, so the trend is a walk around their own OTIF rather than six
-     * unrelated numbers.
-     */
-    static List<Double> otifTrendFor(String key, double otifPct) {
-        List<Double> out = new ArrayList<>(6);
-        for (int m = 0; m < 6; m++) {
-            double v = Math.min(99.5, Math.max(62, otifPct + Seeded.randRange(key, "trend" + m, -6, 6)));
-            out.add(Js.round2(v));
-        }
-        return out;
-    }
-
     // -- The panel in numbers ---------------------------------------------------------------------
 
-    /** {@code otifPct} is null for a supplier whose on-time rate was never provided. */
-    record PanelRow(boolean custom, double rating, double spendShare12m, Double otifPct) {
+    /** {@code rating}/{@code otifPct} are null for a supplier that has never been assessed on that dimension. */
+    record PanelRow(boolean custom, Double rating, double spendShare12m, Double otifPct) {
     }
 
     static PanelSummary panelSummary(List<PanelRow> rows) {
-        int n = rows.isEmpty() ? 1 : rows.size();
+        List<PanelRow> rated = rows.stream().filter(r -> r.rating() != null).toList();
+        int n = rated.isEmpty() ? 1 : rated.size();
         double spend = rows.stream().mapToDouble(PanelRow::spendShare12m).sum();
         if (spend == 0) {
             spend = 1;
         }
-        double spendRated4 = rows.stream().filter(r -> r.rating() >= 4).mapToDouble(PanelRow::spendShare12m).sum();
+        double spendRated4 = rows.stream().filter(r -> r.rating() != null && r.rating() >= 4)
+                .mapToDouble(PanelRow::spendShare12m).sum();
         // The average on-time rate is over the suppliers that have one; the rest are not zero.
         List<PanelRow> withOtif = rows.stream().filter(r -> r.otifPct() != null).toList();
         double avgOtif = withOtif.isEmpty() ? 0
@@ -294,9 +217,9 @@ final class SupplierScoring {
         return new PanelSummary(
                 rows.size(),
                 (int) rows.stream().filter(PanelRow::custom).count(),
-                round1(rows.stream().mapToDouble(PanelRow::rating).sum() / n),
+                round1(rated.stream().mapToDouble(PanelRow::rating).sum() / n),
                 (int) Math.round(spendRated4 / spend * 100),
-                (int) rows.stream().filter(r -> "Weak".equals(ratingLabel(r.rating()))).count(),
+                (int) rated.stream().filter(r -> "Weak".equals(ratingLabel(r.rating()))).count(),
                 round1(avgOtif));
     }
 }

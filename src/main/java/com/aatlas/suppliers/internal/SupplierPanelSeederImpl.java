@@ -36,7 +36,6 @@ class SupplierPanelSeederImpl implements SupplierPanelSeeder {
     private final SupplierRepository suppliers;
     private final SupplierTermsRepository terms;
     private final SupplierRatingRepository ratings;
-    private final SupplierReviewRepository reviews;
     private final SupplierRiskRepository risks;
     private final SupplierPerformanceMonthRepository performance;
     private final SupplierProductLinkSeeder links;
@@ -47,7 +46,6 @@ class SupplierPanelSeederImpl implements SupplierPanelSeeder {
             SupplierRepository suppliers,
             SupplierTermsRepository terms,
             SupplierRatingRepository ratings,
-            SupplierReviewRepository reviews,
             SupplierRiskRepository risks,
             SupplierPerformanceMonthRepository performance,
             SupplierProductLinkSeeder links,
@@ -56,7 +54,6 @@ class SupplierPanelSeederImpl implements SupplierPanelSeeder {
         this.suppliers = suppliers;
         this.terms = terms;
         this.ratings = ratings;
-        this.reviews = reviews;
         this.risks = risks;
         this.performance = performance;
         this.links = links;
@@ -123,6 +120,7 @@ class SupplierPanelSeederImpl implements SupplierPanelSeeder {
                 null,
                 record.since());
         supplier.setTenantId(tenantId);
+        supplier.setSource("sample");
         supplier = suppliers.save(supplier);
 
         SupplierTermsEntity termsRow = new SupplierTermsEntity(
@@ -134,18 +132,16 @@ class SupplierPanelSeederImpl implements SupplierPanelSeeder {
         ratings.save(new SupplierRatingEntity(supplier.getId(), tenantId, profile.rating(), profile.reviewCount(),
                 profile.ratingBreakdown(), label, profile.ratingSource(), now));
 
-        List<SupplierReviewEntity> reviewRows = new ArrayList<>();
-        int position = 0;
-        for (SupplierReview r : profile.reviews()) {
-            reviewRows.add(new SupplierReviewEntity(supplier.getId(), position++, r, profile.ratingSource()));
-        }
-        for (SupplierReviewEntity r : reviewRows) {
-            r.setTenantId(tenantId);
-        }
-        reviews.saveAll(reviewRows);
+        // No reviews are written for the seeded panel either: reviewsFor() answers [] for
+        // every supplier today (no real review data exists anywhere in the platform), so a
+        // row here would be dead data nothing ever serves.
 
+        // Provided-only day-one snapshot, same as any other freshly created supplier
+        // (SupplierWriter): the sample's purchase history loads separately, and reads that
+        // want the observed picture recompute it live from history.PurchaseHistory instead
+        // of trusting this row (see SuppliersService.computeRisk).
         RiskScoring.Input riskInput = new RiskScoring.Input(
-                profile.id(), profile.leadTimeDays(), profile.otifPct(), profile.defectPct());
+                false, profile.otifPct(), profile.defectPct(), null, null, null, null, null, null);
         SupplierRisk risk = RiskScoring.supplierRisk(riskInput,
                 new RiskScoring.RatingSummary(profile.rating(), profile.reviewCount()), now);
         SupplierRiskEntity riskRow = new SupplierRiskEntity(supplier.getId(), tenantId, risk);
