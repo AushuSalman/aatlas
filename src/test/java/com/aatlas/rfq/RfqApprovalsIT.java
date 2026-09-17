@@ -6,6 +6,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.aatlas.realdata.SampleTenant;
 import com.aatlas.smoke.PostgresIntegrationTest;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -77,22 +78,10 @@ class RfqApprovalsIT extends PostgresIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"kind\":\"sample\"}"))
                 .andExpect(status().isCreated());
-        waitForSupplierPanel(token);
+        // The sample history (and the purchase orders the buy side reads) loads through the
+        // import path after connect; wait for every batch before reading.
+        SampleTenant.awaitReady(mvc, json, token);
         return token;
-    }
-
-    /** See {@code BuyEngineGoldenIT} for why this polls rather than reading right after connect. */
-    private void waitForSupplierPanel(String token) throws Exception {
-        for (int attempt = 0; attempt < 50; attempt++) {
-            MvcResult result = mvc.perform(get("/api/v1/suppliers/summary").header("Authorization", "Bearer " + token))
-                    .andExpect(status().isOk())
-                    .andReturn();
-            if (json.readTree(result.getResponse().getContentAsString()).get("size").asInt() >= 8) {
-                return;
-            }
-            Thread.sleep(200);
-        }
-        throw new AssertionError("Supplier panel was not seeded within 10s of connecting the sample data source");
     }
 
     private List<String> supplierIds(String token, int qty) throws Exception {

@@ -84,6 +84,11 @@ public class DataSourceEntity extends TenantScopedEntity {
         return new DataSourceView(getId(), kind.wireValue(), label, detail, status.wireValue(), connectedAt, lastSyncAt);
     }
 
+    /** Stamps a sync: the sample loader's claim, the reload endpoint. */
+    void touchSync(Instant at) {
+        this.lastSyncAt = at;
+    }
+
     public DataSourceKind getKind() {
         return kind;
     }

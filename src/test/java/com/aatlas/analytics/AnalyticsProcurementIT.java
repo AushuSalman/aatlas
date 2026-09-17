@@ -2,23 +2,23 @@ package com.aatlas.analytics;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.aatlas.common.time.AatlasClock;
+import com.aatlas.realdata.SampleOracle;
+import com.aatlas.realdata.SampleTenant;
 import com.aatlas.smoke.PostgresIntegrationTest;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import java.nio.charset.StandardCharsets;
-import java.util.Base64;
 import java.util.UUID;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.TestPropertySource;
@@ -26,8 +26,9 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
 /**
- * {@code analytics} end to end: signup, connect the sample data source (confirming ~800
- * purchase orders land), then every Group N endpoint.
+ * {@code analytics} end to end: signup, connect the sample data source (whose purchase
+ * history now loads through the import path), then every Group N endpoint. One tenant for
+ * the class; every test is a read.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -48,73 +49,29 @@ class AnalyticsProcurementIT extends PostgresIntegrationTest {
     @Autowired
     JdbcTemplate jdbc;
 
-    private static String uniqueEmail() {
-        return "buyer-" + UUID.randomUUID() + "@kestrelsupply.com";
-    }
+    @Autowired
+    AatlasClock clock;
 
-    private String signUpAndConnect() throws Exception {
-        MvcResult signup = mvc.perform(post("/api/v1/auth/signup")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "fullName": "Priya Shah",
-                                  "email": "%s",
-                                  "password": "Zephyr!42Bridge",
-                                  "company": "Kestrel Supply Co.",
-                                  "country": "US",
-                                  "role": "both"
-                                }
-                                """.formatted(uniqueEmail())))
-                .andExpect(status().isCreated())
-                .andReturn();
-        String token = json.readTree(signup.getResponse().getContentAsString()).get("accessToken").asText();
+    private String token;
+    private UUID tenantId;
 
-        mvc.perform(post("/api/v1/data-sources")
-                        .header("Authorization", "Bearer " + token)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"kind\":\"sample\"}"))
-                .andExpect(status().isCreated());
-
-        // ProcurementLedgerSeedListener reacts to SampleDataConnected asynchronously, after
-        // the connect request's own transaction commits - the HTTP response does not wait
-        // for ~800 rows to land, so every test that reads the ledger right after connecting
-        // needs to wait for the seed to actually finish.
-        awaitLedgerSeeded(tenantIdOf(json, token));
-        return token;
-    }
-
-    private static UUID tenantIdOf(ObjectMapper json, String token) throws Exception {
-        String[] parts = token.split("\\.");
-        String payload = new String(Base64.getUrlDecoder().decode(parts[1]), StandardCharsets.UTF_8);
-        return UUID.fromString(json.readTree(payload).get("tid").asText());
-    }
-
-    private void awaitLedgerSeeded(UUID tenantId) throws InterruptedException {
-        for (int i = 0; i < 100; i++) {
-            Integer count = jdbc.queryForObject("select count(*) from purchase_order where tenant_id = ?", Integer.class, tenantId);
-            if (count != null && count > 0) {
-                return;
-            }
-            Thread.sleep(100);
-        }
-        throw new AssertionError("The procurement ledger was not seeded within 10s of connecting the sample data source");
+    @BeforeAll
+    void connectSample() throws Exception {
+        token = SampleTenant.signUpAndConnect(mvc, json, "both");
+        tenantId = SampleTenant.tenantIdOf(json, token);
     }
 
     @Test
-    @DisplayName("connecting the sample dataset writes the ~800-row procurement ledger")
-    void sampleDataSeedsLedger() throws Exception {
-        String token = signUpAndConnect();
-        UUID tenantId = tenantIdOf(json, token);
-
+    @DisplayName("connecting the sample dataset loads exactly the purchase history in the sample file")
+    void sampleDataLoadsTheLedger() {
+        SampleOracle oracle = SampleTenant.oracle(clock);
         Integer count = jdbc.queryForObject("select count(*) from purchase_order where tenant_id = ?", Integer.class, tenantId);
-        assertThat(count).isBetween(600, 1000);
+        assertThat(count).isEqualTo(oracle.purchaseRows());
     }
 
     @Test
     @DisplayName("GET /analytics/procurement returns the full dashboard payload")
     void fullPayload() throws Exception {
-        String token = signUpAndConnect();
-
         mvc.perform(get("/api/v1/analytics/procurement?range=90d").header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.range.key").value("90d"))
@@ -127,8 +84,6 @@ class AnalyticsProcurementIT extends PostgresIntegrationTest {
     @Test
     @DisplayName("GET /analytics/procurement/timeline, /suppliers, /delivery, /opportunities all answer")
     void subViews() throws Exception {
-        String token = signUpAndConnect();
-
         mvc.perform(get("/api/v1/analytics/procurement/timeline?range=12m").header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray());
@@ -151,7 +106,6 @@ class AnalyticsProcurementIT extends PostgresIntegrationTest {
     @Test
     @DisplayName("GET /analytics/procurement/mix supports every dimension")
     void mixDimensions() throws Exception {
-        String token = signUpAndConnect();
         for (String dim : new String[] {"supplier", "category", "branch", "region", "origin"}) {
             mvc.perform(get("/api/v1/analytics/procurement/mix?dimension=" + dim + "&range=12m")
                             .header("Authorization", "Bearer " + token))
@@ -163,8 +117,6 @@ class AnalyticsProcurementIT extends PostgresIntegrationTest {
     @Test
     @DisplayName("GET /analytics/procurement/ledger is searchable, status-filterable and keyset paged")
     void ledgerSearch() throws Exception {
-        String token = signUpAndConnect();
-
         MvcResult first = mvc.perform(get("/api/v1/analytics/procurement/ledger?limit=25")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
@@ -178,6 +130,7 @@ class AnalyticsProcurementIT extends PostgresIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items.length()").value(25));
 
+        // The generator leaves the most recent orders unreceived, so at least one is open.
         mvc.perform(get("/api/v1/analytics/procurement/ledger?status=open&limit=10")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
@@ -187,8 +140,6 @@ class AnalyticsProcurementIT extends PostgresIntegrationTest {
     @Test
     @DisplayName("GET /analytics/procurement/ranges lists the presets and the earliest order")
     void ranges() throws Exception {
-        String token = signUpAndConnect();
-
         mvc.perform(get("/api/v1/analytics/procurement/ranges").header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.ranges.length()").value(7))

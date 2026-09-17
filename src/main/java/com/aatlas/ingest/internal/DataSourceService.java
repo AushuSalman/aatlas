@@ -5,6 +5,7 @@ import com.aatlas.common.error.ApiException;
 import com.aatlas.common.event.DomainEventPublisher;
 import com.aatlas.common.tenant.TenantContext;
 import com.aatlas.common.time.AatlasClock;
+import com.aatlas.history.HistoryCaches;
 import com.aatlas.ingest.DataSourceView;
 import com.aatlas.ingest.SampleDataConnected;
 import com.aatlas.ingest.SampleDataProvisioner;
@@ -13,6 +14,7 @@ import com.aatlas.tenant.CountryCode;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,10 +27,12 @@ import org.springframework.transaction.annotation.Transactional;
  * The data-source lifecycle: list, connect, disconnect. Implements the module's public
  * {@link SampleDataProvisioner}.
  *
- * <p>Connecting the sample dataset is the one path that does real work: the seeded
- * catalogue is copied in through {@link CatalogSeeding}, the source row is written, and
- * {@link SampleDataConnected} goes to the outbox - all in one transaction. ERP and
- * warehouse sources are recorded as {@code pending}; the connectors that make them real
+ * <p>Connecting the sample dataset is the one path that does real work here: the seeded
+ * catalogue is copied in through {@link CatalogSeeding}, the supplier panel seeded, the
+ * source row written, and {@link SampleDataConnected} goes to the outbox - all in one
+ * transaction. The history (sales, purchases, prices, stock, competitor prices) then loads
+ * through the import path in {@link SampleHistoryLoader}, which listens for that event. ERP
+ * and warehouse sources are recorded as {@code pending}; the connectors that make them real
  * are step 5 of the build order.
  */
 @Service
@@ -37,27 +41,33 @@ class DataSourceService implements SampleDataProvisioner {
     private static final Logger log = LoggerFactory.getLogger(DataSourceService.class);
 
     static final String SAMPLE_LABEL = "Sample dataset";
-    static final String SAMPLE_DETAIL = "Demo account — seeded history";
+    static final String SAMPLE_DETAIL = "Hardin Supply Co — 26 months of history";
 
     private final DataSourceRepository sources;
+    private final ImportBatchRepository batches;
     private final CatalogSeeding catalog;
     private final SupplierPanelSeeder supplierPanel;
     private final TenantCountryLookup tenantCountry;
     private final DomainEventPublisher events;
+    private final HistoryCaches caches;
     private final AatlasClock clock;
 
     DataSourceService(
             DataSourceRepository sources,
+            ImportBatchRepository batches,
             CatalogSeeding catalog,
             SupplierPanelSeeder supplierPanel,
             TenantCountryLookup tenantCountry,
             DomainEventPublisher events,
+            HistoryCaches caches,
             AatlasClock clock) {
         this.sources = sources;
+        this.batches = batches;
         this.catalog = catalog;
         this.supplierPanel = supplierPanel;
         this.tenantCountry = tenantCountry;
         this.events = events;
+        this.caches = caches;
         this.clock = clock;
     }
 
@@ -69,11 +79,17 @@ class DataSourceService implements SampleDataProvisioner {
                 .toList();
     }
 
-    /** {@link SampleDataProvisioner#current}: the newest connection, for any tenant id given. */
+    /**
+     * {@link SampleDataProvisioner#current}: the sample source when there is one (a sample
+     * tenant is a sample tenant whatever else it recorded), else the newest connection.
+     */
     @Override
     @Transactional(readOnly = true)
-    public java.util.Optional<DataSourceView> current(UUID tenantId) {
-        return sources.findByTenantIdOrderByConnectedAtDesc(tenantId).stream().findFirst().map(DataSourceEntity::toView);
+    public Optional<DataSourceView> current(UUID tenantId) {
+        List<DataSourceEntity> all = sources.findByTenantIdOrderByConnectedAtDesc(tenantId);
+        return all.stream().filter(s -> s.getKind() == DataSourceKind.SAMPLE).findFirst()
+                .or(() -> all.stream().findFirst())
+                .map(DataSourceEntity::toView);
     }
 
     /** The REST entry point: routes by kind for the signed-in tenant. */
@@ -100,20 +116,20 @@ class DataSourceService implements SampleDataProvisioner {
                 .ifPresent(existing -> {
                     throw alreadyConnected(existing.getId());
                 });
+        // A workspace with its own history is not a demo workspace: Hardin rows must never
+        // sit inside a real tenant's figures.
+        if (batches.existsByTenantIdAndSourceAndStatus(tenantId, "upload", ImportBatchStatus.COMMITTED)) {
+            throw ApiException.conflict("workspace_has_data",
+                    "This workspace already has imported history. The sample can only be connected to an empty one.");
+        }
 
         CountryCode country = tenantCountry.countryOf(tenantId);
         CatalogSeeding.SeedSummary seeded = catalog.seedSampleCatalogue(tenantId, country);
 
         // The supplier panel is part of the sample dataset, so it is copied in here with the
-        // catalogue rather than by a listener reacting to the event below.
-        //
-        // It used to be the latter, and the ordering was not guaranteed: analytics' own
-        // listener seeds a purchase-order ledger naming suppliers by key, and on this machine
-        // it ran ~280ms BEFORE the panel existed. Nothing failed only because no constraint
-        // connected the two - V21 adds one, and with it the old order is a hard error. Seeding
-        // both sides in this transaction, before SampleDataConnected is published, means every
-        // listener sees a complete dataset. It also retires the race the integration tests
-        // documented and polled around (see BuyEngineGoldenIT.waitForSupplierPanel).
+        // catalogue rather than by a listener reacting to the event below: the purchase
+        // history that SampleHistoryLoader loads names these suppliers by key, and V21 makes
+        // that a foreign key.
         supplierPanel.seedForTenant(tenantId);
 
         Instant now = clock.now();
@@ -141,6 +157,7 @@ class DataSourceService implements SampleDataProvisioner {
         }
 
         events.publish(new SampleDataConnected(tenantId, source.getId(), now));
+        caches.evictAfterCommit(tenantId);
 
         log.info("Sample dataset connected: tenant={} source={} country={} seeded={}",
                 tenantId, source.getId(), country, seeded);
@@ -153,8 +170,10 @@ class DataSourceService implements SampleDataProvisioner {
         DataSourceEntity source = sources.findByTenantIdAndId(tenantId, id)
                 .orElseThrow(() -> ApiException.notFound("Data source", id));
         // The catalogue stays: disconnecting a source is a statement about future syncs,
-        // not a request to forget what was already learned.
+        // not a request to forget what was already learned. DELETE /data-sources/sample is
+        // the call that removes the sample's rows.
         sources.delete(source);
+        caches.evictAfterCommit(tenantId);
         log.info("Data source disconnected: tenant={} source={} kind={}", tenantId, id, source.getKind());
     }
 

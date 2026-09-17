@@ -26,9 +26,11 @@ import org.springframework.web.util.UriComponentsBuilder;
 class DataSourceController {
 
     private final DataSourceService service;
+    private final SampleDataService sample;
 
-    DataSourceController(DataSourceService service) {
+    DataSourceController(DataSourceService service, SampleDataService sample) {
         this.service = service;
+        this.sample = sample;
     }
 
     @Operation(summary = "Connected sources and their sync state",
@@ -41,8 +43,11 @@ class DataSourceController {
     @Operation(summary = "Connect a source",
             description = """
                     `{"kind":"sample"}` copies the seeded catalogue for the tenant's country into the \
-                    workspace and answers 201 with the recorded source. Calling it again is a 409 \
-                    `already_connected` carrying the existing source's id.
+                    workspace, answers 201 with the recorded source, and loads 26 months of Hardin history \
+                    through the import path in the background - poll `GET /api/v1/workspace/readiness` \
+                    until `sampleLoading.active` is false. Calling it again is a 409 `already_connected` \
+                    carrying the existing source's id; a workspace with imported history gets 409 \
+                    `workspace_has_data`.
 
                     `erp` and `warehouse` are recorded as `pending` with the label, detail, config and \
                     schedule given; no connector runs yet. `csv` is refused: use POST /api/v1/imports.
@@ -50,7 +55,7 @@ class DataSourceController {
     @ApiResponses({
         @ApiResponse(responseCode = "201", description = "Recorded."),
         @ApiResponse(responseCode = "400", description = "validation_failed or use_imports."),
-        @ApiResponse(responseCode = "409", description = "already_connected: the sample dataset is already there.")
+        @ApiResponse(responseCode = "409", description = "already_connected or workspace_has_data.")
     })
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
     ResponseEntity<DataSourceView> connect(@Valid @RequestBody ConnectDataSourceRequest request) {
@@ -58,6 +63,39 @@ class DataSourceController {
         return ResponseEntity.created(
                         UriComponentsBuilder.fromPath("/api/v1/data-sources/{id}").build(source.id()))
                 .body(source);
+    }
+
+    @Operation(summary = "Load whatever part of the sample history is missing",
+            description = """
+                    Creates the missing sample batches now (status `COMMITTING`) and loads them in the \
+                    background; answers 202 with every sample batch and its status. The self-heal for \
+                    a demo account connected before the history loader existed, and the retry after a \
+                    failed kind.
+                    """)
+    @ApiResponses({
+        @ApiResponse(responseCode = "202", description = "Loading."),
+        @ApiResponse(responseCode = "404", description = "no_sample: this workspace does not run on the sample.")
+    })
+    @PostMapping("/sample/reload")
+    ResponseEntity<SampleDataService.ReloadResponse> reloadSample() {
+        return ResponseEntity.accepted().body(sample.reload());
+    }
+
+    @Operation(summary = "Remove the sample dataset",
+            description = """
+                    The exit from the demo. Rolls back every sample batch and deletes every sample \
+                    product, branch, customer and supplier nothing else references, then the source row. \
+                    Guardrails and roles stay. 409 `sample_loading` while the sample is still loading.
+                    """)
+    @ApiResponses({
+        @ApiResponse(responseCode = "204", description = "Removed."),
+        @ApiResponse(responseCode = "404", description = "no_sample."),
+        @ApiResponse(responseCode = "409", description = "sample_loading.")
+    })
+    @DeleteMapping("/sample")
+    ResponseEntity<Void> removeSample() {
+        sample.remove();
+        return ResponseEntity.noContent().build();
     }
 
     @Operation(summary = "Disconnect a source",

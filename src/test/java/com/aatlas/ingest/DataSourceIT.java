@@ -117,7 +117,7 @@ class DataSourceIT extends PostgresIntegrationTest {
                 .andExpect(header().exists("Location"))
                 .andExpect(jsonPath("$.kind").value("sample"))
                 .andExpect(jsonPath("$.label").value("Sample dataset"))
-                .andExpect(jsonPath("$.detail").value("Demo account — seeded history"))
+                .andExpect(jsonPath("$.detail").value("Hardin Supply Co — 26 months of history"))
                 .andExpect(jsonPath("$.status").value("connected"))
                 .andExpect(jsonPath("$.connectedAt").isNotEmpty())
                 .andExpect(jsonPath("$.id").isNotEmpty())
@@ -250,6 +250,45 @@ class DataSourceIT extends PostgresIntegrationTest {
         String country = jdbc.queryForObject(
                 "select distinct country from stores where tenant_id = ?", String.class, tenantId);
         assertThat(country).isEqualTo("UK");
+    }
+
+    @Test
+    @DisplayName("removing the sample rolls back its history and deletes every unreferenced sample row")
+    void removingTheSampleLeavesNothingHardin() throws Exception {
+        String token = signUp("US");
+        UUID tenantId = UUID.fromString(json.readTree(decodeJwtPayload(token)).get("tid").asText());
+        mvc.perform(post("/api/v1/data-sources")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"kind\":\"sample\"}"))
+                .andExpect(status().isCreated());
+        com.aatlas.realdata.SampleTenant.awaitReady(mvc, json, token);
+
+        // Uploads are refused while the sample is connected.
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart("/api/v1/imports")
+                        .file(new org.springframework.mock.web.MockMultipartFile("file", "s.csv", "text/csv",
+                                "Item,Date,Qty,Price\nX1,2026-03-04,1,2.00\n".getBytes()))
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("remove_sample_first"));
+
+        mvc.perform(delete("/api/v1/data-sources/sample").header("Authorization", "Bearer " + token))
+                .andExpect(status().isNoContent());
+        mvc.perform(delete("/api/v1/data-sources/sample").header("Authorization", "Bearer " + token))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("no_sample"));
+
+        for (String table : new String[] {
+            "sales_transactions", "purchase_order", "product_prices", "inventory_positions", "competitor_prices",
+            "import_batches", "products", "stores", "customers", "suppliers", "data_sources"}) {
+            Integer left = jdbc.queryForObject(
+                    "select count(*) from " + table + " where tenant_id = ?", Integer.class, tenantId);
+            assertThat(left).as(table).isZero();
+        }
+        mvc.perform(get("/api/v1/workspace/readiness").header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.catalogue.products").value(0))
+                .andExpect(jsonPath("$.nextSteps[0].key").value("connect"));
     }
 
     /** Decodes the JWT payload without verifying the signature; tests only read the claims. */

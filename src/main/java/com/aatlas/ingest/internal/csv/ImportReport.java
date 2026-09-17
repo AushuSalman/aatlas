@@ -2,7 +2,9 @@ package com.aatlas.ingest.internal.csv;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * What a file turned out to contain.
@@ -15,12 +17,12 @@ import java.util.List;
  * @param mapping which column holds which field
  * @param totalRows every non-blank data row read, before validation
  * @param acceptedRows rows with no errors - warnings still count as accepted
- * @param issues every problem found, capped; see {@link ImportValidator}
+ * @param issues every problem found, capped; see {@link AbstractValidator}
  * @param sample the first few accepted rows, for the preview table
  * @param monthsCovered how much history was supplied, which decides whether pricing works
  * @param missingRequired required fields with no column assigned; non-empty blocks the import
  */
-public record ImportReport(
+public record ImportReport<R extends AcceptedRow>(
         List<String> headers,
         ColumnMapping mapping,
         int totalRows,
@@ -28,14 +30,16 @@ public record ImportReport(
         int rejectedRows,
         List<RowIssue> issues,
         boolean issuesTruncated,
-        List<ParsedRow> sample,
+        List<R> sample,
         int distinctItems,
         int distinctCustomers,
         int distinctBranches,
+        int distinctSuppliers,
+        int distinctCompetitors,
         LocalDate earliest,
         LocalDate latest,
         int monthsCovered,
-        List<ImportField> missingRequired) {
+        List<ImportFieldSpec> missingRequired) {
 
     /** Whether this file can be committed as it stands. */
     public boolean committable() {
@@ -50,7 +54,7 @@ public record ImportReport(
      * @param field the field it concerns, or {@code null} for a whole-row problem
      * @param severity {@code error} rejects the row; {@code warning} keeps it and says so
      */
-    public record RowIssue(int line, ImportField field, String message, Severity severity) {
+    public record RowIssue(int line, ImportFieldSpec field, String message, Severity severity) {
 
         public enum Severity {
             ERROR,
@@ -62,11 +66,11 @@ public record ImportReport(
             }
         }
 
-        static RowIssue error(int line, ImportField field, String message) {
+        static RowIssue error(int line, ImportFieldSpec field, String message) {
             return new RowIssue(line, field, message, Severity.ERROR);
         }
 
-        static RowIssue warning(int line, ImportField field, String message) {
+        static RowIssue warning(int line, ImportFieldSpec field, String message) {
             return new RowIssue(line, field, message, Severity.WARNING);
         }
 
@@ -76,7 +80,7 @@ public record ImportReport(
     }
 
     /**
-     * One accepted row, read into its types.
+     * One accepted sales row, read into its types.
      *
      * <p>{@code cost} is null when the file has no cost column or the cell was empty, and
      * that difference matters downstream: margin cannot be measured without it.
@@ -90,6 +94,33 @@ public record ImportReport(
             BigDecimal cost,
             String customer,
             String branch,
-            int line) {
+            int line,
+            String invoiceNo,
+            String currency,
+            String uom) implements AcceptedRow {
+
+        @Override
+        public Map<String, Object> preview() {
+            Map<String, Object> out = new HashMap<>();
+            out.put("item", item);
+            out.put("description", description);
+            out.put("date", date == null ? null : date.toString());
+            out.put("qty", qty);
+            out.put("price", price);
+            out.put("cost", cost);
+            out.put("customer", customer);
+            out.put("branch", branch);
+            out.put("invoiceNo", invoiceNo);
+            out.put("currency", currency);
+            out.put("uom", uom);
+            return out;
+        }
+
+        @Override
+        public ParsedRow forSample(int days, BigDecimal fx) {
+            return new ParsedRow(item, description, AcceptedRow.shift(date, days), qty,
+                    AcceptedRow.convert(price, fx), AcceptedRow.convert(cost, fx), customer, branch, line,
+                    invoiceNo, currency, uom);
+        }
     }
 }

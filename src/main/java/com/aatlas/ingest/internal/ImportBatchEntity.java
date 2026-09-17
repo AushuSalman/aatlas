@@ -1,6 +1,7 @@
 package com.aatlas.ingest.internal;
 
 import com.aatlas.common.persistence.TenantScopedEntity;
+import com.aatlas.ingest.internal.csv.ImportKind;
 import io.hypersistence.utils.hibernate.type.json.JsonType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -9,17 +10,20 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.hibernate.annotations.Type;
 
 /**
- * One uploaded file: where it is stored, what validation found, and how the commit went.
+ * One uploaded file: what it is, where it is stored, what validation found, and how the
+ * commit went.
  *
  * <p>The report fields are written twice in a batch's life - once when the file is uploaded
  * and again whenever the user changes a column mapping - so validation is cheap and
- * repeatable by design. The commit fields are written once, at the end.
+ * repeatable by design. The commit fields are written once, at the end; a rollback writes
+ * the last two.
  */
 @Entity
 @Table(name = "import_batches")
@@ -27,6 +31,14 @@ public class ImportBatchEntity extends TenantScopedEntity {
 
     @Column(name = "data_source_id")
     private UUID dataSourceId;
+
+    /** {@code sales | purchases | products | competitor_prices}. */
+    @Column(name = "kind", nullable = false, updatable = false)
+    private String kind = "sales";
+
+    /** {@code upload} for the tenant's own file, {@code sample} for the Hardin sample. */
+    @Column(name = "source", nullable = false, updatable = false)
+    private String source = "upload";
 
     /** Opaque here; {@link ImportFileStore} owns what it means. */
     @Column(name = "file_key", nullable = false, updatable = false)
@@ -37,6 +49,10 @@ public class ImportBatchEntity extends TenantScopedEntity {
 
     @Column(name = "file_size", nullable = false, updatable = false)
     private long fileSize;
+
+    /** SHA-256 of the stored bytes: finds a re-upload, and recognises the sample. */
+    @Column(name = "content_hash", updatable = false)
+    private String contentHash;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
@@ -78,6 +94,9 @@ public class ImportBatchEntity extends TenantScopedEntity {
     @Column(name = "distinct_branches", nullable = false)
     private int distinctBranches;
 
+    @Column(name = "distinct_suppliers", nullable = false)
+    private int distinctSuppliers;
+
     @Column(name = "months_covered", nullable = false)
     private int monthsCovered;
 
@@ -101,9 +120,14 @@ public class ImportBatchEntity extends TenantScopedEntity {
     @Column(name = "branches_needing_region", nullable = false, columnDefinition = "jsonb")
     private List<String> branchesNeedingRegion = List.of();
 
+    /** Kind-specific commit counters, rendered verbatim. */
     @Type(JsonType.class)
-    @Column(name = "unresolved_customers", nullable = false, columnDefinition = "jsonb")
-    private List<String> unresolvedCustomers = List.of();
+    @Column(name = "commit_summary", nullable = false, columnDefinition = "jsonb")
+    private Map<String, Object> commitSummary = Map.of();
+
+    /** Sample files only: how many days every date was moved forward at load. */
+    @Column(name = "date_shift_days", nullable = false)
+    private int dateShiftDays;
 
     @Column(name = "failure_reason")
     private String failureReason;
@@ -114,17 +138,23 @@ public class ImportBatchEntity extends TenantScopedEntity {
     @Column(name = "committed_at")
     private Instant committedAt;
 
+    @Column(name = "rolled_back_at")
+    private Instant rolledBackAt;
+
     protected ImportBatchEntity() {
         // JPA
     }
 
-    ImportBatchEntity(
-            UUID tenantId, UUID dataSourceId, String fileKey, String fileName, long fileSize, UUID uploadedBy) {
+    ImportBatchEntity(UUID tenantId, ImportKind kind, String source, UUID dataSourceId, String fileKey,
+            String fileName, long fileSize, String contentHash, UUID uploadedBy) {
         setTenantId(tenantId);
+        this.kind = kind.key();
+        this.source = source;
         this.dataSourceId = dataSourceId;
         this.fileKey = fileKey;
         this.fileName = fileName;
         this.fileSize = fileSize;
+        this.contentHash = contentHash;
         this.uploadedBy = uploadedBy;
     }
 
@@ -140,6 +170,7 @@ public class ImportBatchEntity extends TenantScopedEntity {
             int distinctItems,
             int distinctCustomers,
             int distinctBranches,
+            int distinctSuppliers,
             LocalDate earliest,
             LocalDate latest,
             int monthsCovered) {
@@ -153,6 +184,7 @@ public class ImportBatchEntity extends TenantScopedEntity {
         this.distinctItems = distinctItems;
         this.distinctCustomers = distinctCustomers;
         this.distinctBranches = distinctBranches;
+        this.distinctSuppliers = distinctSuppliers;
         this.earliest = earliest;
         this.latest = latest;
         this.monthsCovered = monthsCovered;
@@ -160,25 +192,34 @@ public class ImportBatchEntity extends TenantScopedEntity {
         this.failureReason = null;
     }
 
+    /** Whether the file can be committed as it stands. */
+    boolean committable() {
+        return status == ImportBatchStatus.VALIDATED && acceptedRows > 0;
+    }
+
     void markCommitting() {
         this.status = ImportBatchStatus.COMMITTING;
         this.failureReason = null;
     }
 
-    void markCommitted(
-            Instant at,
-            int loadedRows,
-            int productsCreated,
-            int branchesCreated,
-            List<String> branchesNeedingRegion,
-            List<String> unresolvedCustomers) {
+    /**
+     * Records what the load did. For a sample batch the report's date range is moved forward
+     * with the rows, so the view describes what is actually in the tables.
+     */
+    void markCommitted(Instant at, LoadResult result, int dateShiftDays) {
         this.status = ImportBatchStatus.COMMITTED;
         this.committedAt = at;
-        this.loadedRows = loadedRows;
-        this.productsCreated = productsCreated;
-        this.branchesCreated = branchesCreated;
-        this.branchesNeedingRegion = branchesNeedingRegion;
-        this.unresolvedCustomers = unresolvedCustomers;
+        this.loadedRows = result.loadedRows();
+        this.productsCreated = result.productsCreated();
+        this.branchesCreated = result.branchesCreated();
+        this.branchesNeedingRegion = result.branchesNeedingRegion();
+        this.distinctSuppliers = Math.max(this.distinctSuppliers, result.distinctSuppliers());
+        this.commitSummary = new LinkedHashMap<>(result.summary());
+        this.dateShiftDays = dateShiftDays;
+        if (dateShiftDays > 0) {
+            this.earliest = earliest == null ? null : earliest.plusDays(dateShiftDays);
+            this.latest = latest == null ? null : latest.plusDays(dateShiftDays);
+        }
     }
 
     void markFailed(String reason) {
@@ -188,8 +229,36 @@ public class ImportBatchEntity extends TenantScopedEntity {
         this.failureReason = reason == null ? "The import failed." : reason.substring(0, Math.min(500, reason.length()));
     }
 
+    void markRolledBack(Instant at, List<String> keptSuppliers) {
+        this.status = ImportBatchStatus.ROLLED_BACK;
+        this.rolledBackAt = at;
+        Map<String, Object> summary = new LinkedHashMap<>(commitSummary == null ? Map.of() : commitSummary);
+        summary.put("keptSuppliers", keptSuppliers == null ? List.of() : List.copyOf(keptSuppliers));
+        this.commitSummary = summary;
+    }
+
+    void setDataSourceId(UUID dataSourceId) {
+        this.dataSourceId = dataSourceId;
+    }
+
     public UUID getDataSourceId() {
         return dataSourceId;
+    }
+
+    public ImportKind kind() {
+        return ImportKind.from(kind);
+    }
+
+    public String getKind() {
+        return kind;
+    }
+
+    public String getSource() {
+        return source;
+    }
+
+    public boolean isSampleSource() {
+        return "sample".equals(source);
     }
 
     public String getFileKey() {
@@ -202,6 +271,10 @@ public class ImportBatchEntity extends TenantScopedEntity {
 
     public long getFileSize() {
         return fileSize;
+    }
+
+    public String getContentHash() {
+        return contentHash;
     }
 
     public ImportBatchStatus getStatus() {
@@ -248,6 +321,10 @@ public class ImportBatchEntity extends TenantScopedEntity {
         return distinctBranches;
     }
 
+    public int getDistinctSuppliers() {
+        return distinctSuppliers;
+    }
+
     public int getMonthsCovered() {
         return monthsCovered;
     }
@@ -276,15 +353,27 @@ public class ImportBatchEntity extends TenantScopedEntity {
         return branchesNeedingRegion;
     }
 
-    public List<String> getUnresolvedCustomers() {
-        return unresolvedCustomers;
+    public Map<String, Object> getCommitSummary() {
+        return commitSummary == null ? Map.of() : commitSummary;
+    }
+
+    public int getDateShiftDays() {
+        return dateShiftDays;
     }
 
     public String getFailureReason() {
         return failureReason;
     }
 
+    public UUID getUploadedBy() {
+        return uploadedBy;
+    }
+
     public Instant getCommittedAt() {
         return committedAt;
+    }
+
+    public Instant getRolledBackAt() {
+        return rolledBackAt;
     }
 }

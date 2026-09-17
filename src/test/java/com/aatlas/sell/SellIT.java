@@ -5,6 +5,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.aatlas.realdata.SampleTenant;
 import com.aatlas.smoke.PostgresIntegrationTest;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -81,6 +82,8 @@ class SellIT extends PostgresIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"kind\":\"sample\"}"))
                 .andExpect(status().isCreated());
+        // The sample history loads through the import path after connect; wait for it.
+        SampleTenant.awaitReady(mvc, json, accessToken);
         return accessToken;
     }
 
@@ -290,9 +293,15 @@ class SellIT extends PostgresIntegrationTest {
     @Test
     @DisplayName("an item with no sales history at a store is a 404 for the tool endpoints")
     void notPriceableLineIsNotFound() throws Exception {
-        // HRD900001 is PIM-only (no sales anywhere in the seed).
-        mvc.perform(get("/api/v1/sell/speed-tiers?item=HRD900001&store=" + STORE)
-                        .header("Authorization", "Bearer " + token))
+        // Every sample item sells somewhere once the history has loaded (HRD900001 from month
+        // six), so the unsold item comes from a product master on a tenant of its own: stock
+        // at the main branch gives it a branch, and no sales line gives it a price.
+        String freshToken = signUpAndConnectless();
+        SampleTenant.importAndCommit(mvc, json, freshToken, "products",
+                "Item No,Description,On Hand\nNP-900,UNSOLD WIDGET,5\n");
+
+        mvc.perform(get("/api/v1/sell/speed-tiers?item=NP-900&store=MAIN")
+                        .header("Authorization", "Bearer " + freshToken))
                 .andExpect(status().isNotFound());
     }
 }

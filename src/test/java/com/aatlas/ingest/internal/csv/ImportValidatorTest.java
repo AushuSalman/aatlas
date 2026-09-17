@@ -35,7 +35,7 @@ import org.junit.jupiter.api.Test;
  */
 class ImportValidatorTest {
 
-    private final ImportValidator validator = new ImportValidator();
+    private final SalesValidator validator = new SalesValidator();
 
     private static String sampleExport() throws IOException {
         try (InputStream in = ImportValidatorTest.class.getResourceAsStream("/ingest/sample-export.csv")) {
@@ -47,7 +47,7 @@ class ImportValidatorTest {
     @Test
     @DisplayName("the sample export produces 24 rows, 22 accepted, 2 rejected")
     void matchesThePrototypeOnTheSampleExport() throws IOException {
-        ImportReport report = validator.validateWithDetectedMapping(sampleExport());
+        ImportReport<ParsedRow> report = validator.validateWithDetectedMapping(sampleExport());
 
         assertThat(report.totalRows()).isEqualTo(24);
         assertThat(report.acceptedRows()).isEqualTo(22);
@@ -59,7 +59,7 @@ class ImportValidatorTest {
     @Test
     @DisplayName("finds exactly the four planted problems, two of each severity")
     void findsThePlantedProblems() throws IOException {
-        ImportReport report = validator.validateWithDetectedMapping(sampleExport());
+        ImportReport<ParsedRow> report = validator.validateWithDetectedMapping(sampleExport());
 
         List<RowIssue> errors = report.issues().stream().filter(RowIssue::isError).toList();
         List<RowIssue> warnings = report.issues().stream().filter(issue -> !issue.isError()).toList();
@@ -89,7 +89,7 @@ class ImportValidatorTest {
     @Test
     @DisplayName("a warning keeps its row; only errors reject")
     void warningsDoNotRejectRows() throws IOException {
-        ImportReport report = validator.validateWithDetectedMapping(sampleExport());
+        ImportReport<ParsedRow> report = validator.validateWithDetectedMapping(sampleExport());
 
         // Four problems, two rejections: the zero-price and cost-above-price rows are both
         // still counted as accepted.
@@ -100,7 +100,7 @@ class ImportValidatorTest {
     @Test
     @DisplayName("summarises the shape of the file")
     void summarisesDistinctValuesAndDateRange() throws IOException {
-        ImportReport report = validator.validateWithDetectedMapping(sampleExport());
+        ImportReport<ParsedRow> report = validator.validateWithDetectedMapping(sampleExport());
 
         // Counted over accepted rows only. Both rejected rows carry an item and a branch that
         // also appear on rows that passed, so nothing drops out of these counts.
@@ -116,7 +116,7 @@ class ImportValidatorTest {
     @Test
     @DisplayName("the preview is the first eight accepted rows, read into their types")
     void buildsATypedSample() throws IOException {
-        ImportReport report = validator.validateWithDetectedMapping(sampleExport());
+        ImportReport<ParsedRow> report = validator.validateWithDetectedMapping(sampleExport());
 
         assertThat(report.sample()).hasSize(8);
         ParsedRow first = report.sample().getFirst();
@@ -145,7 +145,7 @@ class ImportValidatorTest {
     @DisplayName("every accepted row is offered to the loader, and no rejected one is")
     void streamsExactlyTheAcceptedRows() throws IOException {
         String csv = sampleExport();
-        ImportReport report = validator.validateWithDetectedMapping(csv);
+        ImportReport<ParsedRow> report = validator.validateWithDetectedMapping(csv);
 
         List<ParsedRow> streamed = acceptedRows(csv);
 
@@ -162,7 +162,7 @@ class ImportValidatorTest {
     void missingRequiredColumnBlocksTheImport() {
         String csv = "Item No,Item Description\nHRD1,A widget\nHRD2,Another\n";
 
-        ImportReport report = validator.validateWithDetectedMapping(csv);
+        ImportReport<ParsedRow> report = validator.validateWithDetectedMapping(csv);
 
         assertThat(report.missingRequired())
                 .containsExactly(ImportField.DATE, ImportField.QTY, ImportField.PRICE);
@@ -178,7 +178,7 @@ class ImportValidatorTest {
     void costIsOptional() {
         String csv = "Item,Date,Qty,Price\nHRD1,2026-03-04,10,11.42\n";
 
-        ImportReport report = validator.validateWithDetectedMapping(csv);
+        ImportReport<ParsedRow> report = validator.validateWithDetectedMapping(csv);
 
         assertThat(report.missingRequired()).isEmpty();
         assertThat(report.acceptedRows()).isEqualTo(1);
@@ -190,7 +190,7 @@ class ImportValidatorTest {
     void readsAmbiguousDatesInUsOrder() {
         String csv = "Item,Date,Qty,Price\nHRD1,03/04/2026,10,11.42\nHRD2,13/04/2026,10,11.42\n";
 
-        ImportReport report = validator.validateWithDetectedMapping(csv);
+        ImportReport<ParsedRow> report = validator.validateWithDetectedMapping(csv);
 
         // 03/04 is March, not April. Silently swapping would move a transaction by a month
         // and nobody would ever see it.
@@ -213,7 +213,7 @@ class ImportValidatorTest {
     void readsMoneyTheWayExportsWriteIt() {
         String csv = "Item,Date,Qty,Price,Cost\nHRD1,2026-03-04,10,$1234.56,£2.00\n";
 
-        ImportReport report = validator.validateWithDetectedMapping(csv);
+        ImportReport<ParsedRow> report = validator.validateWithDetectedMapping(csv);
 
         assertThat(report.sample().getFirst().price()).isEqualByComparingTo("1234.56");
         assertThat(report.sample().getFirst().cost()).isEqualByComparingTo("2.00");
@@ -224,7 +224,7 @@ class ImportValidatorTest {
     void skipsBlankLines() {
         String csv = "Item,Date,Qty,Price\nHRD1,2026-03-04,10,11.42\n,,,\nHRD2,2026-03-05,5,12.00\n";
 
-        ImportReport report = validator.validateWithDetectedMapping(csv);
+        ImportReport<ParsedRow> report = validator.validateWithDetectedMapping(csv);
 
         assertThat(report.totalRows()).isEqualTo(2);
         assertThat(report.acceptedRows()).isEqualTo(2);
@@ -235,7 +235,7 @@ class ImportValidatorTest {
     void reportsSpreadsheetLineNumbers() {
         String csv = "Item,Date,Qty,Price\nHRD1,2026-03-04,10,11.42\nHRD2,nonsense,5,12.00\n";
 
-        ImportReport report = validator.validateWithDetectedMapping(csv);
+        ImportReport<ParsedRow> report = validator.validateWithDetectedMapping(csv);
 
         // The broken row is the third line of the file, which is what a spreadsheet shows.
         assertThat(report.issues()).singleElement().satisfies(issue -> assertThat(issue.line()).isEqualTo(3));
