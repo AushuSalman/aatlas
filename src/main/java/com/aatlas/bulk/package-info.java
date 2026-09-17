@@ -20,5 +20,5 @@
  */
 @org.springframework.modulith.ApplicationModule(
         displayName = "bulk",
-        allowedDependencies = {"common", "decisions", "policy"})
+        allowedDependencies = {"buy", "common", "decisions", "history", "policy", "sell"})
 package com.aatlas.bulk;

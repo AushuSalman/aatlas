@@ -84,7 +84,7 @@ class SellDecisionRecorderStandIn implements DecisionRecorder {
                     r.recommended(), r.applied(), r.expectedImpact(), r.impactLabel(), r.detail(), r.qty(), null));
             ledger.recordSale(new com.aatlas.decisions.RecordSaleRequest(
                     r.itemNumber(), r.title(), r.scope(), r.customerName(), r.qty(), r.cost(), r.baselinePrice(),
-                    r.recommended(), r.applied(), null, null, decision.id()));
+                    r.recommended(), r.applied(), null, null, decision.id(), r.storeCode()));
         } catch (RuntimeException ex) {
             log.warn("Could not mirror sell decision for {}@{} into the decisions ledger: {}",
                     r.itemNumber(), r.storeCode(), ex.toString());

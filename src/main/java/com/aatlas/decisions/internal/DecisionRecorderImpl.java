@@ -125,7 +125,7 @@ class DecisionRecorderImpl implements DecisionRecorder {
 
         DealEntity entity = new DealEntity(dealKey("rec"), "sell", r.itemNumber(), r.description(), r.storeName(),
                 r.qty(), r.cost(), r.baselinePrice(), r.suggestedPrice(), r.actualPrice(), followed,
-                bd(gain), bd(lost), true, r.customerName(), now, belowFloor, null, date, r.decisionId());
+                bd(gain), bd(lost), true, r.customerName(), now, belowFloor, r.destinationId(), date, r.decisionId());
         entity = deals.save(entity);
         return Mappers.toDealRecord(entity);
     }

@@ -23,5 +23,8 @@ public enum ImportBatchStatus {
     COMMITTED,
 
     /** The loader stopped and wrote nothing; {@code failureReason} says why. Terminal. */
-    FAILED
+    FAILED,
+
+    /** Was committed, then removed again with everything it loaded. Terminal. */
+    ROLLED_BACK
 }

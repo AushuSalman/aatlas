@@ -56,9 +56,13 @@ final class HistoryEngine {
         double gained = round2(deals.stream().mapToDouble(d -> d.gain().doubleValue()).sum());
         double lost = round2(deals.stream().mapToDouble(d -> d.lost().doubleValue()).sum());
 
-        double realised = round2(deals.stream().mapToDouble(d -> "sell".equals(side)
-                ? (d.actualPrice().doubleValue() - d.cost().doubleValue()) * d.qty()
-                : (d.baselinePrice().doubleValue() - d.actualPrice().doubleValue()) * d.qty()).sum());
+        // A sale recorded without a cost on file has no realised profit to count; it is neither
+        // zero nor invented, so it is left out of the sum rather than pulling it down.
+        double realised = round2(deals.stream()
+                .filter(d -> !"sell".equals(side) || d.cost() != null)
+                .mapToDouble(d -> "sell".equals(side)
+                        ? (d.actualPrice().doubleValue() - d.cost().doubleValue()) * d.qty()
+                        : (d.baselinePrice().doubleValue() - d.actualPrice().doubleValue()) * d.qty()).sum());
 
         List<ImpactSummary.MonthPoint> byMonth = new ArrayList<>();
         for (String label : SELL_MONTH_ORDER) {
@@ -97,20 +101,20 @@ final class HistoryEngine {
         List<HistoryRow> rows = new ArrayList<>();
         for (DealRecord d : impact.deals()) {
             double actual = d.actualPrice().doubleValue();
-            double cost = d.cost().doubleValue();
             double baseline = d.baselinePrice().doubleValue();
             double suggested = d.suggestedPrice().doubleValue();
             boolean recorded = Boolean.TRUE.equals(d.recorded());
             double applied = recorded ? actual : d.followed() ? suggested : actual;
 
-            double marginPct;
+            Double marginPct;
             if ("sell".equals(d.side())) {
-                Double mp = marginPercent(actual, cost);
-                marginPct = mp == null ? 0 : mp;
+                marginPct = d.cost() == null ? null : marginPercent(actual, d.cost().doubleValue());
             } else {
                 marginPct = baseline != 0 ? ((baseline - actual) / baseline) * 100 : 0;
             }
-            marginPct = Math.round(marginPct * 10.0) / 10.0;
+            if (marginPct != null) {
+                marginPct = Math.round(marginPct * 10.0) / 10.0;
+            }
 
             double value = d.followed() ? d.gain().doubleValue() : -d.lost().doubleValue();
             String outcome = d.followed() ? (value > 0.5 ? "positive" : "neutral") : (value < -0.5 ? "negative" : "neutral");

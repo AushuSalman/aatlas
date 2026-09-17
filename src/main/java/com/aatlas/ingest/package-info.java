@@ -6,5 +6,5 @@
  */
 @org.springframework.modulith.ApplicationModule(
         displayName = "ingest",
-        allowedDependencies = {"catalog", "common", "suppliers", "tenant"})
+        allowedDependencies = {"catalog", "common", "history", "suppliers", "tenant"})
 package com.aatlas.ingest;

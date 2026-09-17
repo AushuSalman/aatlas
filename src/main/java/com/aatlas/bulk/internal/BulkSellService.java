@@ -84,7 +84,7 @@ public class BulkSellService {
                         Math.max(1, (int) Math.round(line.inventoryUnits())),
                         java.math.BigDecimal.valueOf(line.cost()), java.math.BigDecimal.valueOf(line.current()),
                         java.math.BigDecimal.valueOf(line.recommended()), java.math.BigDecimal.valueOf(price), null,
-                        null, decision.id()));
+                        null, decision.id(), plan.storeId()));
             }
         } catch (RuntimeException ex) {
             log.warn("Could not mirror bulk sell decision for {} ({}) into the decisions ledger: {}",

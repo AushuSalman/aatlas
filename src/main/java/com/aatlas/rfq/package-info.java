@@ -22,5 +22,5 @@
  */
 @org.springframework.modulith.ApplicationModule(
         displayName = "rfq",
-        allowedDependencies = {"approvals", "buy", "common", "decisions", "policy"})
+        allowedDependencies = {"approvals", "buy", "common", "decisions", "history", "ingest", "policy"})
 package com.aatlas.rfq;

@@ -5,12 +5,17 @@ import java.time.LocalDate;
 
 /**
  * One purchase order line, landed at the branch that ordered it. Ported field for field from
- * the frontend's {@code PurchaseOrder} (platform/procurement.ts).
+ * the frontend's {@code PurchaseOrder} (platform/procurement.ts), plus the import trail.
  *
- * @param seq build order (see {@code purchase_order.seq}): lets a read reproduce
- *     {@code buildLedger()}'s exact stable sort when dates tie. Not on the frontend type -
- *     {@code @JsonIgnoreProperties} below keeps it off the wire so a serialised {@link PoRow}
- *     matches {@code PurchaseOrder} field for field.
+ * <p>The delivery fields are boxed: an imported line whose promised or received date the
+ * file did not carry has {@code null} there, which means "not measurable" - never "late".
+ *
+ * @param seq build order (see {@code purchase_order.seq}): lets a read reproduce a stable sort
+ *     when dates tie. Not on the frontend type - {@code @JsonIgnoreProperties} below keeps it
+ *     off the wire.
+ * @param poRef the PO number as the file wrote it (many lines share one); {@code id} stays
+ *     unique per row
+ * @param source {@code award}, {@code import} or {@code sample}
  */
 @JsonIgnoreProperties({"seq"})
 public record PoRow(
@@ -43,10 +48,22 @@ public record PoRow(
         double leaked,
 
         String status,
-        int promisedDays,
-        int actualDays,
-        int daysLate,
-        boolean onTime,
+        Integer promisedDays,
+        Integer actualDays,
+        Integer daysLate,
+        Boolean onTime,
         LocalDate promisedDate,
-        LocalDate receivedDate) {
+        LocalDate receivedDate,
+        String poRef,
+        String source) {
+
+    /** Received, and on or before the promise. False when late; false when not measurable. */
+    public boolean wasOnTime() {
+        return Boolean.TRUE.equals(onTime);
+    }
+
+    /** Received, and after the promise. False when on time; false when not measurable. */
+    public boolean wasLate() {
+        return Boolean.FALSE.equals(onTime);
+    }
 }

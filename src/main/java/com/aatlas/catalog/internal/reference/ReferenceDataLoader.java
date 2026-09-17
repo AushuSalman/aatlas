@@ -44,7 +44,9 @@ class ReferenceDataLoader implements ApplicationRunner {
         int regions = loadRegions();
         int lanes = loadLogistics();
         int commodities = loadCommodities();
-        log.info("Reference data loaded: {} regions, {} logistics rows, {} commodities", regions, lanes, commodities);
+        int benchmarks = loadBenchmarks();
+        log.info("Reference data loaded: {} regions, {} logistics rows, {} commodities, {} benchmarks",
+                regions, lanes, commodities, benchmarks);
     }
 
     int loadRegions() {
@@ -130,14 +132,34 @@ class ReferenceDataLoader implements ApplicationRunner {
 
     int loadCommodities() {
         List<Object[]> rows = new ArrayList<>();
+        java.time.LocalDate asOf = seeds.commoditiesAsOf();
         for (Map.Entry<String, SeedFiles.SeedCommodity> entry : seeds.commodities().entrySet()) {
-            rows.add(new Object[] {entry.getKey(), entry.getValue().label(), entry.getValue().pct90()});
+            rows.add(new Object[] {entry.getKey(), entry.getValue().label(), entry.getValue().pct90(), asOf});
         }
         jdbc.batchUpdate("""
-                insert into commodities (commodity_key, label, pct90)
-                values (?, ?, ?)
+                insert into commodities (commodity_key, label, pct90, as_of)
+                values (?, ?, ?, ?)
                 on conflict (commodity_key) do update
-                    set label = excluded.label, pct90 = excluded.pct90, updated_at = now()
+                    set label = excluded.label, pct90 = excluded.pct90, as_of = excluded.as_of, updated_at = now()
+                """, rows);
+        return rows.size();
+    }
+
+    int loadBenchmarks() {
+        List<Object[]> rows = new ArrayList<>();
+        for (SeedFiles.SeedBenchmark b : seeds.benchmarks()) {
+            rows.add(new Object[] {
+                b.category(), b.subcategory() == null ? "" : b.subcategory(),
+                b.targetMarginPct(), b.lowMarginPct(), b.highMarginPct(), b.note() == null ? "" : b.note()
+            });
+        }
+        jdbc.batchUpdate("""
+                insert into pricing_benchmarks
+                    (category, subcategory, target_margin_pct, low_margin_pct, high_margin_pct, note)
+                values (?, ?, ?, ?, ?, ?)
+                on conflict (category, subcategory) do update
+                    set target_margin_pct = excluded.target_margin_pct, low_margin_pct = excluded.low_margin_pct,
+                        high_margin_pct = excluded.high_margin_pct, note = excluded.note, updated_at = now()
                 """, rows);
         return rows.size();
     }

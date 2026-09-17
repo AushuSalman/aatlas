@@ -215,7 +215,7 @@ public final class BuyAnalyticsEngine {
                     br.stream().mapToInt(PoRow::qty).sum(),
                     weighted(br, PoRow::landed, r -> r.qty()),
                     br.isEmpty() ? 0 : round2((br.stream().filter(PoRow::followed).count() * 100.0) / br.size()),
-                    rec.isEmpty() ? 0 : round2((rec.stream().filter(PoRow::onTime).count() * 100.0) / rec.size())));
+                    rec.isEmpty() ? 0 : round2((rec.stream().filter(PoRow::wasOnTime).count() * 100.0) / rec.size())));
         }
 
         double spend = sum(rows, PoRow::spend);
@@ -225,8 +225,8 @@ public final class BuyAnalyticsEngine {
 
         double captureNow = rows.isEmpty() ? 0 : round2((rows.stream().filter(PoRow::followed).count() * 100.0) / rows.size());
         double capturePrev = prev.isEmpty() ? 0 : round2((prev.stream().filter(PoRow::followed).count() * 100.0) / prev.size());
-        double onTimeNow = received.isEmpty() ? 0 : round2((received.stream().filter(PoRow::onTime).count() * 100.0) / received.size());
-        double onTimePrev = receivedPrev.isEmpty() ? 0 : round2((receivedPrev.stream().filter(PoRow::onTime).count() * 100.0) / receivedPrev.size());
+        double onTimeNow = received.isEmpty() ? 0 : round2((received.stream().filter(PoRow::wasOnTime).count() * 100.0) / received.size());
+        double onTimePrev = receivedPrev.isEmpty() ? 0 : round2((receivedPrev.stream().filter(PoRow::wasOnTime).count() * 100.0) / receivedPrev.size());
 
         // -- Suppliers ----------------------------------------------------------
         List<String> supplierIds = new ArrayList<>();
@@ -246,12 +246,12 @@ public final class BuyAnalyticsEngine {
             List<PoRow> rec = received.stream().filter(r -> r.supplierId().equals(id)).toList();
             SupplierFixture s = Fixtures.findSupplier(id);
             double mySpend = sum(mine, PoRow::spend);
-            double onTimePct = rec.isEmpty() ? 0 : round2((rec.stream().filter(PoRow::onTime).count() * 100.0) / rec.size());
+            double onTimePct = rec.isEmpty() ? 0 : round2((rec.stream().filter(PoRow::wasOnTime).count() * 100.0) / rec.size());
             double sharePct = spend != 0 ? round2((mySpend / spend) * 100) : 0;
             String risk = (onTimePct < 82 && sharePct > 12) ? "high" : (onTimePct < 88 || sharePct > 28) ? "watch" : "low";
             int avgLeadDays = rec.isEmpty()
                     ? (s != null ? s.leadTimeDays() : 0)
-                    : (int) Math.round(rec.stream().mapToInt(PoRow::actualDays).average().orElse(0));
+                    : (int) Math.round(avgLeadDays(rec));
             List<Double> series = new ArrayList<>();
             for (List<PoRow> br : byBucketRows) {
                 series.add(sum(br.stream().filter(r -> r.supplierId().equals(id)).toList(), PoRow::spend));
@@ -322,10 +322,10 @@ public final class BuyAnalyticsEngine {
         for (Bucket bucket : buckets) {
             List<PoRow> rec = scoped.stream().filter(hasReceived)
                     .filter(r -> inRange2(r.receivedDate(), bucket.from(), bucket.to())).toList();
-            long onTimeCount = rec.stream().filter(PoRow::onTime).count();
+            long onTimeCount = rec.stream().filter(PoRow::wasOnTime).count();
             delivery.add(new DeliveryPoint(bucket, rec.isEmpty() ? 0 : round2((onTimeCount * 100.0) / rec.size()),
                     (int) (rec.size() - onTimeCount), (int) onTimeCount, rec.size(),
-                    rec.isEmpty() ? 0 : (int) Math.round(rec.stream().mapToInt(PoRow::actualDays).average().orElse(0))));
+                    rec.isEmpty() ? 0 : (int) Math.round(avgLeadDays(rec))));
         }
 
         List<PoRow> openRows = rows.stream().filter(r -> "open".equals(r.status())).toList();
@@ -334,8 +334,8 @@ public final class BuyAnalyticsEngine {
         double prevBaseline = sum(prev, PoRow::baselineSpend);
         double prevSpend = sum(prev, PoRow::spend);
 
-        List<PoRow> lateLines = received.stream().filter(r -> !r.onTime())
-                .sorted((a, b) -> Integer.compare(b.daysLate(), a.daysLate()))
+        List<PoRow> lateLines = received.stream().filter(PoRow::wasLate)
+                .sorted((a, b) -> Integer.compare(daysLateOf(b), daysLateOf(a)))
                 .limit(6)
                 .toList();
 
@@ -358,8 +358,8 @@ public final class BuyAnalyticsEngine {
                 kpi(comparable, captureNow, capturePrev, timeline.stream().map(TimelinePoint::captureRatePct).toList()),
                 kpi(comparable, onTimeNow, onTimePrev, delivery.stream().map(DeliveryPoint::onTimePct).toList()),
                 kpi(comparable,
-                        received.isEmpty() ? 0 : round2(received.stream().mapToInt(PoRow::actualDays).average().orElse(0)),
-                        receivedPrev.isEmpty() ? 0 : round2(receivedPrev.stream().mapToInt(PoRow::actualDays).average().orElse(0)),
+                        received.isEmpty() ? 0 : round2(avgLeadDays(received)),
+                        receivedPrev.isEmpty() ? 0 : round2(avgLeadDays(receivedPrev)),
                         delivery.stream().map(d -> (double) d.avgLeadDays()).toList()),
                 kpi(comparable, rows.size(), prev.size(), timeline.stream().map(t -> (double) t.orders()).toList()),
 
@@ -385,6 +385,15 @@ public final class BuyAnalyticsEngine {
 
     private static boolean inRange2(LocalDate d, LocalDate from, LocalDate to) {
         return d != null && !d.isBefore(from) && !d.isAfter(to);
+    }
+
+    /** Mean order-to-dock days over the lines whose lead time is measurable. */
+    private static double avgLeadDays(List<PoRow> rows) {
+        return rows.stream().filter(r -> r.actualDays() != null).mapToInt(PoRow::actualDays).average().orElse(0);
+    }
+
+    private static int daysLateOf(PoRow r) {
+        return r.daysLate() == null ? 0 : r.daysLate();
     }
 
     /**

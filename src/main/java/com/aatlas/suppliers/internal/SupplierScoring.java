@@ -276,7 +276,8 @@ final class SupplierScoring {
 
     // -- The panel in numbers ---------------------------------------------------------------------
 
-    record PanelRow(boolean custom, double rating, double spendShare12m, double otifPct) {
+    /** {@code otifPct} is null for a supplier whose on-time rate was never provided. */
+    record PanelRow(boolean custom, double rating, double spendShare12m, Double otifPct) {
     }
 
     static PanelSummary panelSummary(List<PanelRow> rows) {
@@ -286,12 +287,16 @@ final class SupplierScoring {
             spend = 1;
         }
         double spendRated4 = rows.stream().filter(r -> r.rating() >= 4).mapToDouble(PanelRow::spendShare12m).sum();
+        // The average on-time rate is over the suppliers that have one; the rest are not zero.
+        List<PanelRow> withOtif = rows.stream().filter(r -> r.otifPct() != null).toList();
+        double avgOtif = withOtif.isEmpty() ? 0
+                : withOtif.stream().mapToDouble(PanelRow::otifPct).sum() / withOtif.size();
         return new PanelSummary(
                 rows.size(),
                 (int) rows.stream().filter(PanelRow::custom).count(),
                 round1(rows.stream().mapToDouble(PanelRow::rating).sum() / n),
                 (int) Math.round(spendRated4 / spend * 100),
                 (int) rows.stream().filter(r -> "Weak".equals(ratingLabel(r.rating()))).count(),
-                round1(rows.stream().mapToDouble(PanelRow::otifPct).sum() / n));
+                round1(avgOtif));
     }
 }

@@ -16,7 +16,7 @@ public record HistoryRow(
         double recommended,
         double applied,
         double actual,
-        double marginPct,
+        Double marginPct,
         boolean followed,
         String outcome,
         String outcomeLabel,

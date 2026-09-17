@@ -20,5 +20,5 @@
  */
 @org.springframework.modulith.ApplicationModule(
         displayName = "assistant",
-        allowedDependencies = {"bulk", "common", "policy"})
+        allowedDependencies = {"bulk", "common", "history", "policy"})
 package com.aatlas.assistant;

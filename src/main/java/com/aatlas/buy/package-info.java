@@ -16,5 +16,5 @@
  */
 @org.springframework.modulith.ApplicationModule(
         displayName = "buy",
-        allowedDependencies = {"common", "decisions", "policy"})
+        allowedDependencies = {"approvals", "common", "decisions", "history", "policy"})
 package com.aatlas.buy;

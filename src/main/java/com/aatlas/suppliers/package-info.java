@@ -6,5 +6,5 @@
  */
 @org.springframework.modulith.ApplicationModule(
         displayName = "suppliers",
-        allowedDependencies = {"common", "policy"})
+        allowedDependencies = {"common", "history", "policy"})
 package com.aatlas.suppliers;

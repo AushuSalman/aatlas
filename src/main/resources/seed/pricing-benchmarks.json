@@ -1,0 +1,15 @@
+[
+  {"category": "*", "subcategory": "", "targetMarginPct": 30, "lowMarginPct": 22, "highMarginPct": 38, "note": "Typical US plumbing/HVAC distributor gross-margin band. Reference data, not your numbers."},
+  {"category": "Plumbing", "subcategory": "", "targetMarginPct": 30, "lowMarginPct": 22, "highMarginPct": 38, "note": "Distributor gross margin on plumbing rough-in and finish. Reference band."},
+  {"category": "Plumbing", "subcategory": "Pipe & tube", "targetMarginPct": 24, "lowMarginPct": 18, "highMarginPct": 30, "note": "Commodity copper and plastic pipe: price-transparent, thin margins."},
+  {"category": "Plumbing", "subcategory": "Fittings", "targetMarginPct": 36, "lowMarginPct": 28, "highMarginPct": 44, "note": "Fittings carry the margin the pipe does not."},
+  {"category": "Plumbing", "subcategory": "Valves", "targetMarginPct": 34, "lowMarginPct": 26, "highMarginPct": 42, "note": "Branded valves, specified by the engineer."},
+  {"category": "Plumbing", "subcategory": "PEX", "targetMarginPct": 30, "lowMarginPct": 22, "highMarginPct": 38, "note": "PEX tubing and connections."},
+  {"category": "HVAC", "subcategory": "", "targetMarginPct": 26, "lowMarginPct": 18, "highMarginPct": 34, "note": "HVAC equipment and parts. Reference band."},
+  {"category": "HVAC", "subcategory": "Cooling", "targetMarginPct": 22, "lowMarginPct": 16, "highMarginPct": 28, "note": "Equipment: thin, volume-driven, manufacturer-set street prices."},
+  {"category": "HVAC", "subcategory": "Controls", "targetMarginPct": 36, "lowMarginPct": 28, "highMarginPct": 44, "note": "Thermostats and controls carry accessory margins."},
+  {"category": "Water heating", "subcategory": "", "targetMarginPct": 25, "lowMarginPct": 18, "highMarginPct": 32, "note": "Water heaters and mixing valves. Reference band."},
+  {"category": "Water heating", "subcategory": "Tank heaters", "targetMarginPct": 22, "lowMarginPct": 16, "highMarginPct": 28, "note": "Tank heaters compete with big-box retail."},
+  {"category": "Fixtures", "subcategory": "", "targetMarginPct": 38, "lowMarginPct": 30, "highMarginPct": 46, "note": "Finish plumbing: brand and showroom margins."},
+  {"category": "Fixtures", "subcategory": "Faucets", "targetMarginPct": 40, "lowMarginPct": 32, "highMarginPct": 48, "note": "Faucets: the highest-margin line in the trade."}
+]

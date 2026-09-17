@@ -8,5 +8,5 @@
  */
 @org.springframework.modulith.ApplicationModule(
         displayName = "analytics",
-        allowedDependencies = {"common", "ingest"})
+        allowedDependencies = {"common", "history", "ingest"})
 package com.aatlas.analytics;

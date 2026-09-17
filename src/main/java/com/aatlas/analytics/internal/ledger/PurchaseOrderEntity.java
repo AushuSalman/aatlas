@@ -8,7 +8,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.UUID;
 
-/** One row of the procurement ledger. See V12 for what each column means. */
+/** One row of the procurement ledger. See V12 and V22 for what each column means. */
 @Entity
 @Table(name = "purchase_order")
 public class PurchaseOrderEntity extends TenantScopedEntity {
@@ -18,6 +18,9 @@ public class PurchaseOrderEntity extends TenantScopedEntity {
 
     @Column(name = "po_number", nullable = false)
     private String poNumber;
+
+    @Column(name = "po_ref")
+    private String poRef;
 
     @Column(name = "order_date", nullable = false)
     private LocalDate orderDate;
@@ -34,26 +37,35 @@ public class PurchaseOrderEntity extends TenantScopedEntity {
     @Column(name = "item_number", nullable = false)
     private String itemNumber;
 
+    @Column(name = "product_id")
+    private UUID productId;
+
     @Column(name = "description", nullable = false)
     private String description;
 
     @Column(name = "category", nullable = false)
     private String category;
 
-    @Column(name = "branch_id", nullable = false)
+    @Column(name = "branch_id")
     private String branchId;
 
-    @Column(name = "branch_name", nullable = false)
+    @Column(name = "branch_name")
     private String branchName;
 
-    @Column(name = "region_key", nullable = false)
+    @Column(name = "store_id")
+    private UUID storeId;
+
+    @Column(name = "region_key")
     private String regionKey;
 
-    @Column(name = "region_label", nullable = false)
+    @Column(name = "region_label")
     private String regionLabel;
 
     @Column(name = "qty", nullable = false)
     private int qty;
+
+    @Column(name = "qty_received")
+    private Integer qtyReceived;
 
     @Column(name = "ex_works", nullable = false)
     private BigDecimal exWorks;
@@ -91,19 +103,19 @@ public class PurchaseOrderEntity extends TenantScopedEntity {
     @Column(name = "status", nullable = false)
     private String status;
 
-    @Column(name = "promised_days", nullable = false)
-    private int promisedDays;
+    @Column(name = "promised_days")
+    private Integer promisedDays;
 
-    @Column(name = "actual_days", nullable = false)
-    private int actualDays;
+    @Column(name = "actual_days")
+    private Integer actualDays;
 
-    @Column(name = "days_late", nullable = false)
-    private int daysLate;
+    @Column(name = "days_late")
+    private Integer daysLate;
 
-    @Column(name = "on_time", nullable = false)
-    private boolean onTime;
+    @Column(name = "on_time")
+    private Boolean onTime;
 
-    @Column(name = "promised_date", nullable = false)
+    @Column(name = "promised_date")
     private LocalDate promisedDate;
 
     @Column(name = "received_date")
@@ -112,6 +124,18 @@ public class PurchaseOrderEntity extends TenantScopedEntity {
     @Column(name = "decision_id")
     private UUID decisionId;
 
+    @Column(name = "source", nullable = false)
+    private String source = "award";
+
+    @Column(name = "import_batch_id")
+    private UUID importBatchId;
+
+    @Column(name = "source_line")
+    private Integer sourceLine;
+
+    @Column(name = "cost_basis", nullable = false)
+    private String costBasis = "file";
+
     protected PurchaseOrderEntity() {
         // JPA
     }
@@ -119,6 +143,7 @@ public class PurchaseOrderEntity extends TenantScopedEntity {
     public PurchaseOrderEntity(PoRow row) {
         this.seq = row.seq();
         this.poNumber = row.id();
+        this.poRef = row.poRef();
         this.orderDate = row.date();
         this.supplierId = row.supplierId();
         this.supplierName = row.supplierName();
@@ -149,6 +174,7 @@ public class PurchaseOrderEntity extends TenantScopedEntity {
         this.onTime = row.onTime();
         this.promisedDate = row.promisedDate();
         this.receivedDate = row.receivedDate();
+        this.source = row.source() == null ? "award" : row.source();
     }
 
     /** Back to the pure-Java row the engine reduces. {@code seq} carries the tie-break order through. */
@@ -158,7 +184,7 @@ public class PurchaseOrderEntity extends TenantScopedEntity {
                 exWorks.doubleValue(), freight.doubleValue(), duty.doubleValue(), landed.doubleValue(),
                 baseline.doubleValue(), target.doubleValue(), followed,
                 spend.doubleValue(), baselineSpend.doubleValue(), saved.doubleValue(), leaked.doubleValue(),
-                status, promisedDays, actualDays, daysLate, onTime, promisedDate, receivedDate);
+                status, promisedDays, actualDays, daysLate, onTime, promisedDate, receivedDate, poRef, source);
     }
 
     public String getPoNumber() {
@@ -173,6 +199,14 @@ public class PurchaseOrderEntity extends TenantScopedEntity {
         this.decisionId = decisionId;
     }
 
+    public void setProductId(UUID productId) {
+        this.productId = productId;
+    }
+
+    public void setStoreId(UUID storeId) {
+        this.storeId = storeId;
+    }
+
     public String getSupplierId() {
         return supplierId;
     }
@@ -183,5 +217,9 @@ public class PurchaseOrderEntity extends TenantScopedEntity {
 
     public LocalDate getOrderDate() {
         return orderDate;
+    }
+
+    public String getSource() {
+        return source;
     }
 }

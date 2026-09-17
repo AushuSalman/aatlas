@@ -27,7 +27,7 @@ class ArchitectureRulesTest {
      */
     @ArchTest
     static final ArchRule timeComesFromTheClock = noClasses()
-            .that().resideInAPackage("com.aatlas.(engine|sell|buy|insights|analytics)..")
+            .that().resideInAPackage("com.aatlas.(engine|sell|buy|insights|analytics|history|prices)..")
             .should().callMethod(java.time.Instant.class, "now")
             .orShould().callMethod(java.time.LocalDate.class, "now")
             .orShould().callMethod(java.time.LocalDateTime.class, "now")
@@ -41,10 +41,27 @@ class ArchitectureRulesTest {
      */
     @ArchTest
     static final ArchRule noFloatingPointMoney = noClasses()
-            .that().resideInAPackage("com.aatlas.(engine|sell|buy)..")
+            .that().resideInAPackage("com.aatlas.(engine|sell|buy|history|prices)..")
             .should().dependOnClassesThat().haveFullyQualifiedName("java.lang.Double")
             .because("money is BigDecimal; a double silently loses cents. Percentages and "
                     + "scores outside the pricing path belong in other packages");
+
+    /**
+     * A hash of a code is never a displayed figure. {@code Seeded} survives only to build
+     * the sample catalogue deterministically and to simulate demo RFQ replies; every engine
+     * reads the tenant's own rows through {@code history} or labels a reference estimate.
+     *
+     * <p>Ignored until every engine module has been rewired (the real-data waves); switched
+     * on in the verification commit that closes them.
+     */
+    @com.tngtech.archunit.junit.ArchIgnore(reason = "enabled once every real-data engine worktree has merged")
+    @ArchTest
+    static final ArchRule seededIsForSampleGenerationOnly = noClasses()
+            .that().resideOutsideOfPackages(
+                    "com.aatlas.catalog.internal.seed..", "com.aatlas.rfq.internal..", "com.aatlas.common.seed..")
+            .should().dependOnClassesThat().haveFullyQualifiedName("com.aatlas.common.seed.Seeded")
+            .because("a displayed figure comes from the tenant's rows or is labelled as a reference estimate; "
+                    + "Seeded only seeds the sample catalogue and demo RFQ replies");
 
     /** Constructor injection only: it makes a missing dependency a compile error. */
     @ArchTest

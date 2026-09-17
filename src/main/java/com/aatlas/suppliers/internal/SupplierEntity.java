@@ -10,11 +10,15 @@ import java.time.LocalDate;
 import java.util.UUID;
 
 /**
- * A supplier on the tenant's panel: the seeded eight, plus anything added from a lookup.
+ * A supplier on the tenant's panel: the seeded eight, plus anything added from a lookup, a
+ * file, the form, or a purchase-order import.
  *
- * <p>{@code supplierKey} is the frontend id ({@code sup-2}, {@code cus-f26j4f}). Every
- * seeded figure the Buy and Suppliers screens derive for a supplier hashes this key, so it
- * is stored rather than replaced by the row's own uuid, and never changes once assigned.
+ * <p>{@code supplierKey} is the frontend id ({@code sup-2}, {@code cus-f26j4f}, {@code po-…}).
+ * It is stored rather than replaced by the row's own uuid, and never changes once assigned.
+ *
+ * <p>The performance figures are boxed: a supplier known only from a purchase order has no
+ * on-time rate, lead time, price index or defect rate on file, and {@code null} is that
+ * state. Nothing here or downstream may substitute a number for it.
  */
 @Entity
 @Table(name = "suppliers")
@@ -38,7 +42,7 @@ class SupplierEntity extends TenantScopedEntity {
     @Column(name = "website", nullable = false)
     private String website;
 
-    @Column(name = "category", nullable = false)
+    @Column(name = "category")
     private String category;
 
     @Column(name = "contact_name", nullable = false)
@@ -50,23 +54,23 @@ class SupplierEntity extends TenantScopedEntity {
     @Column(name = "currency", nullable = false)
     private String currency;
 
-    @Column(name = "lead_time_days", nullable = false)
-    private int leadTimeDays;
+    @Column(name = "lead_time_days")
+    private Integer leadTimeDays;
 
-    @Column(name = "otif_pct", nullable = false)
-    private double otifPct;
+    @Column(name = "otif_pct")
+    private Double otifPct;
 
-    @Column(name = "price_index", nullable = false)
-    private double priceIndex;
+    @Column(name = "price_index")
+    private Double priceIndex;
 
-    @Column(name = "defect_pct", nullable = false)
-    private double defectPct;
+    @Column(name = "defect_pct")
+    private Double defectPct;
 
-    @Column(name = "holds_stock", nullable = false)
-    private boolean holdsStock;
+    @Column(name = "holds_stock")
+    private Boolean holdsStock;
 
-    @Column(name = "years_trading", nullable = false)
-    private int yearsTrading;
+    @Column(name = "years_trading")
+    private Integer yearsTrading;
 
     @Column(name = "spend_share_12m", nullable = false)
     private double spendShare12m;
@@ -86,8 +90,11 @@ class SupplierEntity extends TenantScopedEntity {
     @Column(name = "added_at")
     private Instant addedAt;
 
-    @Column(name = "since", nullable = false)
+    @Column(name = "since")
     private LocalDate since;
+
+    @Column(name = "source")
+    private String source;
 
     protected SupplierEntity() {
         // JPA
@@ -104,12 +111,12 @@ class SupplierEntity extends TenantScopedEntity {
             String contactName,
             String email,
             String currency,
-            int leadTimeDays,
-            double otifPct,
-            double priceIndex,
-            double defectPct,
-            boolean holdsStock,
-            int yearsTrading,
+            Integer leadTimeDays,
+            Double otifPct,
+            Double priceIndex,
+            Double defectPct,
+            Boolean holdsStock,
+            Integer yearsTrading,
             double spendShare12m,
             BigDecimal spendYtd,
             int poCount12m,
@@ -166,6 +173,7 @@ class SupplierEntity extends TenantScopedEntity {
         return website;
     }
 
+    /** Null for a supplier created from a purchase order, until someone classifies it. */
     String getCategory() {
         return category;
     }
@@ -194,27 +202,37 @@ class SupplierEntity extends TenantScopedEntity {
         return currency;
     }
 
-    int getLeadTimeDays() {
+    /** Null = not provided. */
+    Integer getLeadTimeDays() {
         return leadTimeDays;
     }
 
-    double getOtifPct() {
+    /** Null = not provided. */
+    Double getOtifPct() {
         return otifPct;
     }
 
-    double getPriceIndex() {
+    /** Null = not provided. */
+    Double getPriceIndex() {
         return priceIndex;
     }
 
-    double getDefectPct() {
+    /** Null = not provided. */
+    Double getDefectPct() {
         return defectPct;
     }
 
-    boolean isHoldsStock() {
+    /** Null = not provided. */
+    Boolean getHoldsStock() {
         return holdsStock;
     }
 
-    int getYearsTrading() {
+    boolean isHoldsStock() {
+        return Boolean.TRUE.equals(holdsStock);
+    }
+
+    /** Null = not provided. */
+    Integer getYearsTrading() {
         return yearsTrading;
     }
 
@@ -242,13 +260,23 @@ class SupplierEntity extends TenantScopedEntity {
         return addedAt;
     }
 
+    /** Null when the platform has never observed an order from them. */
     LocalDate getSince() {
         return since;
     }
+
+    String getSource() {
+        return source;
+    }
+
+    void setSource(String source) {
+        this.source = source;
+    }
+
     /**
      * Overwrites the profile and performance numbers from a re-imported file.
      *
-     * <p>Deliberately does not touch spend, order count or { since}: those are facts
+     * <p>Deliberately does not touch spend, order count or {@code since}: those are facts
      * about trading with this supplier that the platform observed, and a vendor-master
      * export has no business overwriting them.
      */
@@ -261,12 +289,12 @@ class SupplierEntity extends TenantScopedEntity {
             String contactName,
             String email,
             String currency,
-            int leadTimeDays,
-            double otifPct,
-            double priceIndex,
-            double defectPct,
-            boolean holdsStock,
-            int yearsTrading) {
+            Integer leadTimeDays,
+            Double otifPct,
+            Double priceIndex,
+            Double defectPct,
+            Boolean holdsStock,
+            Integer yearsTrading) {
         this.name = name;
         this.country = country;
         this.city = city;

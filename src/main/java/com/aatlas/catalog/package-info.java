@@ -6,5 +6,5 @@
  */
 @org.springframework.modulith.ApplicationModule(
         displayName = "catalog",
-        allowedDependencies = {"common", "policy", "tenant"})
+        allowedDependencies = {"common", "history", "policy", "tenant"})
 package com.aatlas.catalog;

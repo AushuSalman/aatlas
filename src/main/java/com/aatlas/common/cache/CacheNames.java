@@ -34,6 +34,13 @@ public final class CacheNames {
     public static final String GUARDRAILS = "guardrails";
     public static final String TENANT_SETTINGS = "tenantSettings";
 
+    // The history read layer's heavy aggregates. Evicted by HistoryCaches after every write
+    // to the tables they reduce; the TTL is only a backstop.
+    public static final String BULK_MODEL = "bulkModel";
+    public static final String SALES_HISTORY = "salesHistory";
+    public static final String PURCHASE_HISTORY = "purchaseHistory";
+    public static final String READINESS = "readiness";
+
     /** Same for every tenant; in-process, never evicted by a tenant event. */
     public static final String REFERENCE = "reference";
 
@@ -41,7 +48,8 @@ public final class CacheNames {
             OVERVIEW, REGION_INTEL, STORE_INTEL, PRODUCT_SCORES,
             SELL_RECOMMENDATION, BUY_RECOMMENDATION, BUY_INTEL,
             SUPPLIER_PANEL, SUPPLIER_RATING, PROCUREMENT_ANALYTICS,
-            DEMOGRAPHICS, GUARDRAILS, TENANT_SETTINGS);
+            DEMOGRAPHICS, GUARDRAILS, TENANT_SETTINGS,
+            BULK_MODEL, SALES_HISTORY, PURCHASE_HISTORY, READINESS);
 
     /** {@code t:{tenant}:{parts joined by ':'}} */
     public static String key(UUID tenantId, Object... parts) {

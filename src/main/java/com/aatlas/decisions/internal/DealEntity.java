@@ -35,7 +35,8 @@ public class DealEntity extends TenantScopedEntity {
     @Column(name = "qty", nullable = false)
     private int qty;
 
-    @Column(name = "cost", nullable = false)
+    /** Null when the sale was recorded with no cost on file. */
+    @Column(name = "cost")
     private BigDecimal cost;
 
     @Column(name = "baseline_price", nullable = false)

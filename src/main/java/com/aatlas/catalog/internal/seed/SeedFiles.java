@@ -36,7 +36,8 @@ public class SeedFiles {
     private volatile List<SeedCustomer> customers;
     private volatile List<SeedCountry> countries;
     private volatile SeedLogistics logistics;
-    private volatile Map<String, SeedCommodity> commodities;
+    private volatile SeedCommodities commodities;
+    private volatile List<SeedBenchmark> benchmarks;
 
     public SeedFiles(ObjectMapper json) {
         this.json = json;
@@ -80,10 +81,27 @@ public class SeedFiles {
 
     /** Keyed by commodity, in the seed's order. */
     public Map<String, SeedCommodity> commodities() {
+        return commodityFile().commodities();
+    }
+
+    /** The date the commodity trend was true on; shown beside every figure derived from it. */
+    public java.time.LocalDate commoditiesAsOf() {
+        return commodityFile().asOf();
+    }
+
+    private SeedCommodities commodityFile() {
         if (commodities == null) {
             commodities = read("commodities.json", new TypeReference<>() {});
         }
         return commodities;
+    }
+
+    /** Reference gross-margin bands per category; the row for category "*" is the default. */
+    public List<SeedBenchmark> benchmarks() {
+        if (benchmarks == null) {
+            benchmarks = read("pricing-benchmarks.json", new TypeReference<>() {});
+        }
+        return benchmarks;
     }
 
     private <T> T read(String file, TypeReference<T> type) {
@@ -196,5 +214,21 @@ public class SeedFiles {
     /** A value of {@code commodities.json}; the frontend's {@code COMMODITY_TREND} entry. */
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record SeedCommodity(BigDecimal pct90, String label) {
+    }
+
+    /** {@code commodities.json}: the trend map and the date it was taken. */
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record SeedCommodities(java.time.LocalDate asOf, Map<String, SeedCommodity> commodities) {
+    }
+
+    /** A row of {@code pricing-benchmarks.json}. */
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record SeedBenchmark(
+            String category,
+            String subcategory,
+            BigDecimal targetMarginPct,
+            BigDecimal lowMarginPct,
+            BigDecimal highMarginPct,
+            String note) {
     }
 }

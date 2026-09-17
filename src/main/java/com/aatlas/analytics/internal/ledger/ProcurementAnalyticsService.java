@@ -201,7 +201,7 @@ public class ProcurementAnalyticsService implements ProcurementAnalytics, Procur
                 exWorks, freight, duty, landed, baseline, target, landed <= target + 0.005,
                 spend, baseline * award.qty(), Math.max(0, baseline - landed) * award.qty(),
                 Math.max(0, landed - target) * award.qty(),
-                "open", promisedDays, 0, 0, true, orderDate.plusDays(promisedDays), null);
+                "open", promisedDays, null, null, null, orderDate.plusDays(promisedDays), null, poNumber, "award");
 
         PurchaseOrderEntity entity = new PurchaseOrderEntity(row);
         entity.setTenantId(tenantId);
