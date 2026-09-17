@@ -9,7 +9,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.UUID;
 
-/** See V12: {@code deal}. Seeded (recorded=false) or written live (recorded=true). */
+/** See V12/V22: {@code deal}. Every row is real, written live by {@link DecisionRecorderImpl}. */
 @Entity
 @Table(name = "deal")
 public class DealEntity extends TenantScopedEntity {

@@ -1,8 +1,5 @@
 package com.aatlas.assistant.internal;
 
-import com.aatlas.assistant.internal.AssistantCatalog.MarketRegion;
-import com.aatlas.assistant.internal.AssistantCatalog.SeedProduct;
-import com.aatlas.assistant.internal.AssistantCatalog.SeedStore;
 import com.aatlas.assistant.internal.AssistantDtos.AnswerView;
 import com.aatlas.assistant.internal.AssistantDtos.CtaView;
 import com.aatlas.assistant.internal.AssistantDtos.HistoryEntryView;
@@ -13,6 +10,7 @@ import com.aatlas.bulk.SellLine;
 import com.aatlas.bulk.SellLineReader;
 import com.aatlas.bulk.SupplierEval;
 import com.aatlas.common.time.AatlasClock;
+import com.aatlas.history.Catalogue;
 import com.aatlas.policy.Persona;
 import com.aatlas.policy.PolicyReader;
 import java.util.ArrayList;
@@ -20,6 +18,7 @@ import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Pattern;
@@ -31,20 +30,19 @@ import org.springframework.transaction.annotation.Transactional;
  * Ask Aatlas: a question in, a decision out. Port of {@code src/lib/intel/assistant.ts}.
  *
  * <p>Every intent matches the same regexes the TypeScript uses; what differs is where the
- * answer's numbers come from, and that varies intent by intent - see each branch's own
- * comment. In short: <b>raise-prices</b>, <b>demand-by-region</b> and <b>a store</b> are
- * real, computed the same way the screens would; <b>which-supplier</b>,
- * <b>liquidate</b>, <b>hold-vs-sell</b> and <b>what-changed</b> are simplified stand-ins
- * for engines (buy2's procurement planner, sell2's liquidation/hold signals, insights'
- * overview) that live in other tracks' worktrees - each is a small, honest computation
- * over real seeded data, not fabricated, but not the real engine's formula either. See
- * this module's section of the wave-2 report for the full list.
+ * answer's numbers come from. <b>raise-prices</b>, <b>demand-by-region</b> and <b>a store</b>
+ * are computed the same way the screens would, over the tenant's own catalogue
+ * ({@link Catalogue}) rather than a fixture shared by every tenant. <b>which-supplier</b>,
+ * <b>liquidate</b>, <b>hold-vs-sell</b> and <b>what-changed</b> are simplified stand-ins for
+ * engines (buy2's procurement planner, sell2's liquidation/hold signals, insights' overview)
+ * that live in other tracks' worktrees - each is a small, honest computation over
+ * {@link SellLineReader}/{@link BuyLineReader}'s real (or, until those tracks land, real
+ * stand-in) panel, not fabricated. When an intent needs a catalogue the tenant has not built
+ * yet (no product has recorded sales, or there is no branch to price at), the answer says so
+ * rather than reporting a hollow zero - see {@link #unlock}.
  */
 @Service
 public class AssistantService {
-
-    private static final String DEMO_ITEM = "HRD118902";
-    private static final String DEMO_STORE = "100959";
 
     private static final Pattern RAISE_PRICES = Pattern.compile(
             "(increase|raise|higher|up)\\b.*price|price.*(increase|raise)|which products");
@@ -59,27 +57,31 @@ public class AssistantService {
 
     private final SellLineReader sellLines;
     private final BuyLineReader buyLines;
-    private final AssistantCatalog catalog;
+    private final Catalogue catalogue;
     private final PolicyReader personas;
     private final AssistantQuestionRepository history;
     private final AatlasClock clock;
 
-    AssistantService(SellLineReader sellLines, BuyLineReader buyLines, AssistantCatalog catalog,
+    AssistantService(SellLineReader sellLines, BuyLineReader buyLines, Catalogue catalogue,
             PolicyReader personas, AssistantQuestionRepository history, AatlasClock clock) {
         this.sellLines = sellLines;
         this.buyLines = buyLines;
-        this.catalog = catalog;
+        this.catalogue = catalogue;
         this.personas = personas;
         this.history = history;
         this.clock = clock;
     }
 
     public List<String> suggestedQuestions() {
+        Optional<Catalogue.StoreRef> flagship = catalogue.stores().stream().findFirst();
+        String holdQuestion = flagship
+                .map(s -> "Should I hold copper tube at " + cityOf(s) + " or sell now?")
+                .orElse("Should I hold copper tube or sell now?");
         return List.of(
                 "Which products should I increase prices on today?",
                 "Which supplier should we use for a 50,000-unit copper order?",
                 "What should I liquidate?",
-                "Should I hold copper tube at " + catalog.storeCity(DEMO_STORE) + " or sell now?",
+                holdQuestion,
                 "What changed today?",
                 "Where is demand growing?");
     }
@@ -113,7 +115,7 @@ public class AssistantService {
     // ---- the router --------------------------------------------------------------------------
 
     private AnswerView answer(String question) {
-        String q = question.toLowerCase(Locale.ROOT).strip();
+        String q = lower(question).strip();
 
         if (RAISE_PRICES.matcher(q).find()) {
             return raisePrices();
@@ -133,11 +135,12 @@ public class AssistantService {
         if (DEMAND_REGION.matcher(q).find()) {
             return demandByRegion();
         }
-        String store = findStore(q);
-        if (store != null) {
-            return new AnswerView(catalog.storeLabel(store), null, List.of(),
+        String storeCode = findStore(q);
+        if (storeCode != null) {
+            String label = catalogue.store(storeCode).map(Catalogue.StoreRef::label).orElse(storeCode);
+            return new AnswerView(label, null, List.of(),
                     "Branch health, opportunities and every product at this branch.",
-                    new CtaView("Open the branch", "/app/stores?store=" + store), null);
+                    new CtaView("Open the branch", "/app/stores?store=" + storeCode), null);
         }
         return new AnswerView("I can answer these", null,
                 suggestedQuestions().stream().map(sq -> new LineView("", sq, null)).toList(),
@@ -146,14 +149,51 @@ public class AssistantService {
                 new CtaView("Open the overview", "/app"), null);
     }
 
+    /**
+     * "Connect more data" rather than a hollow zero: every intent below reads the tenant's own
+     * sellable catalogue (a product with recorded sales, at an active branch); a tenant that has
+     * not uploaded sales history yet - a fresh signup, or one that has only loaded a product
+     * master - has none, and a loop over zero pairs would otherwise answer "0 products" or
+     * "nothing to liquidate" as if the platform had checked and found nothing, rather than
+     * having nothing to check.
+     */
+    private AnswerView unlock(String reason) {
+        return new AnswerView("Upload sales history to unlock this", null, List.of(), reason,
+                new CtaView("Upload sales history", "/app/data?kind=sales"), null);
+    }
+
+    private List<Catalogue.ProductRef> sellableProducts() {
+        return catalogue.products().stream().filter(Catalogue.ProductRef::hasSales).toList();
+    }
+
+    private boolean hasSellableCatalogue() {
+        return !sellableProducts().isEmpty() && !catalogue.stores().isEmpty();
+    }
+
+    /** The tenant's own catalogue, first product/store/region on file - never a fixture id. */
+    private String defaultItem(List<Catalogue.ProductRef> sellable) {
+        return sellable.stream().findFirst().map(Catalogue.ProductRef::itemNumber).orElse(null);
+    }
+
+    private String defaultStoreCode() {
+        return catalogue.stores().stream().findFirst().map(Catalogue.StoreRef::storeCode).orElse(null);
+    }
+
+    private String defaultRegionKey() {
+        return catalogue.regions().stream().findFirst().map(Catalogue.RegionRef::key).orElse("south");
+    }
+
     /** Real: exactly {@code getSellIntel} across every (sellable item, branch) pair, as the TypeScript does. */
     private AnswerView raisePrices() {
+        if (!hasSellableCatalogue()) {
+            return unlock("There's no sales history yet to know which prices are underpriced.");
+        }
         Set<String> seen = new LinkedHashSet<>();
         double total = 0;
         SellLine best = null;
-        for (SeedProduct p : catalog.sellableProducts()) {
-            for (SeedStore t : catalog.stores()) {
-                SellLine s = sellLines.read(p.itemNumber(), t.storeId());
+        for (Catalogue.ProductRef p : sellableProducts()) {
+            for (Catalogue.StoreRef t : catalogue.stores()) {
+                SellLine s = sellLines.read(p.itemNumber(), t.storeCode());
                 if (!s.priceable() || s.monthlyOpportunity() <= 0) {
                     continue;
                 }
@@ -185,13 +225,37 @@ public class AssistantService {
      * running the real multi-factor procurement planner.
      */
     private AnswerView whichSupplier(String q) {
-        String item = orDefault(findProduct(q), DEMO_ITEM);
-        String region = orDefault(findRegion(q), "south");
+        List<Catalogue.ProductRef> sellable = sellableProducts();
+        if (sellable.isEmpty()) {
+            return unlock("There's no product catalogue with sales history yet to price a supplier order against.");
+        }
+        String region = orDefault(findRegion(q), defaultRegionKey());
         Integer qtyFound = findQty(q);
         int qty = qtyFound == null ? 10000 : qtyFound;
         boolean urgent = URGENT.matcher(q).find();
 
-        BuyLine intel = buyLines.read(item, region, qty);
+        // bulk's own reader (a sibling worktree's real-data rewrite is still pending) knows a
+        // fixed demo panel of items; try every candidate this question could mean before
+        // falling back to the tenant's default, and unlock rather than fabricate a
+        // recommendation if none of them are priceable there.
+        String item = null;
+        BuyLine intel = null;
+        List<String> candidates = new ArrayList<>(productCandidates(q, sellable));
+        candidates.add(defaultItem(sellable));
+        for (String candidate : candidates) {
+            if (candidate == null) {
+                continue;
+            }
+            BuyLine attempt = buyLines.read(candidate, region, qty);
+            if (attempt.priceable() && !attempt.suppliers().isEmpty()) {
+                item = candidate;
+                intel = attempt;
+                break;
+            }
+        }
+        if (intel == null) {
+            return unlock("There's no supplier data for this order yet.");
+        }
         String priority = q.contains("cheap") || q.contains("lowest cost") || q.contains("cost") ? "cost"
                 : q.contains("fast") || q.contains("quick") || q.contains("speed") ? "speed"
                 : q.contains("reliab") ? "reliability" : "balanced";
@@ -239,13 +303,16 @@ public class AssistantService {
      * elasticity-based projection.
      */
     private AnswerView liquidate() {
+        if (!hasSellableCatalogue()) {
+            return unlock("There's no sales and inventory history yet to know what's overstocked.");
+        }
         record Hit(String name, String store, double erosion, String item, String storeId, double units,
                 double valueNow) {
         }
         List<Hit> hits = new ArrayList<>();
-        for (SeedProduct p : catalog.sellableProducts()) {
-            for (SeedStore t : catalog.stores()) {
-                SellLine s = sellLines.read(p.itemNumber(), t.storeId());
+        for (Catalogue.ProductRef p : sellableProducts()) {
+            for (Catalogue.StoreRef t : catalogue.stores()) {
+                SellLine s = sellLines.read(p.itemNumber(), t.storeCode());
                 if (!s.priceable() || s.weeksOfCover() <= 16 || "high".equals(s.demandLevel())) {
                     continue;
                 }
@@ -284,9 +351,33 @@ public class AssistantService {
      * of holding at a stated 8%-a-year carrying cost.
      */
     private AnswerView holdVsSell(String q) {
-        String item = orDefault(findProduct(q), DEMO_ITEM);
-        String store = orDefault(findStore(q), DEMO_STORE);
-        SellLine s = sellLines.read(item, store);
+        if (!hasSellableCatalogue()) {
+            return unlock("There's no sales history yet for a hold-or-sell call.");
+        }
+        List<Catalogue.ProductRef> sellable = sellableProducts();
+        String store = orDefault(findStore(q), defaultStoreCode());
+
+        // Try every candidate this question could mean (a tenant can have more than one
+        // "copper" item) before falling back to the tenant's default, and unlock rather than
+        // extrapolate a price move for a pair this branch has never actually sold.
+        String item = null;
+        SellLine s = null;
+        List<String> candidates = new ArrayList<>(productCandidates(q, sellable));
+        candidates.add(defaultItem(sellable));
+        for (String candidate : candidates) {
+            if (candidate == null) {
+                continue;
+            }
+            SellLine attempt = sellLines.read(candidate, store);
+            if (attempt.priceable()) {
+                item = candidate;
+                s = attempt;
+                break;
+            }
+        }
+        if (s == null) {
+            return unlock("There's no sales history for this line at this branch yet.");
+        }
 
         double priceNow = s.recommended();
         double appreciationPct = round1(s.demandPct() * 2);
@@ -316,16 +407,19 @@ public class AssistantService {
     /**
      * Simplified stand-in for {@code getOverview} (src/lib/intel/overview.ts, the
      * insights module's engine - not ported). Aggregates the same demand signal every
-     * other intent reads across the flagship basket rather than reading a real
+     * other intent reads across the tenant's sellable catalogue rather than reading a real
      * change-event ledger, which does not exist yet (see the wave-2 report).
      */
     private AnswerView whatChanged() {
+        if (!hasSellableCatalogue()) {
+            return unlock("There's no sales history yet to show what changed.");
+        }
         int up = 0;
         int down = 0;
         double opportunityTotal = 0;
-        for (SeedProduct p : catalog.sellableProducts()) {
-            for (SeedStore t : catalog.stores()) {
-                SellLine s = sellLines.read(p.itemNumber(), t.storeId());
+        for (Catalogue.ProductRef p : sellableProducts()) {
+            for (Catalogue.StoreRef t : catalogue.stores()) {
+                SellLine s = sellLines.read(p.itemNumber(), t.storeCode());
                 if (!s.priceable()) {
                     continue;
                 }
@@ -352,22 +446,27 @@ public class AssistantService {
      * Real, but a simplified aggregate: averages {@link SellLine#demandPct()} - the same
      * per-item demand signal {@code geo.ts}'s {@code allRegions} itself reads - across
      * every store in a region, rather than reproducing that file's own region-level
-     * scaling formula.
+     * scaling formula. Regions come from the tenant's own reference table
+     * ({@link Catalogue#regions()}), not a fixed US list, so a UK tenant sees its own.
      */
     private AnswerView demandByRegion() {
+        if (!hasSellableCatalogue()) {
+            return unlock("There's no sales history yet to show where demand is moving.");
+        }
+        List<Catalogue.ProductRef> sellable = sellableProducts();
         record RegionDemand(String key, String label, double avgPct, String topItem) {
         }
         List<RegionDemand> regions = new ArrayList<>();
-        for (MarketRegion r : AssistantCatalog.MARKET_REGIONS) {
-            List<SeedStore> inRegion = catalog.stores().stream()
+        for (Catalogue.RegionRef r : catalogue.regions()) {
+            List<Catalogue.StoreRef> inRegion = catalogue.stores().stream()
                     .filter(t -> r.key().equals(t.regionKey())).toList();
             double sum = 0;
             int n = 0;
             String bestItem = null;
             double bestPct = Double.NEGATIVE_INFINITY;
-            for (SeedStore t : inRegion) {
-                for (SeedProduct p : catalog.sellableProducts()) {
-                    SellLine s = sellLines.read(p.itemNumber(), t.storeId());
+            for (Catalogue.StoreRef t : inRegion) {
+                for (Catalogue.ProductRef p : sellable) {
+                    SellLine s = sellLines.read(p.itemNumber(), t.storeCode());
                     if (!s.priceable()) {
                         continue;
                     }
@@ -380,6 +479,9 @@ public class AssistantService {
                 }
             }
             regions.add(new RegionDemand(r.key(), r.label(), n == 0 ? 0 : round1(sum / n), bestItem));
+        }
+        if (regions.isEmpty()) {
+            return unlock("There's no sales history yet to show where demand is moving.");
         }
         regions.sort((a, b) -> Double.compare(b.avgPct(), a.avgPct()));
         RegionDemand top = regions.get(0);
@@ -399,41 +501,65 @@ public class AssistantService {
 
     // ---- intent-matching helpers, ported from assistant.ts's find* functions -----------------
 
-    private String findProduct(String q) {
-        for (SeedProduct p : catalog.sellableProducts()) {
-            String name = AssistantCatalog.lower(p.shortName());
+    /**
+     * Every product this question could plausibly mean, best match first: a name match, then
+     * (for "copper" and friends) every product sharing that commodity - a tenant's real
+     * catalogue can hold more than one copper item (a flagship high-volume tube and a
+     * low-volume coil are both genuinely "copper" for the sample tenant), and unlike the old
+     * shared fixture there is no single hardcoded answer, so callers try each candidate in
+     * turn against the reader that actually knows what is priceable rather than committing to
+     * the first name match.
+     */
+    private List<String> productCandidates(String q, List<Catalogue.ProductRef> sellable) {
+        List<String> byName = new ArrayList<>();
+        for (Catalogue.ProductRef p : sellable) {
+            String name = lower(p.shortName());
             List<String> words = List.of(name.replaceAll("[^a-z0-9 ]", " ").trim().split("\\s+")).stream()
                     .filter(w -> w.length() > 3).toList();
-            if (!words.isEmpty() && words.stream().allMatch(q::contains)) {
-                return p.itemNumber();
+            if (words.isEmpty()) {
+                continue;
             }
-            if (!words.isEmpty() && q.contains(words.get(0)) && (words.size() < 2 || q.contains(words.get(1)))) {
-                return p.itemNumber();
+            boolean matches = words.stream().allMatch(q::contains)
+                    || (q.contains(words.get(0)) && (words.size() < 2 || q.contains(words.get(1))));
+            if (matches) {
+                byName.add(p.itemNumber());
             }
         }
-        return q.contains("copper") ? DEMO_ITEM : null;
+        if (q.contains("copper")) {
+            for (Catalogue.ProductRef p : sellable) {
+                if ("copper".equalsIgnoreCase(p.commodity()) && !byName.contains(p.itemNumber())) {
+                    byName.add(p.itemNumber());
+                }
+            }
+        }
+        return byName;
     }
 
     private String findStore(String q) {
-        for (SeedStore t : catalog.stores()) {
-            String source = t.msaName() != null ? t.msaName() : t.legalName();
-            String city = source == null ? "" : AssistantCatalog.lower(source.split("-")[0]).trim();
+        for (Catalogue.StoreRef t : catalogue.stores()) {
+            String city = lower(cityOf(t));
             if (!city.isEmpty() && q.contains(city)) {
-                return t.storeId();
+                return t.storeCode();
             }
         }
         return null;
     }
 
     private String findRegion(String q) {
-        for (MarketRegion r : AssistantCatalog.MARKET_REGIONS) {
-            List<String> words = List.of(AssistantCatalog.lower(r.label()).split("[^a-z]+")).stream()
+        for (Catalogue.RegionRef r : catalogue.regions()) {
+            List<String> words = List.of(lower(r.label()).split("[^a-z]+")).stream()
                     .filter(w -> w.length() > 3).toList();
             if (words.stream().anyMatch(q::contains)) {
                 return r.key();
             }
         }
         return null;
+    }
+
+    /** "Dallas" from "Dallas-Fort Worth-Arlington" (or the legal name when there is no MSA). */
+    private static String cityOf(Catalogue.StoreRef store) {
+        String source = store.msaName() != null && !store.msaName().isBlank() ? store.msaName() : store.legalName();
+        return source == null ? store.storeCode() : source.split("-")[0].strip();
     }
 
     private static Integer findQty(String q) {
@@ -443,6 +569,10 @@ public class AssistantService {
 
     private static String orDefault(String value, String fallback) {
         return value == null ? fallback : value;
+    }
+
+    private static String lower(String s) {
+        return s == null ? "" : s.toLowerCase(Locale.ROOT);
     }
 
     private static double round2(double n) {

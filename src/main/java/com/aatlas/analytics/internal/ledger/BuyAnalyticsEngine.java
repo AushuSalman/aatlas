@@ -1,7 +1,5 @@
 package com.aatlas.analytics.internal.ledger;
 
-import com.aatlas.analytics.internal.fixtures.Fixtures;
-import com.aatlas.analytics.internal.fixtures.SupplierFixture;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -180,7 +178,8 @@ public final class BuyAnalyticsEngine {
         return head;
     }
 
-    public static BuyAnalytics compute(DateRange range, Filters filters, List<PoRow> allRows) {
+    public static BuyAnalytics compute(DateRange range, Filters filters, List<PoRow> allRows,
+            Map<String, SupplierFacts> supplierFacts) {
         DateRange compare = DateRanges.previousRange(range);
         LocalDate ledgerStart = ledgerStart(allRows);
         boolean comparable = ledgerStart != null && !compare.from().isBefore(ledgerStart);
@@ -244,30 +243,30 @@ public final class BuyAnalyticsEngine {
         for (String id : supplierIds) {
             List<PoRow> mine = rows.stream().filter(r -> r.supplierId().equals(id)).toList();
             List<PoRow> rec = received.stream().filter(r -> r.supplierId().equals(id)).toList();
-            SupplierFixture s = Fixtures.findSupplier(id);
+            // supplierIds is built only from rows/received, so one of the two is always non-empty
+            // here - the row itself carries the name/country the tenant's data resolved to it.
+            PoRow sample = !mine.isEmpty() ? mine.get(0) : rec.get(0);
+            SupplierFacts facts = supplierFacts.getOrDefault(id, SupplierFacts.EMPTY);
             double mySpend = sum(mine, PoRow::spend);
             double onTimePct = rec.isEmpty() ? 0 : round2((rec.stream().filter(PoRow::wasOnTime).count() * 100.0) / rec.size());
             double sharePct = spend != 0 ? round2((mySpend / spend) * 100) : 0;
             String risk = (onTimePct < 82 && sharePct > 12) ? "high" : (onTimePct < 88 || sharePct > 28) ? "watch" : "low";
-            int avgLeadDays = rec.isEmpty()
-                    ? (s != null ? s.leadTimeDays() : 0)
-                    : (int) Math.round(avgLeadDays(rec));
+            Integer avgLeadDays = rec.isEmpty()
+                    ? facts.leadTimeDays()
+                    : Integer.valueOf((int) Math.round(avgLeadDays(rec)));
             List<Double> series = new ArrayList<>();
             for (List<PoRow> br : byBucketRows) {
                 series.add(sum(br.stream().filter(r -> r.supplierId().equals(id)).toList(), PoRow::spend));
             }
             suppliers.add(new SupplierRow(
-                    id,
-                    s != null ? s.name() : id,
-                    s != null ? s.country() : "",
-                    s != null ? s.vendorCode() : "",
+                    id, sample.supplierName(), sample.country(), facts.vendorCode(),
                     mySpend, sharePct, mine.size(), mine.stream().mapToInt(PoRow::qty).sum(),
                     sum(mine, PoRow::saved), sum(mine, PoRow::leaked),
                     weighted(mine, PoRow::landed, r -> r.qty()),
-                    s != null ? s.priceIndex() : 0,
+                    facts.priceIndex(),
                     onTimePct, avgLeadDays,
-                    s != null ? s.qualityPpm() : 0,
-                    s != null ? s.creditDays() : 0,
+                    facts.qualityPpm(),
+                    facts.creditDays(),
                     risk, series, 0));
         }
         suppliers.sort((a, b) -> Double.compare(b.spend(), a.spend()));

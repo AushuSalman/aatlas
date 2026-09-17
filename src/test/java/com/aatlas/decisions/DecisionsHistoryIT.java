@@ -11,6 +11,7 @@ import com.aatlas.realdata.SampleTenant;
 import com.aatlas.smoke.PostgresIntegrationTest;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.time.LocalDate;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
@@ -199,5 +200,27 @@ class DecisionsHistoryIT extends PostgresIntegrationTest {
         mvc.perform(get("/api/v1/decisions").header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items").isEmpty());
+    }
+
+    @Test
+    @Order(7)
+    @DisplayName("marginPct is absent, not zero, for a sell deal recorded with no cost on file")
+    void marginPctNullWhenCostAbsent() throws Exception {
+        // deal.cost is nullable since V22 - a sale can be recorded without a cost on file and
+        // is still a real sale (plan-addendum #10). Inserted directly rather than through
+        // /sell/apply because sell's own engine (a sibling worktree, not rewired here) never
+        // resolves a null cost yet - this pins HistoryEngine's own null-safety over a row the
+        // schema genuinely allows, independent of when sell lands.
+        jdbc.update("""
+                insert into deal (tenant_id, deal_key, side, item_number, description, counterparty, qty, cost,
+                    baseline_price, suggested_price, actual_price, followed, gain, lost, recorded, customer, deal_date)
+                values (?, 'costless-test-1', 'sell', 'ZZZ-NOCOST', 'Costless test line', 'Dallas #100959', 5, null,
+                    10.00, 10.00, 10.00, true, 0, 0, true, 'Test Co', ?)
+                """, tenantId, java.sql.Date.valueOf(LocalDate.now()));
+
+        mvc.perform(get("/api/v1/history?item=ZZZ-NOCOST").header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items.length()").value(1))
+                .andExpect(jsonPath("$.items[0].marginPct").doesNotExist());
     }
 }
