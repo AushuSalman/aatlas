@@ -29,6 +29,16 @@ final class Fmt {
         return Math.round(n * f) / f;
     }
 
+    /** A nullable {@link BigDecimal} as a nullable wire double - {@code null} stays {@code null}, never 0. */
+    static Double dv(BigDecimal v) {
+        return v == null ? null : v.doubleValue();
+    }
+
+    /** {@code dv}, but 0 when absent - for internal aggregation where "no input" and "adds nothing" are the same. */
+    static double dv0(BigDecimal v) {
+        return v == null ? 0 : v.doubleValue();
+    }
+
     static double round2(double n) {
         return round(n, 2);
     }

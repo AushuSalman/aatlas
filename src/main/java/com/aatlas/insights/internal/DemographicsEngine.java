@@ -1,63 +1,68 @@
 package com.aatlas.insights.internal;
 
-import com.aatlas.insights.internal.BuyEngine.BuyRecommendation;
-import com.aatlas.insights.internal.BuyEngine.SupplierQuote;
-import com.aatlas.insights.internal.GeoEngine.Climate;
-import com.aatlas.insights.internal.GeoEngine.RegionIntel;
-import com.aatlas.insights.internal.GeoEngine.StoreIntel;
-import com.aatlas.insights.internal.PricingEngine.PricingModel;
-import com.aatlas.insights.internal.SellEngine.SellSummary;
+import com.aatlas.history.Catalogue;
+import com.aatlas.history.PricingMath;
+import com.aatlas.history.PurchaseHistory;
+import com.aatlas.history.PurchaseHistory.PoGroup;
+import com.aatlas.history.Reference;
+import com.aatlas.history.SalesHistory;
+import com.aatlas.history.SalesHistory.GroupStats;
+import com.aatlas.history.SalesStats;
+import com.aatlas.history.Suppliers;
+import com.aatlas.history.Window;
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
+import org.springframework.stereotype.Component;
 
 /**
- * A port of {@code intel/demographics.ts}'s {@code getDemographics}: who is buying, where,
- * what they buy, and who the branch buys from - filtered by region, state, branch, customer
- * segment, product category and period. Category and place figures come from the pricing
- * engine (price x volume per line at each branch, exactly as {@code geo.ts} sums them);
- * customer-segment shares are seeded per region with a point of view, plus per-branch
- * variation, matching the TypeScript's own constants verbatim.
+ * Spec 3.9: who is buying, where, what they buy, and who the branch buys from - over
+ * {@code SalesHistory.byCustomerSegment}/{@code byCategory}/{@code byStore} and {@code
+ * PurchaseHistory.byOrigin}, for the requested period (30d/90d/12m). Segments and categories
+ * are tenant-wide (the read layer's group queries have no store dimension); {@code region}/
+ * {@code state}/{@code store} narrow which branches make up {@code places}, and {@code
+ * segment}/{@code category} only mark which row is {@code selected} - the frontend already
+ * reads the full mix and highlights the one it asked for.
  */
-final class DemographicsEngine {
+@Component
+class DemographicsEngine {
 
-    private DemographicsEngine() {
-    }
+    private final SalesHistory salesHistory;
+    private final PurchaseHistory purchaseHistory;
+    private final Reference reference;
+    private final Suppliers suppliers;
+    private final GeoEngine geoEngine;
 
-    static final List<String> SEGMENTS = List.of("Contractor", "Institutional", "Industrial", "Walk-in");
-    static final Map<String, String> SEGMENT_LABEL = Map.of(
-            "Contractor", "Contractors", "Institutional", "Institutional accounts",
-            "Industrial", "Industrial accounts", "Walk-in", "Walk-in trade");
-    static final List<String> CATEGORIES = List.of("Plumbing", "HVAC", "Water heating", "Fixtures");
-    static final List<PeriodDef> PERIODS = List.of(
-            new PeriodDef("30d", "Last 30 days", 1.0 / 12),
-            new PeriodDef("90d", "Last 90 days", 1.0 / 4),
-            new PeriodDef("12m", "Last 12 months", 1.0));
-
-    record PeriodDef(String key, String label, double factor) {
+    DemographicsEngine(SalesHistory salesHistory, PurchaseHistory purchaseHistory, Reference reference,
+            Suppliers suppliers, GeoEngine geoEngine) {
+        this.salesHistory = salesHistory;
+        this.purchaseHistory = purchaseHistory;
+        this.reference = reference;
+        this.suppliers = suppliers;
+        this.geoEngine = geoEngine;
     }
 
     record Filter(String region, String state, String storeId, String segment, String category, String period) {
     }
 
-    record SegmentRow(String segment, String label, double revenue, double sharePct, double marginPct,
-            double growthPct, int avgOrder, int customers, boolean selected) {
+    record SegmentRow(String segment, String label, double revenue, double sharePct, Double marginPct,
+            Double growthPct, Double avgOrder, int customers, boolean selected) {
     }
 
-    record CategoryRow(String category, double revenue, double sharePct, double marginPct, double demandPct,
-            int units, boolean selected) {
+    record CategoryRow(String category, double revenue, double sharePct, Double marginPct, Double demandPct,
+            double units, boolean selected) {
     }
 
     record PlaceRow(String storeId, String label, String city, String state, String regionKey, String regionLabel,
-            double revenue, double sharePct, double growthPct, double marginPct, String topSegment,
+            double revenue, double sharePct, Double growthPct, Double marginPct, String topSegment,
             String topCategory, String health) {
     }
 
-    record OriginRow(String country, double spend, double sharePct, int suppliers, int avgLeadDays,
-            double avgOtifPct, double dutyPct, String mode) {
+    record OriginRow(String country, double spend, double sharePct, int suppliers, Integer avgLeadDays,
+            Double avgOtifPct, double dutyPct, String mode) {
     }
 
     record Action(String label, String href) {
@@ -70,388 +75,192 @@ final class DemographicsEngine {
             String headline, List<Action> actions) {
     }
 
-    private static final Map<String, Map<String, Double>> SEGMENT_BASE = Map.of(
-            "south", Map.of("Contractor", 54.0, "Industrial", 20.0, "Institutional", 16.0, "Walk-in", 10.0),
-            "west", Map.of("Contractor", 46.0, "Industrial", 24.0, "Institutional", 18.0, "Walk-in", 12.0),
-            "north", Map.of("Contractor", 50.0, "Industrial", 14.0, "Institutional", 26.0, "Walk-in", 10.0),
-            "east", Map.of("Contractor", 44.0, "Industrial", 20.0, "Institutional", 28.0, "Walk-in", 8.0));
-    private static final Map<String, Double> SEGMENT_MARGIN =
-            Map.of("Contractor", 33.0, "Institutional", 29.0, "Industrial", 37.0, "Walk-in", 44.0);
-    private static final Map<String, Double> SEGMENT_GROWTH =
-            Map.of("Contractor", 3.0, "Institutional", -2.0, "Industrial", 1.0, "Walk-in", -4.0);
-    private static final Map<String, Double> SEGMENT_ORDER =
-            Map.of("Contractor", 1850.0, "Institutional", 4200.0, "Industrial", 3100.0, "Walk-in", 140.0);
-    private static final Map<String, Double> SEGMENT_ORDERS_PER_YEAR =
-            Map.of("Contractor", 26.0, "Institutional", 9.0, "Industrial", 14.0, "Walk-in", 5.0);
+    private static final Map<String, String> SEGMENT_LABEL = Map.of(
+            "contractor", "Contractors", "institutional", "Institutional accounts",
+            "industrial", "Industrial accounts", "walk-in", "Walk-in trade", "unassigned", "Unassigned");
 
-    private static Map<String, Double> segmentShares(String storeId, String regionKey) {
-        Map<String, Double> base = SEGMENT_BASE.get(regionKey);
-        double[] raw = new double[SEGMENTS.size()];
-        double sum = 0;
-        for (int i = 0; i < SEGMENTS.size(); i++) {
-            String s = SEGMENTS.get(i);
-            raw[i] = Math.max(3, base.get(s) + (GeoEngine.storeSeed(storeId, "seg-" + s) - 0.5) * 8);
-            sum += raw[i];
-        }
-        Map<String, Double> out = new LinkedHashMap<>();
-        for (int i = 0; i < SEGMENTS.size(); i++) {
-            out.put(SEGMENTS.get(i), (raw[i] / sum) * 100);
-        }
-        return out;
+    private static Window windowFor(String period, LocalDate today) {
+        return switch (period == null ? "12m" : period) {
+            case "30d" -> Window.trailingDays(today, 30);
+            case "90d" -> Window.trailingDays(today, 90);
+            default -> Window.trailingMonths(today, 12);
+        };
     }
 
-    private record CategoryMixRow(double share, double margin, double demandPct, double units) {
+    private static String periodLabel(String period) {
+        return switch (period == null ? "12m" : period) {
+            case "30d" -> "Last 30 days";
+            case "90d" -> "Last 90 days";
+            default -> "Last 12 months";
+        };
     }
 
-    private static Map<String, CategoryMixRow> categoryMix(String storeId, CatalogSnapshot snapshot) {
-        Map<String, double[]> acc = new LinkedHashMap<>(); // rev, cogs, demand, n, units
-        for (String c : CATEGORIES) {
-            acc.put(c, new double[5]);
-        }
-        for (ProductRef p : snapshot.sellableProducts()) {
-            if (!snapshot.priceable(p.itemNumber(), storeId)) {
-                continue;
-            }
-            PricingModel m = PricingEngine.compute(p.itemNumber(), storeId, snapshot);
-            SellSummary intel = SellEngine.compute(p.itemNumber(), storeId, snapshot, m);
-            double[] a = acc.get(p.category());
-            if (a == null) {
-                // A category this mix has no column for - in practice 'uncategorised', which
-                // is what ingest writes for a product invented by a CSV import (it declines to
-                // guess a category, deliberately). The accumulator is pre-sized to CATEGORIES,
-                // so this used to read null and throw, and one imported SKU was enough to make
-                // GET /insights/demographics 500 for the whole tenant.
-                //
-                // Skipped rather than given a column of its own: the shares below are what the
-                // frontend renders against four fixed categories, and a fifth would change that
-                // contract. The consequence is that an uncategorised line is absent from the
-                // mix until someone categorises it, which is the honest reading of "we do not
-                // know what this is" - better than inventing a category for it.
-                continue;
-            }
-            a[0] += intel.currentPrice() * intel.annualUnits();
-            a[1] += intel.cost() * intel.annualUnits();
-            a[2] += (m.demand() != null ? m.demand().movePercent() : 0) * 3;
-            a[3] += 1;
-            a[4] += intel.annualUnits();
-        }
-        double total = 0;
-        for (String c : CATEGORIES) {
-            total += acc.get(c)[0];
-        }
-        if (total == 0) {
-            total = 1;
-        }
-        Map<String, CategoryMixRow> out = new LinkedHashMap<>();
-        for (String c : CATEGORIES) {
-            double[] a = acc.get(c);
-            out.put(c, new CategoryMixRow(
-                    (a[0] / total) * 100,
-                    a[0] > 0 ? ((a[0] - a[1]) / a[0]) * 100 : 0,
-                    a[3] > 0 ? a[2] / a[3] : 0,
-                    a[4]));
-        }
-        return out;
-    }
+    Demographics compute(Filter f, InsightsData data) {
+        LocalDate today = data.today();
+        Window window = windowFor(f.period(), today);
 
-    static List<String> statesInScope(String region, CatalogSnapshot snapshot) {
-        List<StoreRef> stores = snapshot.allStoresOrdered();
-        Set<String> ids = "all".equals(region)
-                ? stores.stream().map(StoreRef::storeCode).collect(java.util.stream.Collectors.toSet())
-                : Set.copyOf(storesInMarketRegion(region, snapshot));
-        return stores.stream()
-                .filter(s -> ids.contains(s.storeCode()))
-                .map(StoreRef::state)
-                .filter(s -> s != null && !s.isBlank())
-                .collect(java.util.stream.Collectors.toCollection(() -> new java.util.TreeSet<String>()))
-                .stream().toList();
-    }
+        List<Catalogue.StoreRef> scopedStores = scopedStores(f, data);
+        boolean includeNoBranch = "all".equals(f.region()) && "all".equals(f.state()) && f.storeId() == null
+                && !data.atStore(GeoEngine.NO_BRANCH).isEmpty();
 
-    private static List<String> storesInMarketRegion(String key, CatalogSnapshot snapshot) {
-        return snapshot.allStoresOrdered().stream()
-                .filter(s -> snapshot.marketRegionForState(s.state()).key().equals(key))
-                .map(StoreRef::storeCode)
-                .toList();
-    }
+        List<GroupStats> segGroups = salesHistory.byCustomerSegment(window);
+        List<GroupStats> catGroups = salesHistory.byCategory(window);
+        List<GroupStats> storeGroups = salesHistory.byStore(window);
+        List<PoGroup> originGroups = purchaseHistory.byOrigin(window);
 
-    static Demographics compute(Filter f, CatalogSnapshot snapshot, DealsIndex deals) {
-        PeriodDef period = PERIODS.stream().filter(p -> p.key().equals(f.period())).findFirst()
-                .orElse(PERIODS.get(2));
-
-        List<String> storeIds = "all".equals(f.region())
-                ? snapshot.allStoresOrdered().stream().map(StoreRef::storeCode).toList()
-                : storesInMarketRegion(f.region(), snapshot);
-        if (!"all".equals(f.state())) {
-            storeIds = storeIds.stream()
-                    .filter(id -> f.state().equals(snapshot.store(id).map(StoreRef::state).orElse(null)))
-                    .toList();
+        BigDecimal totalRevenue = BigDecimal.ZERO;
+        for (GroupStats g : segGroups) {
+            totalRevenue = totalRevenue.add(orZero(g.current().revenue()));
         }
-        if (f.storeId() != null && storeIds.contains(f.storeId())) {
-            storeIds = List.of(f.storeId());
-        }
-        if (storeIds.isEmpty()) {
-            storeIds = snapshot.allStoresOrdered().stream().map(StoreRef::storeCode).toList();
+        BigDecimal totalRevenueSafe = totalRevenue.signum() == 0 ? BigDecimal.ONE : totalRevenue;
+
+        List<SegmentRow> segments = new ArrayList<>();
+        int customers = 0;
+        for (GroupStats g : segGroups) {
+            SalesStats cur = g.current();
+            customers += cur.customers();
+            BigDecimal growth = growthPct(g);
+            segments.add(new SegmentRow(g.key(), SEGMENT_LABEL.getOrDefault(g.key().toLowerCase(java.util.Locale.ROOT), g.label()),
+                    round2(cur.revenue()), pctOf(cur.revenue(), totalRevenueSafe),
+                    Fmt.dv(cur.grossMarginPct()), Fmt.dv(growth),
+                    cur.customers() > 0 ? Fmt.dv(PricingMath.div(orZero(cur.revenue()), BigDecimal.valueOf(cur.customers()))) : null,
+                    cur.customers(), g.key().equalsIgnoreCase(f.segment())));
         }
 
-        String scopeLabel;
-        if (f.storeId() != null && storeIds.size() == 1) {
-            scopeLabel = GeoEngine.storeLabel(storeIds.get(0), snapshot);
-        } else if (!"all".equals(f.state())) {
-            String stateName = subdivisionName(f.state(), snapshot);
-            String suffix = "all".equals(f.region()) ? "" : ", " + snapshot.marketRegion(f.region()).shortLabel();
-            scopeLabel = stateName + suffix;
-        } else if ("all".equals(f.region())) {
-            scopeLabel = "All regions";
-        } else {
-            scopeLabel = snapshot.marketRegion(f.region()).shortLabel() + " region";
+        List<CategoryRow> categories = new ArrayList<>();
+        for (GroupStats g : catGroups) {
+            SalesStats cur = g.current();
+            BigDecimal growth = growthPct(g);
+            categories.add(new CategoryRow(g.key(), round2(cur.revenue()), pctOf(cur.revenue(), totalRevenueSafe),
+                    Fmt.dv(cur.grossMarginPct()), Fmt.dv(growth), cur.units() == null ? 0 : cur.units().doubleValue(),
+                    g.key().equalsIgnoreCase(f.category())));
         }
 
-        Map<String, double[]> segAcc = new LinkedHashMap<>(); // revenue, margin, growth, w, customers
-        Map<String, double[]> catAcc = new LinkedHashMap<>(); // revenue, margin, demand, w, units
-        for (String s : SEGMENTS) {
-            segAcc.put(s, new double[5]);
-        }
-        for (String c : CATEGORIES) {
-            catAcc.put(c, new double[5]);
-        }
+        Map<String, BigDecimal> categoryRevenueByStore = new LinkedHashMap<>();
         List<PlaceRow> places = new ArrayList<>();
-        Map<String, double[]> originAcc = new LinkedHashMap<>(); // spend, lead*, otif*, w
-        Map<String, Set<String>> originSuppliers = new LinkedHashMap<>();
-
-        for (String storeId : storeIds) {
-            StoreRef store = snapshot.store(storeId).orElseThrow();
-            var region = snapshot.marketRegionForState(store.state());
-            Climate climate = GeoEngine.regionClimate(region.key());
-            StoreIntel storeIntel = GeoEngine.getStoreIntel(storeId, snapshot, deals);
-            double seasonal = "12m".equals(f.period())
-                    ? 1
-                    : 1 + (GeoEngine.storeSeed(storeId, "season-" + f.period()) - 0.5) * ("30d".equals(f.period()) ? 0.18 : 0.08);
-            Map<String, Double> shares = segmentShares(storeId, region.key());
-            Map<String, CategoryMixRow> cats = categoryMix(storeId, snapshot);
-
-            double segShare = "all".equals(f.segment()) ? 1 : shares.get(f.segment()) / 100;
-            double catShare = "all".equals(f.category()) ? 1 : cats.get(f.category()).share() / 100;
-            double storeRevenue = storeIntel.revenue() * period.factor() * seasonal * segShare * catShare;
-            double level = 1 + (climate.marginAdj() / 100);
-
-            String topSegment = "Contractor";
-            double topSegmentShare = -1;
-            for (String s : SEGMENTS) {
-                double revenue = storeRevenue * ("all".equals(f.segment()) ? shares.get(s) / 100 : s.equals(f.segment()) ? 1 : 0);
-                double growth = climate.demandPct() + SEGMENT_GROWTH.get(s) + (GeoEngine.storeSeed(storeId, "grow-" + s) - 0.5) * 6;
-                double margin = SEGMENT_MARGIN.get(s) + climate.marginAdj() + (GeoEngine.storeSeed(storeId, "mar-" + s) - 0.5) * 4;
-                double orders = revenue / (SEGMENT_ORDER.get(s) * level);
-                double customers = orders / (SEGMENT_ORDERS_PER_YEAR.get(s) * period.factor());
-                double[] a = segAcc.get(s);
-                a[0] += revenue;
-                a[1] += margin * revenue;
-                a[2] += growth * revenue;
-                a[3] += revenue;
-                a[4] += customers;
-                if (shares.get(s) > topSegmentShare) {
-                    topSegmentShare = shares.get(s);
-                    topSegment = s;
-                }
-            }
-
-            String topCategory = "Plumbing";
-            double topCategoryShare = -1;
-            for (String c : CATEGORIES) {
-                CategoryMixRow mix = cats.get(c);
-                double revenue = storeRevenue * ("all".equals(f.category()) ? mix.share() / 100 : c.equals(f.category()) ? 1 : 0);
-                double[] a = catAcc.get(c);
-                a[0] += revenue;
-                a[1] += mix.margin() * revenue;
-                a[2] += (climate.demandPct() + mix.demandPct()) * revenue;
-                a[3] += revenue;
-                a[4] += mix.units() * period.factor() * segShare * ("all".equals(f.category()) || c.equals(f.category()) ? 1 : 0);
-                if (mix.share() > topCategoryShare) {
-                    topCategoryShare = mix.share();
-                    topCategory = c;
-                }
-            }
-
-            places.add(new PlaceRow(storeId, storeIntel.label(), GeoEngine.storeCity(store),
-                    store.state() == null ? "" : store.state(), region.key(), region.shortLabel(),
-                    storeRevenue, 0, Fmt.round1(storeIntel.demandPct()), storeIntel.marginPct(),
-                    topSegment, topCategory, storeIntel.health()));
-
-            int regionStoreCount = Math.max(1, storesInMarketRegion(region.key(), snapshot).size());
-            for (ProductRef p : snapshot.sellableProducts()) {
-                if (!"all".equals(f.category()) && !p.category().equals(f.category())) {
-                    continue;
-                }
-                if (!snapshot.priceable(p.itemNumber(), storeId)) {
-                    continue;
-                }
-                PricingModel m = PricingEngine.compute(p.itemNumber(), storeId, snapshot);
-                if (snapshot.suppliers().isEmpty()) {
-                    // Suppliers seed asynchronously right after a data source connects; treat
-                    // "not seeded yet" the same as "no incumbent found" below, not a crash.
-                    continue;
-                }
-                BuyRecommendation buy = BuyEngine.compute(p.itemNumber(), storeId, snapshot);
-                SupplierRef sup = snapshot.suppliers().stream()
-                        .filter(s -> s.id().equals(buy.incumbentSupplierId())).findFirst().orElse(null);
-                if (sup == null) {
-                    continue;
-                }
-                SupplierQuote q = buy.quotes().stream().filter(SupplierQuote::isIncumbent).findFirst().orElse(null);
-                double annualVolume = annualVolumeFor(p.itemNumber(), region.key(), m.cost());
-                double spend = (buy.incumbentCost() * annualVolume * period.factor() * segShare) / regionStoreCount;
-                // slot 0 = lead-days * spend, slot 1 = otif * spend, slot 2 = spend (the weight both ride on).
-                double[] a = originAcc.computeIfAbsent(sup.country(), k -> new double[3]);
-                Set<String> supSet = originSuppliers.computeIfAbsent(sup.country(), k -> new LinkedHashSet<>());
-                supSet.add(sup.id());
-                int leadDays = q != null ? q.totalLeadDays() : sup.leadTimeDays();
-                a[0] += leadDays * spend;
-                a[1] += sup.otifPct() * spend;
-                a[2] += spend;
-            }
+        for (Catalogue.StoreRef store : scopedStores) {
+            places.add(placeRow(store.storeCode(), storeGroups, data));
         }
-
-        double totalRevenue = places.stream().mapToDouble(PlaceRow::revenue).sum();
-        if (totalRevenue == 0) {
-            totalRevenue = 1;
+        if (includeNoBranch) {
+            places.add(placeRow(GeoEngine.NO_BRANCH, storeGroups, data));
         }
-        double totalRevenueFinal = totalRevenue;
+        BigDecimal placesRevenue = places.stream().map(p -> BigDecimal.valueOf(p.revenue()))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal placesRevenueSafe = placesRevenue.signum() == 0 ? BigDecimal.ONE : placesRevenue;
         List<PlaceRow> placesWithShare = places.stream()
                 .map(p -> new PlaceRow(p.storeId(), p.label(), p.city(), p.state(), p.regionKey(), p.regionLabel(),
-                        p.revenue(), Fmt.round1((p.revenue() / totalRevenueFinal) * 100), p.growthPct(),
+                        p.revenue(), Fmt.round1(p.revenue() / placesRevenueSafe.doubleValue() * 100), p.growthPct(),
                         p.marginPct(), p.topSegment(), p.topCategory(), p.health()))
                 .sorted((a, b) -> Double.compare(b.revenue(), a.revenue()))
                 .toList();
 
-        List<SegmentRow> segments = new ArrayList<>();
-        for (String s : SEGMENTS) {
-            double[] a = segAcc.get(s);
-            double revenue = Fmt.round2(a[0]);
-            if (revenue <= 0 && !"all".equals(f.segment())) {
-                continue;
-            }
-            segments.add(new SegmentRow(s, SEGMENT_LABEL.get(s), revenue,
-                    Fmt.round1((a[0] / totalRevenueFinal) * 100),
-                    a[3] != 0 ? Fmt.round1(a[1] / a[3]) : 0,
-                    a[3] != 0 ? Fmt.round1(a[2] / a[3]) : 0,
-                    (int) Math.round((double) SEGMENT_ORDER.get(s)), (int) Math.round(a[4]), f.segment().equals(s)));
+        BigDecimal totalSpend = BigDecimal.ZERO;
+        for (PoGroup g : originGroups) {
+            totalSpend = totalSpend.add(orZero(g.current().spend()));
         }
+        BigDecimal totalSpendSafe = totalSpend.signum() == 0 ? BigDecimal.ONE : totalSpend;
+        List<OriginRow> origins = originGroups.stream().map(g -> {
+            PurchaseHistory.PoStats cur = g.current();
+            Reference.Origin origin = reference.origin(g.key());
+            long supplierCount = suppliers.panel().stream()
+                    .filter(s -> g.key().equalsIgnoreCase(s.country())).count();
+            return new OriginRow(g.key(), round2(cur.spend()), pctOf(cur.spend(), totalSpendSafe), (int) supplierCount,
+                    cur.avgLeadDays() == null ? null : (int) Math.round(cur.avgLeadDays().doubleValue()),
+                    Fmt.dv(cur.otifPct()), origin.dutyPct() == null ? 0 : origin.dutyPct().doubleValue(), origin.mode());
+        }).sorted((a, b) -> Double.compare(b.spend(), a.spend())).toList();
 
-        List<CategoryRow> categories = new ArrayList<>();
-        for (String c : CATEGORIES) {
-            double[] a = catAcc.get(c);
-            double revenue = Fmt.round2(a[0]);
-            if (revenue <= 0 && !"all".equals(f.category())) {
-                continue;
-            }
-            categories.add(new CategoryRow(c, revenue, Fmt.round1((a[0] / totalRevenueFinal) * 100),
-                    a[3] != 0 ? Fmt.round1(a[1] / a[3]) : 0, a[3] != 0 ? Fmt.round1(a[2] / a[3]) : 0,
-                    (int) Math.round(a[4]), f.category().equals(c)));
-        }
-
-        double totalSpend = originAcc.values().stream().mapToDouble(a -> a[2]).sum();
-        if (totalSpend == 0) {
-            totalSpend = 1;
-        }
-        double totalSpendFinal = totalSpend;
-        List<OriginRow> origins = originAcc.entrySet().stream()
-                .map(e -> {
-                    String country = e.getKey();
-                    double[] a = e.getValue();
-                    double spend = a[2];
-                    var ref = snapshot.logisticsOrigins().get(country);
-                    return new OriginRow(country, Fmt.round2(spend), Fmt.round1((spend / totalSpendFinal) * 100),
-                            originSuppliers.get(country).size(),
-                            a[2] != 0 ? (int) Math.round(a[0] / a[2]) : 0,
-                            a[2] != 0 ? Fmt.round1(a[1] / a[2]) : 0,
-                            ref != null ? ref.dutyPct().doubleValue() : 0,
-                            ref != null ? ref.mode() : "ocean");
-                })
-                .sorted((a, b) -> Double.compare(b.spend(), a.spend()))
-                .toList();
-
-        List<SegmentRow> byRevenue = segments.stream()
+        List<SegmentRow> byRevenue = segments.stream().filter(s -> s.revenue() > 0)
                 .sorted((a, b) -> Double.compare(b.revenue(), a.revenue())).toList();
         SegmentRow topSegment = byRevenue.isEmpty() ? null : byRevenue.get(0);
-        SegmentRow fastestSegment = segments.stream()
-                .sorted((a, b) -> Double.compare(b.growthPct(), a.growthPct())).findFirst().orElse(topSegment);
-        CategoryRow topCategory = categories.stream()
-                .sorted((a, b) -> Double.compare(b.revenue(), a.revenue())).findFirst().orElse(null);
-        int customers = (int) Math.round(segments.stream().mapToDouble(SegmentRow::customers).sum());
+        SegmentRow fastestSegment = segments.stream().filter(s -> s.growthPct() != null)
+                .max(java.util.Comparator.comparingDouble(SegmentRow::growthPct)).orElse(topSegment);
+        CategoryRow topCategory = categories.stream().filter(c -> c.revenue() > 0)
+                .max(java.util.Comparator.comparingDouble(CategoryRow::revenue)).orElse(null);
 
+        String scopeLabel = scopeLabel(f, data, scopedStores);
         String where = "All regions".equals(scopeLabel) ? "across the network" : "in " + scopeLabel;
-        String headline = "";
-        if (topSegment != null) {
-            StringBuilder sb = new StringBuilder();
-            sb.append(topSegment.label()).append(" drive ").append(Fmt.toFixed(topSegment.sharePct(), 0))
-                    .append("% of revenue ").append(where).append(", growing ")
-                    .append(topSegment.growthPct() >= 0 ? "+" : "").append(Fmt.toFixed(topSegment.growthPct(), 0))
-                    .append("%. ");
-            if (fastestSegment != null && !fastestSegment.segment().equals(topSegment.segment())
-                    && fastestSegment.growthPct() - topSegment.growthPct() >= 1) {
-                sb.append(fastestSegment.label()).append(" are growing fastest at ")
-                        .append(fastestSegment.growthPct() >= 0 ? "+" : "").append(Fmt.toFixed(fastestSegment.growthPct(), 0))
-                        .append("%.");
-            }
-            headline = sb.toString().trim();
-        }
+        String headline = topSegment == null ? "" : topSegment.label() + " drive "
+                + Fmt.toFixed(topSegment.sharePct(), 0) + "% of revenue " + where + ".";
 
-        List<String> regionKeys = "all".equals(f.region())
-                ? snapshot.marketRegions().stream().map(MarketRegionRef::key).toList()
-                : List.of(f.region());
-        Set<String> inv = new LinkedHashSet<>();
-        Set<String> pricesUp = new LinkedHashSet<>();
-        Set<String> sups = new LinkedHashSet<>();
-        for (String k : regionKeys) {
-            RegionIntel r = GeoEngine.getRegionIntel(k, snapshot, deals);
-            inv.addAll(r.increaseInventory());
-            pricesUp.addAll(r.raisePrices());
-            sups.addAll(r.reviewSuppliers());
-        }
-        String regionQs = "all".equals(f.region()) ? "" : "?region=" + f.region();
-        String bulkStore = storeIds.size() == 1 ? "?store=" + storeIds.get(0)
-                : "all".equals(f.region()) ? "" : "?region=" + f.region();
         List<Action> actions = new ArrayList<>();
-        if (!inv.isEmpty()) {
-            actions.add(new Action("Increase inventory for " + inv.size() + " " + (inv.size() == 1 ? "product" : "products")
-                    + " where demand is rising",
-                    "/app/products" + (!regionQs.isEmpty() ? regionQs + "&filter=strong" : "?filter=strong")));
+        if (topCategory != null) {
+            actions.add(new Action("Review pricing for " + topCategory.category() + ", the top category " + where,
+                    "/app/products?category=" + topCategory.category()));
         }
-        if (!pricesUp.isEmpty()) {
-            actions.add(new Action("Adjust prices for " + pricesUp.size() + " " + (pricesUp.size() == 1 ? "product" : "products")
-                    + " sitting under the market", "/app/sell/bulk" + bulkStore));
+        if (fastestSegment != null && fastestSegment != topSegment) {
+            actions.add(new Action("Stock the lines " + fastestSegment.label().toLowerCase(java.util.Locale.ROOT)
+                    + " buy: fastest-growing segment " + where, "/app/stores"));
         }
-        if (!sups.isEmpty()) {
-            actions.add(new Action("Review " + sups.size() + " " + (sups.size() == 1 ? "supplier" : "suppliers")
-                    + " priced above market", "/app/buy/bulk" + regionQs));
-        }
-        SegmentRow highestMargin = segments.stream()
-                .sorted((a, b) -> Double.compare(b.marginPct(), a.marginPct())).findFirst().orElse(null);
-        if (highestMargin != null && "Walk-in".equals(highestMargin.segment())) {
-            actions.add(new Action("Protect counter pricing: walk-in trade earns " + Fmt.toFixed(highestMargin.marginPct(), 0) + "% margin",
-                    "/app/products" + regionQs));
-        } else if (fastestSegment != null) {
-            actions.add(new Action("Stock the lines " + fastestSegment.label().toLowerCase() + " buy: fastest-growing segment " + where,
-                    "/app/stores" + regionQs));
-        }
-        List<Action> actionsFinal = actions.size() > 4 ? actions.subList(0, 4) : actions;
 
-        return new Demographics(scopeLabel, period.label(), Fmt.round2(totalRevenueFinal), customers,
+        return new Demographics(scopeLabel, periodLabel(f.period()), round2(totalRevenue), customers,
                 segments, categories, placesWithShare, origins, topSegment, fastestSegment, topCategory,
-                headline, actionsFinal);
+                headline, actions);
     }
 
-    static double annualVolumeFor(String itemNumber, String regionKey, double cost) {
-        String key = "avol:" + itemNumber + ":" + regionKey;
-        if (cost < 15) {
-            return com.aatlas.common.seed.Seeded.randInt(key, "v", 9000, 62000);
+    private PlaceRow placeRow(String storeCode, List<GroupStats> storeGroups, InsightsData data) {
+        GroupStats g = InsightsData.group(storeGroups, storeCode).orElse(null);
+        boolean noBranch = GeoEngine.NO_BRANCH.equals(storeCode);
+        var store = noBranch ? null : data.store(storeCode).orElse(null);
+        GeoEngine.StoreIntel intel = geoEngine.storeIntel(storeCode, data);
+
+        Map<String, BigDecimal> categoryRevenue = new LinkedHashMap<>();
+        for (PairFacts pf : data.atStore(storeCode)) {
+            BigDecimal rev = pf.pair().w12() == null ? BigDecimal.ZERO : orZero(pf.pair().w12().revenue());
+            categoryRevenue.merge(pf.pair().category(), rev, BigDecimal::add);
         }
-        if (cost < 200) {
-            return com.aatlas.common.seed.Seeded.randInt(key, "v", 1200, 11000);
-        }
-        return com.aatlas.common.seed.Seeded.randInt(key, "v", 60, 520);
+        String topCategory = categoryRevenue.entrySet().stream()
+                .max(Map.Entry.comparingByValue()).map(Map.Entry::getKey).orElse(null);
+
+        BigDecimal revenue = g == null ? BigDecimal.ZERO : orZero(g.current().revenue());
+        BigDecimal growth = g == null ? null : growthPct(g);
+
+        return new PlaceRow(storeCode, intel.label(), intel.city(), intel.state(), intel.regionKey(),
+                intel.regionLabel(), round2(revenue), 0, Fmt.dv(growth), intel.marginPct(), null, topCategory,
+                intel.health());
     }
 
-    private static String subdivisionName(String code, CatalogSnapshot snapshot) {
-        return snapshot.subdivisionNames().getOrDefault(code, code);
+    private List<Catalogue.StoreRef> scopedStores(Filter f, InsightsData data) {
+        List<Catalogue.StoreRef> stores = data.stores();
+        if (f.storeId() != null) {
+            return stores.stream().filter(s -> s.storeCode().equals(f.storeId())).toList();
+        }
+        List<Catalogue.StoreRef> byRegion = "all".equals(f.region()) ? stores
+                : stores.stream().filter(s -> f.region().equals(s.regionKey())).toList();
+        if (!"all".equals(f.state())) {
+            byRegion = byRegion.stream().filter(s -> f.state().equals(s.subdivisionCode())).toList();
+        }
+        return byRegion.isEmpty() ? stores : byRegion;
+    }
+
+    private String scopeLabel(Filter f, InsightsData data, List<Catalogue.StoreRef> scopedStores) {
+        if (f.storeId() != null && scopedStores.size() == 1) {
+            return scopedStores.get(0).label();
+        }
+        if (!"all".equals(f.state())) {
+            return f.state() + ("all".equals(f.region()) ? "" : ", " + f.region());
+        }
+        if ("all".equals(f.region())) {
+            return "All regions";
+        }
+        var region = data.regions().stream().filter(r -> r.key().equals(f.region())).findFirst();
+        return region.map(Catalogue.RegionRef::shortLabel).orElse(f.region());
+    }
+
+    private static BigDecimal growthPct(GroupStats g) {
+        BigDecimal cur = orZero(g.current().revenue());
+        BigDecimal prior = orZero(g.prior().revenue());
+        return PricingMath.pct(cur.subtract(prior), prior);
+    }
+
+    private static BigDecimal orZero(BigDecimal v) {
+        return v == null ? BigDecimal.ZERO : v;
+    }
+
+    private static double round2(BigDecimal v) {
+        return v == null ? 0 : v.setScale(2, java.math.RoundingMode.HALF_UP).doubleValue();
+    }
+
+    private static double pctOf(BigDecimal v, BigDecimal total) {
+        return Fmt.round1(orZero(v).doubleValue() / total.doubleValue() * 100);
     }
 }

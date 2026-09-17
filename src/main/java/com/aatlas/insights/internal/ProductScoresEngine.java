@@ -1,22 +1,16 @@
 package com.aatlas.insights.internal;
 
+import com.aatlas.decisions.DealSummaries;
 import com.aatlas.insights.internal.ScoreEngine.OpportunityScore;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
 /**
- * Backs {@code GET /products/scores} and {@code GET /products/{item}/scores}.
- *
- * <p>The frontend's own typed API client ({@code src/lib/platform/backend.ts}'s
- * {@code productsApi}) already names the wire shape: both endpoints return a flat list of
- * {@code ProductScoreRow} - {@link ScoreEngine.OpportunityScore} plus the product's
- * {@code name} and {@code category} - one row per priceable (item, branch) pair in scope,
- * not a pre-aggregated "best branch per product" summary. The Products screen builds that
- * aggregation (best branch, average score, strong count, total opportunity) itself from
- * this same flat shape today by calling {@code opportunityScore} directly per (item,
- * store); wiring it to the API is meant to hand it the identical rows to fold the same way,
- * so this engine does not pre-fold them.
+ * Backs {@code GET /products/scores} and {@code GET /products/{item}/scores}: one row per
+ * priceable (item, branch) pair in scope, {@link ScoreEngine}'s real score plus the product's
+ * name and category. Not pre-folded into "best branch per product" - the Products screen
+ * builds that itself from this same flat shape.
  */
 final class ProductScoresEngine {
 
@@ -28,29 +22,24 @@ final class ProductScoresEngine {
             List<ScoreEngine.ScoreReason> reasons, ScoreEngine.Signals signals, String name, String category) {
     }
 
-    private static ProductScoreRow row(String itemNumber, String storeId, CatalogSnapshot snapshot) {
-        OpportunityScore s = ScoreEngine.compute(itemNumber, storeId, snapshot);
-        ProductRef meta = snapshot.product(itemNumber).orElseThrow();
+    private static ProductScoreRow row(PairFacts f, InsightsData data) {
+        DealSummaries.Adoption adoption = data.adoptionFor("no-branch".equals(f.storeKey()) ? null : f.storeKey());
+        OpportunityScore s = ScoreEngine.compute(f, adoption);
         return new ProductScoreRow(s.itemNumber(), s.storeId(), s.score(), s.tier(), s.tierLabel(),
-                s.reasons(), s.signals(), meta.shortName(), meta.category());
+                s.reasons(), s.signals(), f.pair().shortName(), f.pair().category());
     }
 
-    /** {@code GET /products/scores}: one row per priceable (item, branch) pair in scope. */
-    static List<ProductScoreRow> scores(String region, String filter, String sort, CatalogSnapshot snapshot) {
-        List<StoreRef> stores = (region == null || "all".equals(region))
-                ? snapshot.allStoresOrdered()
-                : snapshot.allStoresOrdered().stream()
-                        .filter(s -> snapshot.marketRegionForState(s.state()).key().equals(region))
-                        .toList();
+    static List<ProductScoreRow> scores(String region, String filter, String sort, InsightsData data) {
+        List<PairFacts> pairs = (region == null || "all".equals(region))
+                ? data.pairsByKey().values().stream().toList()
+                : data.pairsByKey().values().stream().filter(f -> region.equals(f.pair().regionKey())).toList();
 
         List<ProductScoreRow> rows = new ArrayList<>();
-        for (ProductRef p : snapshot.sellableProducts()) {
-            for (StoreRef store : stores) {
-                if (!snapshot.priceable(p.itemNumber(), store.storeCode())) {
-                    continue;
-                }
-                rows.add(row(p.itemNumber(), store.storeCode(), snapshot));
+        for (PairFacts f : pairs) {
+            if (!f.priceable()) {
+                continue;
             }
+            rows.add(row(f, data));
         }
 
         List<ProductScoreRow> filtered = (filter == null || "all".equals(filter))
@@ -60,12 +49,13 @@ final class ProductScoresEngine {
         Comparator<ProductScoreRow> byScore = Comparator.comparingInt(ProductScoreRow::score).reversed();
         Comparator<ProductScoreRow> comparator = switch (sort == null ? "score" : sort) {
             case "trend" -> Comparator
-                    .comparingDouble((ProductScoreRow r) -> Math.abs(snapshot.commodity(
-                            snapshot.product(r.itemNumber()).map(ProductRef::commodity).orElse("none")).pct90AsDouble()))
+                    .comparingDouble((ProductScoreRow r) -> r.signals().commodityPct90() == null ? 0
+                            : Math.abs(r.signals().commodityPct90()))
                     .reversed()
                     .thenComparing(byScore);
             case "opportunity" -> Comparator
-                    .comparingDouble((ProductScoreRow r) -> SellEngine.compute(r.itemNumber(), r.storeId(), snapshot).monthlyOpportunity())
+                    .comparingDouble((ProductScoreRow r) -> data.pair(r.itemNumber(), r.storeId())
+                            .map(f -> Fmt.dv0(f.monthlyOpportunity())).orElse(0.0))
                     .reversed()
                     .thenComparing(byScore);
             default -> byScore;
@@ -73,14 +63,13 @@ final class ProductScoresEngine {
         return filtered.stream().sorted(comparator).toList();
     }
 
-    /** {@code GET /products/{item}/scores}: every branch, unscoped, best score first. */
-    static List<ProductScoreRow> forItem(String itemNumber, CatalogSnapshot snapshot) {
+    static List<ProductScoreRow> forItem(String itemNumber, InsightsData data) {
         List<ProductScoreRow> rows = new ArrayList<>();
-        for (StoreRef store : snapshot.allStoresOrdered()) {
-            if (!snapshot.priceable(itemNumber, store.storeCode())) {
+        for (PairFacts f : data.forItem(itemNumber)) {
+            if (!f.priceable()) {
                 continue;
             }
-            rows.add(row(itemNumber, store.storeCode(), snapshot));
+            rows.add(row(f, data));
         }
         return rows.stream().sorted(Comparator.comparingInt(ProductScoreRow::score).reversed()).toList();
     }
