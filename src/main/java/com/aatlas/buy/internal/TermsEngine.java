@@ -1,21 +1,17 @@
 package com.aatlas.buy.internal;
 
 import com.aatlas.buy.CommercialTerms;
-import com.aatlas.common.seed.Seeded;
+import com.aatlas.history.Suppliers;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 
 /**
- * What a supplier's paperwork says, and what it is worth per unit. A port of the frontend's
- * {@code intel/terms.ts}.
- *
- * <p>The {@code suppliers} module ported this exact engine already (its own package-private
- * {@code TermsScoring}), but does not expose it - see {@link CommercialTerms}'s Javadoc for
- * the stand-in rule this follows. Seeded deterministically from {@code sup:<supplierId>},
- * the same key namespace {@link RiskEngine} and {@link RatingEngine} use.
- *
- * <p>TODO(merge): consider depending on suppliers' public reader if one exists after merge.
+ * What a supplier's paperwork says, and what it is worth per unit. {@code supplier_terms},
+ * verbatim (via {@link SupplierGateway#terms(String)}) - never seeded; a missing row means
+ * every figure is null, "Not provided". A port of the frontend's {@code intel/terms.ts}'s
+ * value formulas, made null-safe over an input that may genuinely be absent.
  */
 final class TermsEngine {
 
@@ -23,114 +19,107 @@ final class TermsEngine {
     }
 
     /** Annual cost of capital used to value credit, percent. Stated, not modelled. */
-    static final int COST_OF_CAPITAL_PCT = 8;
+    static final BigDecimal COST_OF_CAPITAL_PCT = BigDecimal.valueOf(8);
+    private static final BigDecimal DAYS_PER_YEAR = BigDecimal.valueOf(365);
+    private static final BigDecimal HUNDRED = BigDecimal.valueOf(100);
 
-    private static final List<String> INCOTERMS_DOMESTIC = List.of("FOB Destination", "FOB Origin", "DAP");
-    private static final List<String> INCOTERMS_IMPORT = List.of("FOB Origin Port", "CIF", "EXW", "DDP");
-
-    private static boolean isDomestic(String country) {
-        String c = country == null ? "" : country.strip().toLowerCase(Locale.ROOT);
-        return "usa".equals(c) || "us".equals(c) || "united states".equals(c);
-    }
-
-    static CommercialTerms commercialTerms(String supplierId, String country) {
-        String k = "sup:" + supplierId;
-        boolean domestic = isDomestic(country);
-        int creditDays = Seeded.pick(k, "ct-credit", domestic ? List.of(30, 45, 60) : List.of(0, 15, 30, 45));
-        double earlyPayDiscountPct = Seeded.rand(k, "ct-epd") > 0.5
-                ? Math.round(Seeded.randRange(k, "ct-epdv", 1, 2.5) * 10) / 10.0
-                : 0;
-        int earlyPayDays = earlyPayDiscountPct > 0 ? Seeded.pick(k, "ct-epdays", List.of(7, 10, 15)) : 0;
-        double latePenaltyPctPerWeek = Seeded.rand(k, "ct-pen8") > 0.35
-                ? Js.round2(Seeded.randRange(k, "ct-penv", 0.5, 2))
-                : 0;
-        String termsLabel = labelFor(creditDays, earlyPayDiscountPct, earlyPayDays);
-        double latePenaltyCapPct = latePenaltyPctPerWeek > 0 ? Seeded.pick(k, "ct-pencap", List.of(3, 5, 5, 10)) : 0;
-        int warrantyMonths = Seeded.pick(k, "ct-warr", List.of(12, 12, 18, 24, 36));
-        int quoteValidityDays = Seeded.pick(k, "ct-valid", List.of(14, 21, 30, 45, 60));
-        String incoterm = Seeded.pick(k, "ct-inco", domestic ? INCOTERMS_DOMESTIC : INCOTERMS_IMPORT);
-        double invoiceAccuracyPct = Js.round2(Seeded.randRange(k, "ct-inv", 88, 99.8));
-        int capacityUnitsMonth = Seeded.randInt(k, "ct-cap", 400, 26000);
-
-        return new CommercialTerms(creditDays, termsLabel, earlyPayDiscountPct, earlyPayDays,
-                latePenaltyPctPerWeek, latePenaltyCapPct, warrantyMonths, quoteValidityDays, incoterm,
-                invoiceAccuracyPct, capacityUnitsMonth);
-    }
-
-    private static String labelFor(int creditDays, double earlyPayDiscountPct, int earlyPayDays) {
-        if (creditDays == 0) {
-            return "Proforma";
+    static CommercialTerms commercialTerms(Suppliers.Terms t) {
+        if (t == null) {
+            return CommercialTerms.notProvided();
         }
-        return earlyPayDiscountPct > 0
-                ? Js.num(earlyPayDiscountPct) + "/" + earlyPayDays + " net " + creditDays
-                : "Net " + creditDays;
+        return new CommercialTerms(t.creditDays(), t.termsLabel(), t.earlyPayDiscountPct(), t.earlyPayDays(),
+                t.latePenaltyPctPerWeek(), t.latePenaltyCapPct(), t.warrantyMonths(), t.quoteValidityDays(),
+                t.incoterm(), t.invoiceAccuracyPct(), t.capacityUnitsMonth());
     }
 
     // -- What the terms are worth, per unit -----------------------------------------------------
 
-    /** Credit is money: the cost of capital on the price for the days you hold it. */
-    static double creditValuePerUnit(double unitCost, int creditDays) {
-        return Js.round2(unitCost * (creditDays / 365.0) * (COST_OF_CAPITAL_PCT / 100.0));
+    /** Credit is money: the cost of capital on the price for the days you hold it. Null without a credit term. */
+    static BigDecimal creditValuePerUnit(BigDecimal unitCost, Integer creditDays) {
+        if (unitCost == null || creditDays == null) {
+            return null;
+        }
+        return unitCost.multiply(BigDecimal.valueOf(creditDays)).divide(DAYS_PER_YEAR, 6, RoundingMode.HALF_UP)
+                .multiply(COST_OF_CAPITAL_PCT).divide(HUNDRED, 2, RoundingMode.HALF_UP);
     }
 
     /**
-     * An early-settlement discount, net of the credit you give up to take it. Zero when no
-     * discount is offered or it is not worth it.
+     * An early-settlement discount, net of the credit you give up to take it. Null when the
+     * terms are unknown; zero when no discount is offered or it is not worth it.
      */
-    static double earlyPayNetPerUnit(double unitCost, CommercialTerms t) {
-        if (t.earlyPayDiscountPct() <= 0) {
-            return 0;
+    static BigDecimal earlyPayNetPerUnit(BigDecimal unitCost, CommercialTerms t) {
+        if (unitCost == null || t.earlyPayDiscountPct() == null || t.earlyPayDiscountPct().signum() <= 0) {
+            return BigDecimal.ZERO;
         }
-        double discount = unitCost * (t.earlyPayDiscountPct() / 100.0);
-        double creditGivenUp = creditValuePerUnit(unitCost, Math.max(0, t.creditDays() - t.earlyPayDays()));
-        return Js.round2(Math.max(0, discount - creditGivenUp));
+        BigDecimal discount = unitCost.multiply(t.earlyPayDiscountPct()).divide(HUNDRED, 2, RoundingMode.HALF_UP);
+        int creditDays = t.creditDays() == null ? 0 : t.creditDays();
+        int earlyPayDays = t.earlyPayDays() == null ? 0 : t.earlyPayDays();
+        BigDecimal creditGivenUp = creditValuePerUnit(unitCost, Math.max(0, creditDays - earlyPayDays));
+        if (creditGivenUp == null) {
+            creditGivenUp = BigDecimal.ZERO;
+        }
+        BigDecimal net = discount.subtract(creditGivenUp);
+        return net.signum() < 0 ? BigDecimal.ZERO : net.setScale(2, RoundingMode.HALF_UP);
     }
 
     /**
      * The most a late clause recovers per unit: the weekly rate over a typical slip of about
-     * ten days, capped where the contract caps it. Zero without a clause.
+     * ten days, capped where the contract caps it. Zero without a clause or an unknown unit cost.
      */
-    static double penaltyRecoveryCapPerUnit(double unitCost, CommercialTerms t) {
-        if (t.latePenaltyPctPerWeek() <= 0) {
-            return 0;
+    static BigDecimal penaltyRecoveryCapPerUnit(BigDecimal unitCost, CommercialTerms t) {
+        if (unitCost == null || t.latePenaltyPctPerWeek() == null || t.latePenaltyPctPerWeek().signum() <= 0) {
+            return BigDecimal.ZERO;
         }
-        double typicalSlipWeeks = 1.5;
-        return Js.round2(unitCost * Math.min(t.latePenaltyCapPct(), t.latePenaltyPctPerWeek() * typicalSlipWeeks)
-                / 100.0);
+        BigDecimal typicalSlipWeeks = new BigDecimal("1.5");
+        BigDecimal cap = t.latePenaltyCapPct() == null ? t.latePenaltyPctPerWeek() : t.latePenaltyCapPct();
+        BigDecimal rate = t.latePenaltyPctPerWeek().multiply(typicalSlipWeeks);
+        BigDecimal pct = rate.min(cap);
+        return unitCost.multiply(pct).divide(HUNDRED, 2, RoundingMode.HALF_UP);
     }
 
     static String latePenaltyLabel(CommercialTerms t) {
-        if (t.latePenaltyPctPerWeek() <= 0) {
+        if (t.latePenaltyPctPerWeek() == null || t.latePenaltyPctPerWeek().signum() <= 0) {
             return "No late-delivery clause";
         }
-        return Js.num(t.latePenaltyPctPerWeek()) + "% a week late, capped at " + Js.num(t.latePenaltyCapPct()) + "%";
+        return plain(t.latePenaltyPctPerWeek()) + "% a week late, capped at " + plain(t.latePenaltyCapPct()) + "%";
     }
 
     static String creditLabel(CommercialTerms t) {
+        if (t.creditDays() == null) {
+            return "Not provided";
+        }
         return t.creditDays() == 0 ? "None, pay up front" : t.creditDays() + " days";
     }
 
     static String earlyPayLabel(CommercialTerms t) {
-        return t.earlyPayDiscountPct() > 0
-                ? Js.num(t.earlyPayDiscountPct()) + "% if paid in " + t.earlyPayDays() + " days"
+        return t.earlyPayDiscountPct() != null && t.earlyPayDiscountPct().signum() > 0
+                ? plain(t.earlyPayDiscountPct()) + "% if paid in " + t.earlyPayDays() + " days"
                 : "None";
     }
 
-    /** The things a buyer would flag before awarding, stated plainly. Empty when nothing stands out. */
+    /** The things a buyer would flag before awarding, stated plainly. Empty when nothing stands out or nothing is on file. */
     static List<String> termsWatchOuts(CommercialTerms t, int orderQty) {
         List<String> out = new ArrayList<>();
-        if (t.creditDays() == 0) {
+        if (t.creditDays() != null && t.creditDays() == 0) {
             out.add("Wants payment up front.");
         }
-        if (t.latePenaltyPctPerWeek() <= 0) {
+        if (t.latePenaltyPctPerWeek() != null && t.latePenaltyPctPerWeek().signum() <= 0) {
             out.add("No late-delivery clause: a missed date costs them nothing.");
         }
-        if (orderQty > t.capacityUnitsMonth()) {
+        if (t.capacityUnitsMonth() != null && orderQty > t.capacityUnitsMonth()) {
             out.add("This order is above their " + Js.localeInt(t.capacityUnitsMonth()) + " units a month capacity.");
         }
-        if (t.invoiceAccuracyPct() < 90) {
-            out.add("Invoices are right " + Js.toFixed(t.invoiceAccuracyPct(), 1) + "% of the time.");
+        if (t.invoiceAccuracyPct() != null && t.invoiceAccuracyPct().doubleValue() < 90) {
+            out.add("Invoices are right " + plain(t.invoiceAccuracyPct()) + "% of the time.");
         }
         return out;
+    }
+
+    private static String plain(BigDecimal v) {
+        if (v == null) {
+            return "0";
+        }
+        BigDecimal stripped = v.stripTrailingZeros();
+        return stripped.scale() <= 0 ? stripped.toBigInteger().toString() : stripped.toPlainString();
     }
 }

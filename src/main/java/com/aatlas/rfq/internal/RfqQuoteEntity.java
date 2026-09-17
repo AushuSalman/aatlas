@@ -56,13 +56,17 @@ class RfqQuoteEntity extends TenantScopedEntity {
     @Column(name = "entered_by")
     private UUID enteredBy;
 
+    /** True only for a demo reply {@code RfqEngine.simulate} generated. See V24. */
+    @Column(name = "simulated", nullable = false)
+    private boolean simulated;
+
     protected RfqQuoteEntity() {
         // JPA
     }
 
     RfqQuoteEntity(UUID rfqId, String supplierId, String name, boolean declined, BigDecimal quotedUnit,
             BigDecimal quotedLanded, String currency, Integer leadDays, LocalDate validUntil, String paymentTerms,
-            String note, BigDecimal vsExpectedPct, Instant receivedAt, UUID enteredBy) {
+            String note, BigDecimal vsExpectedPct, Instant receivedAt, UUID enteredBy, boolean simulated) {
         this.rfqId = rfqId;
         this.supplierId = supplierId;
         this.name = name;
@@ -77,6 +81,7 @@ class RfqQuoteEntity extends TenantScopedEntity {
         this.vsExpectedPct = vsExpectedPct;
         this.receivedAt = receivedAt;
         this.enteredBy = enteredBy;
+        this.simulated = simulated;
     }
 
     UUID getRfqId() {
@@ -133,5 +138,9 @@ class RfqQuoteEntity extends TenantScopedEntity {
 
     UUID getEnteredBy() {
         return enteredBy;
+    }
+
+    boolean isSimulated() {
+        return simulated;
     }
 }

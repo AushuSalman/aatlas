@@ -1,14 +1,9 @@
 package com.aatlas.buy.internal;
 
 import com.aatlas.common.tenant.TenantContext;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import java.io.InputStream;
-import java.io.UncheckedIOException;
 import java.sql.Array;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -42,11 +37,9 @@ import org.springframework.stereotype.Component;
 public class CatalogGateway {
 
     private final JdbcTemplate jdbc;
-    private final Map<String, List<String>> storeOrderByCountry;
 
-    CatalogGateway(JdbcTemplate jdbc, ObjectMapper json) {
+    CatalogGateway(JdbcTemplate jdbc) {
         this.jdbc = jdbc;
-        this.storeOrderByCountry = loadStoreOrder(json);
     }
 
     // -- Products --------------------------------------------------------------------------
@@ -150,40 +143,11 @@ public class CatalogGateway {
         return Boolean.TRUE.equals(exists);
     }
 
-    /**
-     * The first branch in the seed's own order for a country - {@code TENANTS[0]} in the
-     * frontend's {@code mock/catalog.ts}. Read from {@code seed/stores.json} (the same file
-     * {@code catalog}'s loader reads) rather than the tenant's own rows, because Postgres
-     * keeps no ordinal column for insertion order and this is the one place the frontend's
-     * own array position matters: {@code getPricingModel}'s fallback store for an item with
-     * no {@code defaultTenant} (the three PIM-only items).
-     */
-    public String firstStoreCodeInSeedOrder(String country) {
-        List<String> order = storeOrderByCountry.get(country);
-        if (order == null || order.isEmpty()) {
-            order = storeOrderByCountry.get("US");
-        }
-        return order.get(0);
-    }
-
-    private static Map<String, List<String>> loadStoreOrder(ObjectMapper json) {
-        try (InputStream in = CatalogGateway.class.getResourceAsStream("/seed/stores.json")) {
-            if (in == null) {
-                return Map.of();
-            }
-            JsonNode root = json.readTree(in);
-            Map<String, List<String>> out = new LinkedHashMap<>();
-            root.fieldNames().forEachRemaining(country -> {
-                List<String> ids = new ArrayList<>();
-                for (JsonNode row : root.get(country)) {
-                    ids.add(row.get("store_id").asText());
-                }
-                out.put(country, List.copyOf(ids));
-            });
-            return Map.copyOf(out);
-        } catch (Exception e) {
-            throw new UncheckedIOException("Could not read seed/stores.json", new java.io.IOException(e));
-        }
+    /** Every active branch, store-code order - the ultimate fallback when a region has none of its own. */
+    public List<StoreRow> stores() {
+        UUID tenantId = TenantContext.requireTenantId();
+        return jdbc.query("select " + STORE_COLUMNS + " from stores where tenant_id = ? order by store_code",
+                (rs, i) -> storeRow(rs), tenantId);
     }
 
     // -- Market regions and commodities (global reference, not tenant-scoped) ----------------

@@ -6,196 +6,360 @@ import com.aatlas.buy.FactorWeight;
 import com.aatlas.buy.Lane;
 import com.aatlas.buy.SupplierQuote;
 import com.aatlas.common.error.ApiException;
-import com.aatlas.common.seed.Seeded;
+import com.aatlas.common.time.AatlasClock;
+import com.aatlas.history.Catalogue;
+import com.aatlas.history.PriceLadder;
+import com.aatlas.history.PricingMath;
+import com.aatlas.history.PurchaseHistory;
+import com.aatlas.history.Resolved;
+import com.aatlas.history.SalesHistory;
+import com.aatlas.history.Window;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import org.springframework.stereotype.Component;
 
 /**
- * The landed-cost panel for one (item, destination, supplier): a port of {@code
- * buildBuyRecommendation} in the frontend's {@code platform/api.ts}. Ex-works quotes per
- * supplier via the price index, landed with freight and duty from {@link LogisticsEngine}
- * (which reads the real logistics reference tables {@code catalog} seeded in wave 1).
+ * The landed-cost panel for one (item, destination, supplier): spec-A S2 "buy" / S3.5. Every
+ * figure is either read through {@code history} (incumbent, quotes, cost, sell price) or
+ * derived from those real numbers; a step with no input is skipped, never zeroed, and
+ * {@link BuyRecommendation#incumbentSupplierId()} is null with a reason when there is
+ * genuinely nobody to compare against.
  */
 @Component
 class BuyRecommendationEngine {
 
+    private final Catalogue catalogue;
     private final CatalogGateway catalog;
-    private final SupplierGateway suppliers;
-    private final PricingStandIn pricing;
+    private final SupplierGateway supplierGateway;
+    private final PurchaseHistory purchases;
+    private final SalesHistory sales;
+    private final PriceLadder ladder;
+    private final AatlasClock clock;
 
-    BuyRecommendationEngine(CatalogGateway catalog, SupplierGateway suppliers, PricingStandIn pricing) {
+    BuyRecommendationEngine(Catalogue catalogue, CatalogGateway catalog, SupplierGateway supplierGateway,
+            PurchaseHistory purchases, SalesHistory sales, PriceLadder ladder, AatlasClock clock) {
+        this.catalogue = catalogue;
         this.catalog = catalog;
-        this.suppliers = suppliers;
-        this.pricing = pricing;
+        this.supplierGateway = supplierGateway;
+        this.purchases = purchases;
+        this.sales = sales;
+        this.ladder = ladder;
+        this.clock = clock;
     }
 
-    /**
-     * Who a given item sits with today. Deterministic: roughly seven lines in ten sit in the
-     * cheaper half of the panel, the rest do not - see the frontend's {@code currentSupplierFor}.
-     */
-    static SupplierGateway.SupplierRow currentSupplierFor(String itemNumber, List<SupplierGateway.SupplierRow> panel) {
-        List<SupplierGateway.SupplierRow> ranked = panel.stream()
-                .sorted(Comparator.comparingDouble(SupplierGateway.SupplierRow::priceIndex)).toList();
-        int half = (int) Math.ceil(ranked.size() / 2.0);
-        List<SupplierGateway.SupplierRow> pool = Seeded.rand(itemNumber, "inc-tier") > 0.3
-                ? ranked.subList(0, half)
-                : ranked.subList(half, ranked.size());
-        return Seeded.pick(itemNumber, "current-sup", pool);
-    }
-
-    static String storeName(CatalogGateway.StoreRow store) {
-        String base = store.msaName() != null ? store.msaName() : "Branch";
-        String city = base.split("-")[0];
-        return city + " — " + store.subdivisionCode();
-    }
-
-    /** "Dallas" from "Dallas-Fort Worth-Arlington", or the legal name's first word. */
-    static String storeCity(CatalogGateway.StoreRow store) {
-        String base = store.msaName() != null ? store.msaName()
-                : store.legalName() != null ? store.legalName() : store.storeCode();
+    static String storeCity(Catalogue.StoreRef store) {
+        String base = store.msaName() != null && !store.msaName().isBlank() ? store.msaName() : store.legalName();
         return base.split("-")[0].replace(" Branch", "").trim();
     }
 
-    /** "Dallas #100959" - what a branch manager calls it. */
-    static String storeLabel(CatalogGateway.StoreRow store) {
+    static String storeLabel(Catalogue.StoreRef store) {
         return storeCity(store) + " #" + store.storeCode();
     }
 
+    /** One supplier's quote, with the landed figure the market stats and the DTO share. */
+    private record QuoteCalc(SupplierQuote quote, String supplierKey) {
+    }
+
     BuyRecommendation build(String itemNumber, String destinationId, String supplierIdOverride) {
-        // The frontend's own buildBuyRecommendation tolerates an unknown item (falls back to
-        // the item number as its description, since it is a pure function with no real
-        // catalogue to 404 against) - but every other buy endpoint here 404s on one
-        // (getBuyIntel and everything built on it), and so does catalog's own
-        // GET /products/{item}. A real API is more useful consistent than faithfully
-        // replicating a fixture's leniency, so this 404s too.
-        CatalogGateway.ProductRow product = catalog.findProduct(itemNumber)
+        Catalogue.ProductRef product = catalogue.product(itemNumber)
                 .orElseThrow(() -> ApiException.notFound("Product", itemNumber));
-        CatalogGateway.StoreRow destination = catalog.findStore(destinationId)
+        Catalogue.StoreRef destination = catalogue.store(destinationId)
                 .orElseThrow(() -> ApiException.notFound("Store", destinationId));
-        // Who can actually quote on THIS item, per supplier_products (V21) - not the whole
-        // panel. An item nobody has been linked to yet falls back to the whole panel, so a
-        // freshly imported product still costs; see SupplierGateway.panelFor.
-        List<SupplierGateway.SupplierRow> panel = suppliers.panelFor(itemNumber);
-        if (panel.isEmpty()) {
-            throw ApiException.notFound("Supplier panel", "(empty)");
+        LocalDate today = clock.today();
+
+        List<SupplierGateway.Quote> links = supplierGateway.quotesFor(product.id());
+        boolean noLinksAtAll = links.isEmpty();
+        List<SupplierGateway.SupplierRow> quotablePanel = noLinksAtAll
+                ? supplierGateway.panel()
+                : List.of();
+
+        Optional<PurchaseHistory.SupplierShare> incumbentShare = purchases.incumbent(itemNumber, today);
+        String incumbentId = null;
+        String incumbentName = null;
+        String incumbentCountry = null;
+        String incumbentReason = null;
+        BigDecimal incumbentCost = null;
+        String incumbentCostSource = null;
+        if (incumbentShare.isPresent()) {
+            PurchaseHistory.SupplierShare share = incumbentShare.get();
+            incumbentId = share.supplierKey();
+            incumbentName = share.name();
+            incumbentCountry = share.country();
+            PurchaseHistory.PoStats w90 = purchases.itemSupplier(itemNumber, incumbentId, Window.trailingDays(today, 90));
+            if (w90.any()) {
+                incumbentCost = w90.avgLanded();
+                incumbentCostSource = "observed-90d";
+            } else {
+                PurchaseHistory.PoStats w12 = purchases.itemSupplier(itemNumber, incumbentId, Window.trailingMonths(today, 12));
+                if (w12.any()) {
+                    incumbentCost = w12.avgLanded();
+                    incumbentCostSource = "observed-12m";
+                }
+            }
+        } else if (!links.isEmpty()) {
+            SupplierGateway.Quote cheapest = links.stream()
+                    .filter(l -> l.exWorks() != null)
+                    .min((a, b) -> a.exWorks().compareTo(b.exWorks()))
+                    .orElse(links.get(0));
+            incumbentId = cheapest.supplier().id();
+            incumbentName = cheapest.supplier().name();
+            incumbentCountry = cheapest.supplier().country();
+            incumbentCostSource = "supplier-list";
+        } else {
+            incumbentReason = "No purchase history for this item — pick a supplier to compare.";
         }
+
+        String chosenSupplierId = supplierIdOverride != null && !supplierIdOverride.isBlank()
+                ? supplierIdOverride
+                : incumbentId;
+
         CatalogGateway.LogisticsRef logisticsRef = catalog.logistics();
-
-        String description = product.description();
-        String homeStore = product.defaultStoreCode() != null
-                ? product.defaultStoreCode()
-                : catalog.firstStoreCodeInSeedOrder(destination.country());
-        PricingStandIn.Model m = pricing.modelFor(itemNumber, homeStore);
-
         CatalogGateway.LaneRef region = LogisticsEngine.regionForState(logisticsRef, destination.subdivisionCode());
-        SupplierGateway.SupplierRow incumbent = currentSupplierFor(itemNumber, panel);
-        SupplierGateway.SupplierRow supplier = (supplierIdOverride != null && !supplierIdOverride.isBlank())
-                ? panel.stream().filter(s -> s.id().equals(supplierIdOverride)).findFirst().orElse(incumbent)
-                : incumbent;
-        boolean isOverride = !supplier.id().equals(incumbent.id());
-        String key = itemNumber + "|" + supplier.id() + "|" + destinationId;
 
-        double base = m.cost();
-        List<SupplierQuote> quotes = new ArrayList<>();
-        for (SupplierGateway.SupplierRow s : panel) {
-            double exWorks = Js.round2(base * (s.priceIndex() / 100.0)
-                    * Seeded.randRange(itemNumber + ":" + s.id(), "q", 0.94, 1.05));
-            Lane lane = LogisticsEngine.laneFor(logisticsRef, s.country(), region);
-            double freight = Js.round2(exWorks * (lane.freightPct() / 100.0));
-            double duty = Js.round2(exWorks * (lane.dutyPct() / 100.0));
-            quotes.add(new SupplierQuote(
-                    s.id(), s.name(), s.country(), exWorks, freight, duty, Js.round2(exWorks + freight + duty),
-                    s.leadTimeDays(), lane.transitDays(), s.leadTimeDays() + lane.transitDays(), s.otifPct(),
-                    s.id().equals(supplier.id()), s.id().equals(incumbent.id())));
+        List<QuoteCalc> calcs = new ArrayList<>();
+        if (noLinksAtAll) {
+            for (SupplierGateway.SupplierRow s : quotablePanel) {
+                calcs.add(new QuoteCalc(new SupplierQuote(s.id(), s.name(), s.country(), null, null, null, null,
+                        s.leadTimeDays(), 0, s.leadTimeDays(), s.otifPct(), s.id().equals(chosenSupplierId),
+                        s.id().equals(incumbentId), null, null, null), s.id()));
+            }
+        } else {
+            for (SupplierGateway.Quote link : links) {
+                calcs.add(quoteFor(itemNumber, link, logisticsRef, region, today, chosenSupplierId, incumbentId));
+            }
         }
-        quotes = quotes.stream().sorted(Comparator.comparingDouble(SupplierQuote::unitCost)).toList();
 
-        // A primitive double[], not List<Double>: this package may not depend on
-        // java.lang.Double (ArchitectureRulesTest.noFloatingPointMoney), which a boxed list
-        // would - every .get(i) unboxes.
-        double[] prices = quotes.stream().mapToDouble(SupplierQuote::unitCost).toArray();
-        double marketLow = prices[0];
-        double marketHigh = prices[prices.length - 1];
-        double marketMedian = Js.round2(prices[prices.length / 2]);
+        List<QuoteCalc> quoted = calcs.stream().filter(c -> c.quote().unitCost() != null).toList();
+        BigDecimal marketLow = quoted.stream().map(c -> c.quote().unitCost()).min(BigDecimal::compareTo).orElse(null);
+        BigDecimal marketHigh = quoted.stream().map(c -> c.quote().unitCost()).max(BigDecimal::compareTo).orElse(null);
+        BigDecimal marketMedian = median(quoted.stream().map(c -> c.quote().unitCost()).sorted().toList());
+
+        List<SupplierQuote> quotes = calcs.stream()
+                .map(QuoteCalc::quote)
+                .sorted((a, b) -> {
+                    if (a.unitCost() == null && b.unitCost() == null) {
+                        return 0;
+                    }
+                    if (a.unitCost() == null) {
+                        return 1;
+                    }
+                    if (b.unitCost() == null) {
+                        return -1;
+                    }
+                    return a.unitCost().compareTo(b.unitCost());
+                })
+                .toList();
 
         SupplierQuote mine = quotes.stream().filter(SupplierQuote::isCurrent).findFirst().orElse(null);
-        SupplierQuote theirs = quotes.stream().filter(SupplierQuote::isIncumbent).findFirst().orElse(null);
-        Lane lane = LogisticsEngine.laneFor(logisticsRef, supplier.country(), region);
-        double currentExWorks = mine != null ? mine.exWorksCost() : base;
-        double currentFreight = mine != null ? mine.freightCost() : 0;
-        double currentDuty = mine != null ? mine.dutyCost() : 0;
-        double currentCost = mine != null ? mine.unitCost() : base;
-        double incumbentCost = theirs != null ? theirs.unitCost() : currentCost;
+        String supplierId = chosenSupplierId != null ? chosenSupplierId : (mine != null ? mine.supplierId() : null);
+        String supplierName = mine != null ? mine.name()
+                : (supplierId != null && supplierId.equals(incumbentId) ? incumbentName : supplierId);
+        boolean isOverride = incumbentId != null && supplierId != null && !supplierId.equals(incumbentId);
 
-        double rawTarget = Js.round2(marketLow + (marketMedian - marketLow) * 0.35);
-        double targetCost = Js.round2(Math.min(currentCost, Math.max(rawTarget, marketLow)));
-        double savingPerUnit = Js.round2(currentCost - targetCost);
-        int annualUnits = Seeded.randInt(key, "units", 240, 5200);
+        Optional<Resolved> costResolved = ladder.cost(product.id(), destination.id(), today);
+        BigDecimal currentCost = costResolved.map(Resolved::value).orElse(null);
+        String currentCostSource = costResolved.map(Resolved::source).orElse(null);
 
-        String destinationName = storeName(destination);
+        Optional<Resolved> priceResolved = ladder.currentPrice(product.id(), destination.id(), today);
+        BigDecimal sellPrice = priceResolved.map(Resolved::value).orElse(null);
+        String sellPriceSource = priceResolved.map(Resolved::source).orElse(null);
+        boolean sellPriceLocal = priceResolved.isPresent() && !Resolved.SALES_ITEM_12M.equals(priceResolved.get().source());
+        boolean priceable = sellPrice != null;
 
-        PricingStandIn.Model localModel = pricing.modelFor(itemNumber, destinationId);
-        PricingStandIn.Model sellModel = localModel.priceable() ? localModel : m;
-        double sellPrice = sellModel.currentPrice();
-        boolean sellPriceLocal = localModel.priceable();
-        double marginNowPct = sellPrice > 0 ? Js.round2(((sellPrice - currentCost) / sellPrice) * 100) : 0;
-        double marginAtTargetPct = sellPrice > 0 ? Js.round2(((sellPrice - targetCost) / sellPrice) * 100) : 0;
+        int n = quoted.size();
+        BigDecimal targetCost;
+        if (n >= 2) {
+            BigDecimal raw = marketLow.add(marketMedian.subtract(marketLow).multiply(new BigDecimal("0.35")));
+            targetCost = currentCost != null ? PricingMath.min(currentCost, PricingMath.max(marketLow, raw)) : raw;
+        } else if (n == 1) {
+            BigDecimal landed = quoted.get(0).quote().unitCost();
+            targetCost = currentCost != null ? PricingMath.min(currentCost, landed) : landed;
+        } else {
+            targetCost = null;
+        }
+        if (targetCost != null) {
+            targetCost = targetCost.setScale(4, RoundingMode.HALF_UP);
+        }
 
-        List<CalcStep> steps = new ArrayList<>();
-        steps.add(new CalcStep(
-                isOverride ? "Quote from the supplier being evaluated" : "Quote from current supplier",
-                Js.fmtMoney(currentExWorks), supplier.name() + ", ex-works " + supplier.country(), "step"));
-        steps.add(new CalcStep("Freight to " + destinationName, "+" + Js.fmtMoney(currentFreight),
-                lane.routeNote() + " - " + Js.toFixed(lane.freightPct(), 1) + "% of ex-works value", "step"));
-        steps.add(new CalcStep("Duty", "+" + Js.fmtMoney(currentDuty),
-                Js.toFixed(lane.dutyPct(), 1) + "% - " + lane.dutyNote(), "step"));
-        steps.add(new CalcStep(
-                isOverride ? "Landed cost if the line moved" : "Landed cost today", Js.fmtMoney(currentCost),
-                isOverride
-                        ? "Against " + Js.fmtMoney(incumbentCost) + " with " + incumbent.name() + " today, "
-                                + (supplier.leadTimeDays() + lane.transitDays()) + " days from order to dock"
-                        : "What this branch actually pays, " + (supplier.leadTimeDays() + lane.transitDays())
-                                + " days from order to dock",
-                "step"));
-        steps.add(new CalcStep("Panel quotes, landed here",
-                Js.fmtMoney(marketLow) + " - " + Js.fmtMoney(marketHigh),
-                quotes.size() + " suppliers able to serve this item, each on its own lane into the "
-                        + region.label(),
-                "step"));
-        steps.add(new CalcStep("Market median", Js.fmtMoney(marketMedian), "Middle of the panel", "step"));
-        steps.add(new CalcStep("Target set at", Js.fmtMoney(targetCost),
-                "Best real quote plus 35% of the gap to the median - achievable, not theoretical", "step"));
-        steps.add(new CalcStep("Floor", Js.fmtMoney(marketLow),
-                "The lowest anyone actually lands here for. The target is never set below it.", "step"));
-        steps.add(new CalcStep("Saving per unit", Js.fmtMoney(savingPerUnit),
-                Js.localeInt(annualUnits) + " units a year into this branch", "result"));
+        BigDecimal savingPerUnit = currentCost != null && targetCost != null
+                ? currentCost.subtract(targetCost).setScale(4, RoundingMode.HALF_UP) : null;
+        BigDecimal savingPct = PricingMath.pct(savingPerUnit, currentCost);
 
-        double lanePercent = currentCost != 0 ? Js.round2(((currentFreight + currentDuty) / currentCost) * 100) : 0;
-        double w1 = Seeded.randRange(key, "w1", 30, 46);
-        double w2 = Seeded.randRange(key, "w2", 18, 30);
-        double w3 = Seeded.randRange(key, "w3", 12, 24);
-        double wSum = w1 + w2 + w3;
-        double rest = 100 - lanePercent;
-        double scaled1 = Math.round((w1 / wSum) * rest * 10) / 10.0;
-        double scaled2 = Math.round((w2 / wSum) * rest * 10) / 10.0;
-        List<FactorWeight> weights = List.of(
-                new FactorWeight("Panel price spread", scaled1, "down"),
-                new FactorWeight("Supplier price index", scaled2, "down"),
-                new FactorWeight("Freight and duty into the " + region.label(), lanePercent, "up"),
-                new FactorWeight("Volume leverage", Js.round2(100 - lanePercent - scaled1 - scaled2), "down"));
+        AnnualUnits annual = AnnualUnits.forStore(purchases, sales, itemNumber, product.id(), destination.id(), today);
+        BigDecimal annualSaving = savingPerUnit != null && annual.units() != null
+                ? savingPerUnit.multiply(annual.units()).setScale(2, RoundingMode.HALF_UP) : null;
+
+        BigDecimal marginNowPct = PricingMath.marginPct(sellPrice, currentCost);
+        BigDecimal marginAtTargetPct = PricingMath.marginPct(sellPrice, targetCost);
+        BigDecimal marginGainPts = marginAtTargetPct != null && marginNowPct != null
+                ? marginAtTargetPct.subtract(marginNowPct).setScale(2, RoundingMode.HALF_UP) : null;
+        BigDecimal grossNow = sellPrice != null && currentCost != null
+                ? sellPrice.subtract(currentCost).setScale(4, RoundingMode.HALF_UP) : null;
+        BigDecimal grossAtTarget = sellPrice != null && targetCost != null
+                ? sellPrice.subtract(targetCost).setScale(4, RoundingMode.HALF_UP) : null;
+
+        String destinationName = storeCity(destination) + " — " + destination.subdivisionCode();
+        Lane lane = LogisticsEngine.laneFor(logisticsRef, incumbentCountry != null ? incumbentCountry
+                : (mine != null ? mine.country() : "USA"), region);
+
+        List<CalcStep> steps = buildSteps(mine, region, marketLow, marketHigh, marketMedian, targetCost,
+                destinationName, incumbentName, incumbentCost, isOverride);
+        List<FactorWeight> weights = buildWeights(mine);
+
+        Map<String, String> sources = new LinkedHashMap<>();
+        if (currentCostSource != null) {
+            sources.put("currentCost", currentCostSource);
+        }
+        if (sellPriceSource != null) {
+            sources.put("sellPrice", sellPriceSource);
+        }
+        if (incumbentCostSource != null) {
+            sources.put("incumbentCost", incumbentCostSource);
+        }
+        if (targetCost != null) {
+            sources.put("targetCost", n >= 1 ? "quoted-panel" : "lane-estimate");
+        }
+        sources.put("annualUnits", annual.source());
+
+        List<String> locked = new ArrayList<>();
+        if (incumbentId == null) {
+            locked.add("purchases");
+        }
+        if (currentCost == null || sellPrice == null) {
+            locked.add("margin");
+        }
 
         return new BuyRecommendation(
-                itemNumber, description, supplier.id(), supplier.name(), m.priceable(),
+                itemNumber, product.description(), supplierId, supplierName, priceable,
                 destinationId, destinationName, region.label(), lane,
-                incumbent.id(), incumbent.name(), incumbentCost, isOverride,
-                sellPrice, sellPriceLocal, marginNowPct, marginAtTargetPct, Js.round2(marginAtTargetPct - marginNowPct),
-                Js.round2(sellPrice - currentCost), Js.round2(sellPrice - targetCost),
-                currentExWorks, currentFreight, currentDuty, currentCost, targetCost, savingPerUnit,
-                currentCost != 0 ? Js.round2((savingPerUnit / currentCost) * 100) : 0,
-                annualUnits, Js.round2(savingPerUnit * annualUnits),
-                quotes, marketLow, marketMedian, marketHigh,
-                steps, weights, marketLow);
+                incumbentId, incumbentName, incumbentReason, incumbentCost, isOverride,
+                sellPrice, sellPriceLocal, marginNowPct, marginAtTargetPct, marginGainPts,
+                grossNow, grossAtTarget,
+                mine != null ? mine.exWorksCost() : null, mine != null ? mine.freightCost() : null,
+                mine != null ? mine.dutyCost() : null, currentCost, targetCost, savingPerUnit, savingPct,
+                annual.units() != null ? annual.units().setScale(0, RoundingMode.HALF_UP).intValueExact() : null,
+                annualSaving, quotes, marketLow, marketMedian, marketHigh,
+                steps, weights, marketLow, sources, locked);
+    }
+
+    private QuoteCalc quoteFor(String itemNumber, SupplierGateway.Quote link, CatalogGateway.LogisticsRef logisticsRef,
+            CatalogGateway.LaneRef region, LocalDate today, String chosenSupplierId, String incumbentId) {
+        SupplierGateway.SupplierRow s = link.supplier();
+        BigDecimal exWorks = link.exWorks();
+        String exWorksSource = null;
+        LocalDate exWorksAsOf = link.exWorksAsOf();
+        if (exWorks != null) {
+            exWorksSource = "purchases".equals(link.exWorksSource()) ? "purchases" : "price-list";
+        } else {
+            PurchaseHistory.PoStats w12 = purchases.itemSupplier(itemNumber, s.id(), Window.trailingMonths(today, 12));
+            if (w12.any() && w12.lastExWorks() != null) {
+                exWorks = w12.lastExWorks();
+                exWorksSource = "purchases";
+                exWorksAsOf = w12.lastOrder();
+            }
+        }
+
+        BigDecimal freight = null;
+        BigDecimal duty = null;
+        BigDecimal landed = null;
+        String landedSource = null;
+        Integer leadTimeDays = link.leadTimeDays() != null ? link.leadTimeDays() : s.leadTimeDays();
+        Lane lane = LogisticsEngine.laneFor(logisticsRef, s.country(), region);
+
+        if (exWorks != null) {
+            PurchaseHistory.PoStats w90 = purchases.itemSupplier(itemNumber, s.id(), Window.trailingDays(today, 90));
+            PurchaseHistory.PoStats w12 = purchases.itemSupplier(itemNumber, s.id(), Window.trailingMonths(today, 12));
+            if (w90.pos() >= 3) {
+                landed = w90.avgLanded();
+                landedSource = "observed-90d";
+            } else if (w12.pos() >= 3) {
+                landed = w12.avgLanded();
+                landedSource = "observed-12m";
+            } else {
+                freight = exWorks.multiply(BigDecimal.valueOf(lane.freightPct() / 100.0)).setScale(4, RoundingMode.HALF_UP);
+                duty = exWorks.multiply(BigDecimal.valueOf(lane.dutyPct() / 100.0)).setScale(4, RoundingMode.HALF_UP);
+                landed = exWorks.add(freight).add(duty).setScale(4, RoundingMode.HALF_UP);
+                landedSource = "lane-estimate";
+            }
+        }
+
+        int transitDays = lane.transitDays();
+        Integer totalLeadDays = leadTimeDays != null ? leadTimeDays + transitDays : null;
+        boolean isCurrent = s.id().equals(chosenSupplierId);
+        boolean isIncumbent = s.id().equals(incumbentId);
+        return new QuoteCalc(new SupplierQuote(s.id(), s.name(), s.country(), exWorks, freight, duty, landed,
+                leadTimeDays, transitDays, totalLeadDays, s.otifPct(), isCurrent, isIncumbent, exWorksSource,
+                exWorksAsOf, landedSource), s.id());
+    }
+
+    private static BigDecimal median(List<BigDecimal> sorted) {
+        if (sorted.isEmpty()) {
+            return null;
+        }
+        int mid = sorted.size() / 2;
+        if (sorted.size() % 2 == 1) {
+            return sorted.get(mid);
+        }
+        return sorted.get(mid - 1).add(sorted.get(mid)).divide(BigDecimal.valueOf(2), 4, RoundingMode.HALF_UP);
+    }
+
+    private static List<CalcStep> buildSteps(SupplierQuote mine, CatalogGateway.LaneRef region, BigDecimal marketLow,
+            BigDecimal marketHigh, BigDecimal marketMedian, BigDecimal targetCost, String destinationName,
+            String incumbentName, BigDecimal incumbentCost, boolean isOverride) {
+        List<CalcStep> steps = new ArrayList<>();
+        if (mine != null && mine.exWorksCost() != null) {
+            steps.add(new CalcStep(isOverride ? "Quote from the supplier being evaluated" : "Quote from current supplier",
+                    Js.fmtMoney(mine.exWorksCost().doubleValue()), mine.name() + ", ex-works " + mine.country(), "step"));
+            if (mine.freightCost() != null) {
+                steps.add(new CalcStep("Freight to " + destinationName, "+" + Js.fmtMoney(mine.freightCost().doubleValue()),
+                        "Lane estimate into the " + region.label(), "step"));
+            }
+            if (mine.dutyCost() != null) {
+                steps.add(new CalcStep("Duty", "+" + Js.fmtMoney(mine.dutyCost().doubleValue()), "Lane estimate", "step"));
+            }
+            if (mine.unitCost() != null) {
+                steps.add(new CalcStep(isOverride ? "Landed cost if the line moved" : "Landed cost today",
+                        Js.fmtMoney(mine.unitCost().doubleValue()),
+                        isOverride && incumbentCost != null
+                                ? "Against " + Js.fmtMoney(incumbentCost.doubleValue()) + " with " + incumbentName + " today"
+                                : "What this supplier's own history says it lands at", "step"));
+            }
+        }
+        if (marketLow != null && marketHigh != null) {
+            steps.add(new CalcStep("Panel quotes, landed here",
+                    Js.fmtMoney(marketLow.doubleValue()) + " - " + Js.fmtMoney(marketHigh.doubleValue()),
+                    "Suppliers able to serve this item, each on its own lane into the " + region.label(), "step"));
+        }
+        if (marketMedian != null) {
+            steps.add(new CalcStep("Market median", Js.fmtMoney(marketMedian.doubleValue()), "Middle of the panel", "step"));
+        }
+        if (targetCost != null) {
+            steps.add(new CalcStep("Target set at", Js.fmtMoney(targetCost.doubleValue()),
+                    "Best real quote plus 35% of the gap to the median - achievable, not theoretical", "result"));
+        }
+        return steps;
+    }
+
+    /** Real shares of the selected supplier's own landed cost: ex-works, freight+duty, the rest. Empty without a quote. */
+    private static List<FactorWeight> buildWeights(SupplierQuote mine) {
+        if (mine == null || mine.exWorksCost() == null || mine.unitCost() == null || mine.unitCost().signum() == 0) {
+            return List.of();
+        }
+        double landed = mine.unitCost().doubleValue();
+        double exWorksPct = Js.round1(mine.exWorksCost().doubleValue() / landed * 100);
+        double freightDuty = (mine.freightCost() == null ? 0 : mine.freightCost().doubleValue())
+                + (mine.dutyCost() == null ? 0 : mine.dutyCost().doubleValue());
+        double freightDutyPct = Js.round1(freightDuty / landed * 100);
+        double remainderPct = Js.round1(Math.max(0, 100 - exWorksPct - freightDutyPct));
+        return List.of(
+                new FactorWeight("Ex-works", exWorksPct, "down"),
+                new FactorWeight("Freight and duty", freightDutyPct, "up"),
+                new FactorWeight("Remainder", remainderPct, "down"));
     }
 }

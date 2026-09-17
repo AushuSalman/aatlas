@@ -26,7 +26,7 @@ final class Mappers {
                 e.getQuotedLanded() == null ? null : e.getQuotedLanded().doubleValue(), e.getCurrency(),
                 e.getLeadDays(), e.getValidUntil(), e.getPaymentTerms(), e.getNote(),
                 e.getVsExpectedPct() == null ? null : e.getVsExpectedPct().doubleValue(), e.getReceivedAt(),
-                e.getEnteredBy());
+                e.getEnteredBy(), e.isSimulated());
     }
 
     static Rfq toRfq(RfqEntity e, List<RfqInviteEntity> invites, List<RfqQuoteEntity> quotes) {

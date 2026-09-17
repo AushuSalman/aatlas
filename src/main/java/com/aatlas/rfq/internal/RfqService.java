@@ -15,6 +15,7 @@ import com.aatlas.decisions.DecisionKind;
 import com.aatlas.decisions.DecisionRecorder;
 import com.aatlas.decisions.RecordDecisionRequest;
 import com.aatlas.decisions.RecordPurchaseRequest;
+import com.aatlas.ingest.SampleDataProvisioner;
 import com.aatlas.policy.Persona;
 import com.aatlas.policy.PolicyReader;
 import com.aatlas.rfq.Rfq;
@@ -57,10 +58,11 @@ class RfqService {
     private final ApprovalRequester approvals;
     private final RfqMailer mailer;
     private final AatlasClock clock;
+    private final SampleDataProvisioner sampleData;
 
     RfqService(RfqRepository rfqs, RfqInviteRepository invites, RfqQuoteRepository quotes, BuyIntelReader buyIntel,
             ProcurementPlanReader procurementPlan, PolicyReader policy, DecisionRecorder ledger,
-            ApprovalRequester approvals, RfqMailer mailer, AatlasClock clock) {
+            ApprovalRequester approvals, RfqMailer mailer, AatlasClock clock, SampleDataProvisioner sampleData) {
         this.rfqs = rfqs;
         this.invites = invites;
         this.quotes = quotes;
@@ -71,6 +73,7 @@ class RfqService {
         this.approvals = approvals;
         this.mailer = mailer;
         this.clock = clock;
+        this.sampleData = sampleData;
     }
 
     // -- create / read -----------------------------------------------------------------
@@ -241,6 +244,12 @@ class RfqService {
         UUID userId = TenantContext.currentUserId().orElse(null);
         Instant now = clock.now();
         LocalDate today = clock.today();
+        // Spec-A S2 "rfq": RfqEngine.simulate is the one place left that may call Seeded, and
+        // only to stand in for a reply on the SAMPLE tenant's own demo data - never for a
+        // tenant with real uploaded data, where an un-replied invite must simply stay
+        // `invited` until someone types a real quote in.
+        boolean sampleTenant = sampleData.current(tenantId).map(v -> "sample".equals(v.kind())).orElse(false);
+        boolean anyRecorded = false;
 
         for (RfqInviteEntity invite : invites.findByTenantIdAndRfqId(tenantId, id)) {
             if (quotes.findByTenantIdAndRfqIdAndSupplierId(tenantId, id, invite.getSupplierId()).isPresent()) {
@@ -260,22 +269,28 @@ class RfqService {
                 quote = new RfqQuoteEntity(id, invite.getSupplierId(), invite.getName(), typed.declined(),
                         typed.declined() ? null : unit, typed.declined() ? null : landed, "USD",
                         typed.declined() ? null : typed.leadDays(), typed.declined() ? null : validUntil,
-                        typed.paymentTerms(), typed.note(), vsExpected, now, userId);
-            } else {
+                        typed.paymentTerms(), typed.note(), vsExpected, now, userId, false);
+            } else if (sampleTenant) {
                 RfqEngine.SimulatedQuote sim = RfqEngine.simulate(entity.getItemNumber(), entity.getQty(),
                         entity.getRequiredDays(), invite);
                 LocalDate validUntil = today.plusDays(sim.validDays());
                 quote = new RfqQuoteEntity(id, invite.getSupplierId(), invite.getName(), sim.declined(),
                         sim.declined() ? null : sim.quoted(), sim.declined() ? null : sim.quoted(), "USD",
                         sim.declined() ? null : sim.leadDays(), sim.declined() ? null : validUntil, null,
-                        sim.note(), sim.declined() ? null : BigDecimal.valueOf(sim.vsExpectedPct()), now, null);
+                        sim.note(), sim.declined() ? null : BigDecimal.valueOf(sim.vsExpectedPct()), now, null, true);
+            } else {
+                // A tenant on real data: nobody has replied yet. The invite stays `invited`
+                // and no RfqQuote row is written - never a simulated stand-in presented as a
+                // real supplier's answer.
+                continue;
             }
             quotes.save(quote);
             invite.setStatus(quote.isDeclined() ? RfqInviteEntity.Status.declined : RfqInviteEntity.Status.quoted);
             invites.save(invite);
+            anyRecorded = true;
         }
 
-        if (entity.getStatus() == RfqEntity.Status.sent) {
+        if (anyRecorded && entity.getStatus() == RfqEntity.Status.sent) {
             entity.setStatus(RfqEntity.Status.quoted);
             rfqs.save(entity);
         }
