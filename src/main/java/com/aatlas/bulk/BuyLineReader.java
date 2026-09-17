@@ -1,9 +1,8 @@
 package com.aatlas.bulk;
 
 /**
- * One item's supplier evaluation, landed into a region. {@code TODO(merge): replace with
- * the buy module's public reader} - see {@link BuyLine} and {@link SupplierEval} for
- * exactly what this stand-in covers and what it deliberately leaves out.
+ * One item's supplier evaluation, landed into a region, over {@code buy.BuyIntelReader} -
+ * see {@link BuyLine} and {@link SupplierEval} for exactly what it carries.
  */
 public interface BuyLineReader {
 

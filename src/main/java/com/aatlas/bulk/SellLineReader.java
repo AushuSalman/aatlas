@@ -1,9 +1,8 @@
 package com.aatlas.bulk;
 
 /**
- * One (item, store) recommendation. {@code TODO(merge): replace with the sell module's
- * public reader} - see {@link SellLine} for exactly what this stand-in covers and what it
- * deliberately leaves out.
+ * One (item, store) recommendation, over {@code sell.SellLines} - see {@link SellLine}
+ * for exactly what it carries.
  */
 public interface SellLineReader {
 

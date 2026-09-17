@@ -4,8 +4,9 @@ import com.aatlas.bulk.CommercialTerms;
 
 /**
  * What a supplier's paperwork is worth, per unit. Exact port of
- * {@code src/lib/intel/terms.ts}'s pricing functions (not the terms themselves - those are
- * read straight from {@code seed/suppliers.json}, see {@link BulkSeedCatalog}).
+ * {@code src/lib/intel/terms.ts}'s pricing functions. Unused now that {@link
+ * BuyLineReaderImpl} reads every supplier evaluation - adjustments included - straight off
+ * {@code buy.BuyIntelReader}; kept as the standing reference for that arithmetic.
  */
 final class TermsMath {
 
@@ -16,7 +17,7 @@ final class TermsMath {
     }
 
     static double creditValuePerUnit(double unitCost, int creditDays) {
-        return BulkPricingEngine.round2(unitCost * (creditDays / 365.0) * (COST_OF_CAPITAL_PCT / 100));
+        return round2(unitCost * (creditDays / 365.0) * (COST_OF_CAPITAL_PCT / 100));
     }
 
     static double earlyPayNetPerUnit(double unitCost, CommercialTerms t) {
@@ -25,7 +26,7 @@ final class TermsMath {
         }
         double discount = unitCost * (t.earlyPayDiscountPct() / 100);
         double creditGivenUp = creditValuePerUnit(unitCost, Math.max(0, t.creditDays() - t.earlyPayDays()));
-        return BulkPricingEngine.round2(Math.max(0, discount - creditGivenUp));
+        return round2(Math.max(0, discount - creditGivenUp));
     }
 
     static double penaltyRecoveryCapPerUnit(double unitCost, CommercialTerms t) {
@@ -33,7 +34,11 @@ final class TermsMath {
             return 0;
         }
         double typicalSlipWeeks = 1.5;
-        return BulkPricingEngine.round2(
+        return round2(
                 unitCost * Math.min(t.latePenaltyCapPct(), t.latePenaltyPctPerWeek() * typicalSlipWeeks) / 100);
+    }
+
+    private static double round2(double n) {
+        return Math.round(n * 100) / 100.0;
     }
 }
