@@ -232,9 +232,12 @@ aatlas:
     base-url: https://api.tavily.com
 
   cors:
-    allowed-origins:
-      - http://localhost:3000
-      - http://127.0.0.1:3000
+    # Comma-separated exact origins (scheme + host + port, no path). The browser blocks
+    # every request from an origin not on this list, however the request itself succeeds
+    # against the server - it fails silently as far as the API is concerned, and shows up
+    # only as a CORS error in the browser console. Set CORS_ORIGINS in production to the
+    # deployed frontend's exact origin(s), e.g. https://aatlas-ai.vercel.app.
+    allowed-origins: ${CORS_ORIGINS:http://localhost:3000,http://127.0.0.1:3000}
 
   clock:
     # The prototype freezes now at 1 Sep 2026. Production runs on the real clock;
