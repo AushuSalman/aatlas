@@ -17,6 +17,11 @@ spring:
   profiles:
     default: local
 
+  # A git-ignored .env next to the working directory, if there is one. Environment
+  # variables still win, so Render and Kubernetes are unaffected.
+  config:
+    import: optional:file:.env[.properties]
+
   # Java 21 virtual threads: blocking JDBC stays simple, concurrency stays cheap.
   threads:
     virtual:
@@ -95,6 +100,17 @@ spring:
   mail:
     host: ${SMTP_HOST:localhost}
     port: ${SMTP_PORT:1025}
+    username: ${SMTP_USERNAME:}
+    password: ${SMTP_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: ${SMTP_AUTH:false}
+          starttls:
+            enable: ${SMTP_STARTTLS:false}
+          connectiontimeout: 10000
+          timeout: 10000
+          writetimeout: 10000
 
   servlet:
     multipart:
@@ -184,6 +200,30 @@ aatlas:
     refresh-token-ttl: P30D
     private-key-pem: ${JWT_PRIVATE_KEY:}
     public-key-pem: ${JWT_PUBLIC_KEY:}
+
+  mail:
+    # log: mail is written to the console (local default). smtp: sent through spring.mail.*.
+    transport: ${MAIL_TRANSPORT:log}
+    from: ${MAIL_FROM:no-reply@aatlas.io}
+    from-name: ${MAIL_FROM_NAME:Aatlas}
+    # The frontend, for links in mail (password reset).
+    app-url: ${APP_URL:http://localhost:3000}
+
+  sso:
+    # Google: an OAuth "Web application" client from console.cloud.google.com.
+    google:
+      client-id: ${GOOGLE_CLIENT_ID:}
+      client-secret: ${GOOGLE_CLIENT_SECRET:}
+    # Apple: a Services ID, and a Sign in with Apple key (.p8) from developer.apple.com.
+    apple:
+      client-id: ${APPLE_CLIENT_ID:}
+      team-id: ${APPLE_TEAM_ID:}
+      key-id: ${APPLE_KEY_ID:}
+      private-key: ${APPLE_PRIVATE_KEY:}
+
+  auth:
+    # Signup refuses an address that was not proven with a mailed code.
+    require-email-verification: ${REQUIRE_EMAIL_VERIFICATION:true}
 
   cors:
     allowed-origins:

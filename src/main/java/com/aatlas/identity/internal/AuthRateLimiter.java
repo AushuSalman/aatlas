@@ -59,7 +59,19 @@ class AuthRateLimiter {
         PASSWORD_FORGOT(5, Duration.ofHours(1), "too_many_attempts",
                 "Too many reset requests from this connection. Try again later."),
         PASSWORD_RESET(10, Duration.ofHours(1), "too_many_attempts",
-                "Too many reset attempts from this connection. Try again later.");
+                "Too many reset attempts from this connection. Try again later."),
+        /** Start and resend alike: each one is a real mail sent. */
+        EMAIL_VERIFY_SEND(10, Duration.ofHours(1), "rate_limited",
+                "Too many codes requested from this connection. Try again later."),
+        /** Wide enough for typos; each challenge has its own five-attempt limit underneath. */
+        EMAIL_VERIFY_CONFIRM(30, Duration.ofMinutes(15), "rate_limited",
+                "Too many code attempts from this connection. Try again in a few minutes."),
+        /** Exchange and sign-in alike; each exchange is a round trip to Google or Apple. */
+        SSO(30, Duration.ofMinutes(15), "rate_limited",
+                "Too many sign-in attempts from this connection. Try again in a few minutes."),
+        /** Opening and accepting an invitation link. */
+        INVITATION(30, Duration.ofHours(1), "rate_limited",
+                "Too many attempts from this connection. Try again later.");
 
         final int maxPerWindow;
         final Duration window;

@@ -3,11 +3,11 @@ package com.aatlas.identity.internal;
 import java.time.Instant;
 
 /**
- * The one mail this module sends today.
+ * The mail this module sends.
  *
  * <p>An interface so the transport is a deployment choice: {@link LogMailer} for a laptop
- * and the integration tests, SMTP through {@code spring-boot-starter-mail} when an
- * {@code SMTP_HOST} exists. Nothing in the reset flow should know which.
+ * and the integration tests, {@link SmtpMailer} when {@code MAIL_TRANSPORT=smtp}. Nothing
+ * in the flows that send mail should know which.
  */
 interface Mailer {
 
@@ -16,4 +16,16 @@ interface Mailer {
      *     only place it is ever written in the clear
      */
     void sendPasswordReset(String email, String fullName, String token, Instant expiresAt);
+
+    /**
+     * @param fullName may be null on a resend
+     * @param code the six digits; as with the reset token, only the mail carries it in the clear
+     */
+    void sendVerificationCode(String email, String fullName, String code, Instant expiresAt);
+
+    /**
+     * @param token the one-time invitation secret; the mail carries it in the accept link
+     * @param inviterName who added them, so the mail is recognisably from a colleague
+     */
+    void sendInvitation(String email, String fullName, String inviterName, String company, String token, Instant expiresAt);
 }

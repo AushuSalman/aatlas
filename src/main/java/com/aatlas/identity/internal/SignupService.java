@@ -10,6 +10,7 @@ import com.aatlas.tenant.TenantProvisioning;
 import java.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -44,6 +45,9 @@ class SignupService {
     private final SessionViews sessions;
     private final DomainEventPublisher events;
     private final AatlasClock clock;
+    private final EmailVerificationService emailVerification;
+    private final SsoService ssoService;
+    private final boolean requireEmailVerification;
 
     SignupService(
             TenantProvisioning tenants,
@@ -56,7 +60,13 @@ class SignupService {
             PolicyReader policy,
             SessionViews sessions,
             DomainEventPublisher events,
-            AatlasClock clock) {
+            AatlasClock clock,
+            EmailVerificationService emailVerification,
+            SsoService ssoService,
+            @Value("${aatlas.auth.require-email-verification:true}") boolean requireEmailVerification) {
+        this.emailVerification = emailVerification;
+        this.ssoService = ssoService;
+        this.requireEmailVerification = requireEmailVerification;
         this.tenants = tenants;
         this.users = users;
         this.refreshTokens = refreshTokens;
@@ -83,15 +93,33 @@ class SignupService {
         // a tenth of a second of CPU.
         rateLimiter.checkAndRecord(AuthRateLimiter.Action.SIGNUP, clientIp);
 
-        String email = request.email().strip();
+        // Google or Apple: the address is the one the provider verified, whatever the form
+        // says, and there is no password. Tickets and codes are both spent in this
+        // transaction, so a signup that fails below leaves them usable for the retry.
+        OidcVerifier.VerifiedIdentity sso = request.ssoTicket() == null || request.ssoTicket().isBlank()
+                ? null
+                : ssoService.consumeForSignup(request.ssoTicket());
+
+        String email = sso != null ? sso.email() : request.email().strip();
         String emailNormalised = UserAccount.normalise(email);
-        passwordPolicy.check(request.password(), emailNormalised);
+        if (sso == null) {
+            if (request.password() == null || request.password().isBlank()) {
+                throw ApiException.badRequest("validation_failed", "A password is needed to continue.");
+            }
+            passwordPolicy.check(request.password(), emailNormalised);
+        }
 
         // Advisory: the unique index is what actually decides. Checking first turns the
         // ordinary case - someone forgot they had an account - into a clean 409 instead of
         // a constraint violation that has to be unpicked from a driver exception.
         if (users.existsByEmailNormalised(emailNormalised)) {
             throw emailTaken();
+        }
+
+        boolean verified = sso != null && sso.emailVerified();
+        if (sso == null && (requireEmailVerification || request.verificationId() != null)) {
+            emailVerification.consumeForSignup(request.verificationId(), emailNormalised);
+            verified = true;
         }
 
         TenantProvisioning.TenantView tenant = tenants.provision(
@@ -104,10 +132,15 @@ class SignupService {
         UserAccount user = new UserAccount(
                 tenant.id(),
                 email,
-                passwordEncoder.encode(request.password()),
+                sso != null ? null : passwordEncoder.encode(request.password()),
                 request.fullName().strip().replaceAll("\\s+", " "),
                 request.role(),
                 title);
+        if (verified) {
+            user.markEmailVerified();
+        }
+        // Whoever creates the workspace owns it, whatever their job function.
+        user.makeOwner();
 
         try {
             user = users.saveAndFlush(user);
@@ -116,6 +149,9 @@ class SignupService {
             // caught the loser. The caller sees the same 409 either way.
             log.debug("Signup lost the race on the email unique index", ex);
             throw emailTaken();
+        }
+        if (sso != null) {
+            ssoService.link(user, sso);
         }
 
         Instant now = clock.now();

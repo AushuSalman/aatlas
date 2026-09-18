@@ -47,9 +47,23 @@ record AuthResponse(
             DataSourceView dataSource) {
     }
 
-    /** The person, as the header and the avatar need them. */
+    /**
+     * The person, as the header and the avatar need them, and what they may open.
+     *
+     * @param workspaceRole access level: {@code super-admin}, {@code admin} or {@code member}
+     * @param permissions set by an admin in place of the job function's defaults; absent when
+     *     the defaults apply
+     */
     @Schema(name = "UserView")
-    record UserView(UUID id, String name, String email, String title, SeatRole role, String initials) {
+    record UserView(
+            UUID id,
+            String name,
+            String email,
+            String title,
+            SeatRole role,
+            String initials,
+            WorkspaceRole workspaceRole,
+            UserPermissions permissions) {
     }
 
     static AuthResponse of(

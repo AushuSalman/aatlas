@@ -12,6 +12,8 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Locale;
 import java.util.UUID;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 /**
  * A person with a seat.
@@ -42,7 +44,8 @@ public class UserAccount extends TenantScopedEntity {
     @Column(name = "email_normalised", nullable = false)
     private String emailNormalised;
 
-    @Column(name = "password_hash", nullable = false)
+    /** Null for an account created with Google or Apple that never set a password. */
+    @Column(name = "password_hash")
     private String passwordHash;
 
     @Column(name = "full_name", nullable = false)
@@ -141,6 +144,13 @@ public class UserAccount extends TenantScopedEntity {
         this.passwordHash = newPasswordHash;
         this.failedLoginCount = 0;
         this.lockedUntil = null;
+        // The reset link arrived by mail and was opened: that proves the address as well as a code would.
+        this.emailVerified = true;
+    }
+
+    /** Set by signup once the address was proven with a mailed code. */
+    void markEmailVerified() {
+        this.emailVerified = true;
     }
 
     public String getEmail() {
@@ -181,5 +191,99 @@ public class UserAccount extends TenantScopedEntity {
 
     public Instant getLockedUntil() {
         return lockedUntil;
+    }
+
+    // -- Access, set from the Users screen ------------------------------------------------------
+
+    @Convert(converter = WorkspaceRole.JpaConverter.class)
+    @Column(name = "workspace_role", nullable = false)
+    private WorkspaceRole workspaceRole = WorkspaceRole.MEMBER;
+
+    /** Null: the job function's defaults apply. */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "permissions")
+    private UserPermissions permissions;
+
+    @Column(name = "invited_by")
+    private UUID invitedBy;
+
+    @Column(name = "invited_at")
+    private Instant invitedAt;
+
+    /** An admin adds someone: no password until they accept the emailed invitation. */
+    static UserAccount invited(UUID tenantId, String email, String fullName, SeatRole seatRole, String title,
+            WorkspaceRole workspaceRole, UserPermissions permissions, UUID invitedBy, Instant now) {
+        UserAccount user = new UserAccount(tenantId, email, null, fullName, seatRole, title);
+        user.status = UserStatus.INVITED;
+        user.workspaceRole = workspaceRole;
+        user.permissions = permissions;
+        user.invitedBy = invitedBy;
+        user.invitedAt = now;
+        return user;
+    }
+
+    /** Someone removed earlier is invited back: a fresh start, keeping the same row. */
+    void reinvite(String fullName, SeatRole seatRole, String title, WorkspaceRole workspaceRole,
+            UserPermissions permissions, UUID invitedBy, Instant now) {
+        changeAccess(fullName, seatRole, title, workspaceRole, permissions);
+        this.status = UserStatus.INVITED;
+        this.passwordHash = null;
+        this.invitedBy = invitedBy;
+        this.invitedAt = now;
+        this.failedLoginCount = 0;
+        this.lockedUntil = null;
+    }
+
+    void changeAccess(String fullName, SeatRole seatRole, String title, WorkspaceRole workspaceRole, UserPermissions permissions) {
+        this.fullName = fullName;
+        this.seatRole = seatRole;
+        this.title = title;
+        this.workspaceRole = workspaceRole;
+        this.permissions = permissions;
+    }
+
+    void markInvitationResent(Instant now) {
+        this.invitedAt = now;
+    }
+
+    /** The invitation was accepted: the address is proven, and the password is theirs. */
+    void acceptInvitation(String passwordHash) {
+        this.passwordHash = passwordHash;
+        this.status = UserStatus.ACTIVE;
+        this.emailVerified = true;
+    }
+
+    void suspend() {
+        this.status = UserStatus.SUSPENDED;
+    }
+
+    /** Back to where they were: active if they ever signed in, otherwise still invited. */
+    void reactivate() {
+        this.status = passwordHash == null && lastLoginAt == null ? UserStatus.INVITED : UserStatus.ACTIVE;
+    }
+
+    void remove() {
+        this.status = UserStatus.DISABLED;
+    }
+
+    /** The first user of a workspace created it. */
+    void makeOwner() {
+        this.workspaceRole = WorkspaceRole.SUPER_ADMIN;
+    }
+
+    public WorkspaceRole getWorkspaceRole() {
+        return workspaceRole;
+    }
+
+    public UserPermissions getPermissions() {
+        return permissions;
+    }
+
+    public UUID getInvitedBy() {
+        return invitedBy;
+    }
+
+    public Instant getInvitedAt() {
+        return invitedAt;
     }
 }

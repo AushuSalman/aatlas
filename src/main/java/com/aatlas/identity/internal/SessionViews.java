@@ -26,7 +26,9 @@ class SessionViews {
                 user.getEmail(),
                 user.getTitle(),
                 user.getSeatRole(),
-                AuthResponse.initialsOf(user.getFullName()));
+                AuthResponse.initialsOf(user.getFullName()),
+                user.getWorkspaceRole(),
+                user.getPermissions());
     }
 
     AuthResponse.SessionView session(UserAccount user, Instant signedInAt, boolean isNewAccount) {

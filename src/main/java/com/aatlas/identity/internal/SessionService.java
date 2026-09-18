@@ -86,9 +86,21 @@ class SessionService {
                     "Too many failed sign-ins. Try again in " + Math.max(1, wait / 60) + " minutes.",
                     Map.of("retryAfterSeconds", wait));
         }
+        if (user.getStatus() == UserStatus.INVITED) {
+            passwordEncoder.matches(request.password(), DUMMY_HASH);
+            throw new ApiException(HttpStatus.FORBIDDEN, "invitation_pending",
+                    "You have been invited but have not set a password yet. Open the invitation email to finish.");
+        }
         if (user.getStatus() != UserStatus.ACTIVE) {
             throw new ApiException(HttpStatus.FORBIDDEN, "account_inactive",
-                    "This account is not active. Ask your administrator.");
+                    "This account has been suspended or removed. Contact your workspace admin.");
+        }
+
+        if (user.getPasswordHash() == null) {
+            // Created with Google or Apple and never given a password. Not a failed guess, so no lockout.
+            passwordEncoder.matches(request.password(), DUMMY_HASH);
+            throw new ApiException(HttpStatus.UNAUTHORIZED, "password_not_set",
+                    "This account signs in with Google or Apple. Use that button, or reset your password to set one.");
         }
 
         if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
@@ -100,6 +112,24 @@ class SessionService {
             throw invalidCredentials();
         }
 
+        return issue(user, clientIp, userAgent, now);
+    }
+
+    /**
+     * A session for a person a provider has already authenticated. The same checks as a
+     * password sign-in, minus the password.
+     */
+    @Transactional
+    AuthResponse signIn(UserAccount user, String clientIp, String userAgent) {
+        Instant now = clock.now();
+        if (user.getStatus() != UserStatus.ACTIVE) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "account_inactive",
+                    "This account is not active. Ask your administrator.");
+        }
+        return issue(user, clientIp, userAgent, now);
+    }
+
+    private AuthResponse issue(UserAccount user, String clientIp, String userAgent, Instant now) {
         user.recordSuccessfulLogin(now);
         users.saveAndFlush(user);
 

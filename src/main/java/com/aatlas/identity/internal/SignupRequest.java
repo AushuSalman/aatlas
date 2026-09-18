@@ -7,6 +7,7 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import java.util.UUID;
 
 /**
  * The two-step signup form, posted once.
@@ -42,8 +43,8 @@ record SignupRequest(
         // 8 to 20 characters. Note that 20 characters is not the same as 20 bytes: twenty
         // emoji are 80 bytes, past the 72 BCrypt hashes before silently ignoring the rest,
         // so PasswordPolicy still enforces a byte ceiling underneath this.
+        // Required unless ssoTicket is sent; SignupService enforces that.
         @Schema(example = "Zephyr!42Bridge", minLength = 8, maxLength = 20)
-                @NotBlank(message = "A password is needed to continue.")
                 @Size(min = 8, max = 20, message = "Use between 8 and 20 characters.")
                 String password,
 
@@ -57,7 +58,18 @@ record SignupRequest(
 
         @Schema(example = "both")
                 @NotNull(message = "Choose the seat you work in.")
-                SeatRole role) {
+                SeatRole role,
+
+        // The challenge from /email/verify/start, confirmed. Required unless
+        // aatlas.auth.require-email-verification is off.
+        @Schema(example = "01923f6e-7b1a-7c2e-9d3f-5a6b7c8d9e0f")
+                UUID verificationId,
+
+        // From POST /auth/sso/{provider}. Replaces the password and the email verification:
+        // the provider verified the address, and the account signs in with the provider.
+        @Schema(description = "Ticket from the Google / Apple exchange, in place of a password.")
+                @Size(max = 512, message = "That is not a sign-in ticket.")
+                String ssoTicket) {
 
     /**
      * Trims the email before {@code @Email} sees it.

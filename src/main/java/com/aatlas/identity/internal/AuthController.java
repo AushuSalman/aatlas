@@ -9,7 +9,10 @@ import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -35,10 +38,165 @@ class AuthController {
     private final SessionService sessionService;
     private final PasswordResetService passwordResetService;
 
-    AuthController(SignupService signupService, SessionService sessionService, PasswordResetService passwordResetService) {
+    private final EmailVerificationService emailVerificationService;
+
+    AuthController(
+            SignupService signupService,
+            SessionService sessionService,
+            PasswordResetService passwordResetService,
+            EmailVerificationService emailVerificationService,
+            SsoService ssoService,
+            UserManagementService userManagement,
+            @Value("${aatlas.mail.app-url:http://localhost:3000}") String appUrl) {
+        this.userManagement = userManagement;
         this.signupService = signupService;
         this.sessionService = sessionService;
         this.passwordResetService = passwordResetService;
+        this.emailVerificationService = emailVerificationService;
+        this.ssoService = ssoService;
+        this.appUrl = appUrl.replaceAll("/+$", "");
+    }
+
+    private final SsoService ssoService;
+    private final String appUrl;
+    private final UserManagementService userManagement;
+
+    @Operation(summary = "Read an invitation before accepting it",
+            description = "Who invited them, to which company, and the email the account will use.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "The invitation is live."),
+        @ApiResponse(responseCode = "400", description = "invalid_invitation: expired, used or withdrawn.")
+    })
+    @PostMapping(path = "/invitations/lookup", consumes = MediaType.APPLICATION_JSON_VALUE)
+    UserManagementService.InvitationView lookupInvitation(@Valid @RequestBody UserRequests.Lookup request, HttpServletRequest http) {
+        return userManagement.lookup(request.token(), clientIpOf(http));
+    }
+
+    @Operation(summary = "Accept an invitation", description = "Sets the password, activates the account and signs in.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Signed in."),
+        @ApiResponse(responseCode = "400", description = "invalid_invitation, or weak_password.")
+    })
+    @PostMapping(path = "/invitations/accept", consumes = MediaType.APPLICATION_JSON_VALUE)
+    AuthResponse acceptInvitation(@Valid @RequestBody UserRequests.Accept request, HttpServletRequest http) {
+        return userManagement.accept(request.token(), request.password(), clientIpOf(http), userAgentOf(http));
+    }
+
+    @Operation(summary = "Verify a Google or Apple sign-in",
+            description = """
+                    Exchanges the authorization code (with the PKCE verifier), verifies the ID token's
+                    signature, issuer, audience, expiry and nonce, and returns the identity with a
+                    `ticket`. The ticket - not the identity - is what sign-in and signup accept.
+                    """)
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Verified."),
+        @ApiResponse(responseCode = "400", description = "sso_exchange_failed, sso_no_email or unknown_provider."),
+        @ApiResponse(responseCode = "503", description = "sso_not_configured.")
+    })
+    @PostMapping(path = "/sso/{provider}", consumes = MediaType.APPLICATION_JSON_VALUE)
+    SsoService.IdentityView exchangeSso(
+            @PathVariable String provider, @Valid @RequestBody SsoRequests.Exchange request, HttpServletRequest http) {
+        return ssoService.exchange(provider, request, clientIpOf(http));
+    }
+
+    @Operation(summary = "Sign in with a verified Google or Apple identity",
+            description = "404 sso_not_linked when no account uses this identity; the ticket then stays valid for signup.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Signed in."),
+        @ApiResponse(responseCode = "400", description = "sso_ticket_invalid."),
+        @ApiResponse(responseCode = "404", description = "sso_not_linked.")
+    })
+    @PostMapping(path = "/sso/login", consumes = MediaType.APPLICATION_JSON_VALUE)
+    AuthResponse ssoLogin(@Valid @RequestBody SsoRequests.Login request, HttpServletRequest http) {
+        return ssoService.login(request.ticket(), clientIpOf(http), userAgentOf(http));
+    }
+
+    /**
+     * Apple's redirect_uri. Asking Apple for a name and email forces a form POST, which a
+     * static frontend cannot receive, so it lands here and is passed on as a query string.
+     * Nothing is verified here - the frontend checks the state, and the exchange verifies
+     * the code - this only changes the envelope.
+     */
+    @Operation(summary = "Apple's form_post redirect", description = "Redirects to the frontend's /auth/callback with the same parameters.")
+    @PostMapping(path = "/sso/apple/callback", consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE)
+    ResponseEntity<Void> appleCallback(
+            @RequestParam(required = false) String code,
+            @RequestParam(required = false) String state,
+            @RequestParam(required = false) String error,
+            @RequestParam(required = false) String user) {
+        UriComponentsBuilder target = UriComponentsBuilder.fromUriString(appUrl + "/auth/callback")
+                .queryParam("provider", "apple");
+        if (code != null) {
+            target.queryParam("code", code);
+        }
+        if (state != null) {
+            target.queryParam("state", state);
+        }
+        if (error != null) {
+            target.queryParam("error", error);
+        }
+        String name = appleName(user);
+        if (name != null) {
+            target.queryParam("name", name);
+        }
+        return ResponseEntity.status(HttpStatus.SEE_OTHER)
+                .location(target.encode().build().toUri())
+                .build();
+    }
+
+    /** {@code {"name":{"firstName":"Sam","lastName":"Okafor"},"email":"…"}}, sent on the first authorisation only. */
+    private String appleName(String userJson) {
+        if (userJson == null || userJson.isBlank()) {
+            return null;
+        }
+        try {
+            com.fasterxml.jackson.databind.JsonNode name = new com.fasterxml.jackson.databind.ObjectMapper()
+                    .readTree(userJson).path("name");
+            String full = (name.path("firstName").asText("") + " " + name.path("lastName").asText("")).strip();
+            return full.isEmpty() ? null : truncate(full, 120);
+        } catch (com.fasterxml.jackson.core.JsonProcessingException ex) {
+            return null;
+        }
+    }
+
+    @Operation(summary = "Mail a verification code",
+            description = "Sends a six-digit code, valid for ten minutes and five attempts. The code is never in the response.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "201", description = "Code sent. The challenge id is what confirm and signup take."),
+        @ApiResponse(responseCode = "409", description = "email_taken: the address already has an account."),
+        @ApiResponse(responseCode = "429", description = "rate_limited, with retryAfterSeconds."),
+        @ApiResponse(responseCode = "503", description = "mail_failed: the mail server did not accept the message.")
+    })
+    @PostMapping(path = "/email/verify/start", consumes = MediaType.APPLICATION_JSON_VALUE)
+    @ResponseStatus(HttpStatus.CREATED)
+    EmailVerificationService.ChallengeView startVerification(
+            @Valid @RequestBody VerificationRequests.Start request, HttpServletRequest http) {
+        return emailVerificationService.start(request.email(), request.fullName(), clientIpOf(http));
+    }
+
+    @Operation(summary = "Send a new verification code",
+            description = "Retires the previous code and resets the attempts. Waits 30s, 60s, 120s, then 300s between resends.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "A new code was sent."),
+        @ApiResponse(responseCode = "400", description = "code_expired: the challenge is unknown, verified or spent."),
+        @ApiResponse(responseCode = "429", description = "rate_limited, with retryAfterSeconds.")
+    })
+    @PostMapping(path = "/email/verify/resend", consumes = MediaType.APPLICATION_JSON_VALUE)
+    EmailVerificationService.ChallengeView resendVerification(
+            @Valid @RequestBody VerificationRequests.Resend request, HttpServletRequest http) {
+        return emailVerificationService.resend(request.challengeId(), clientIpOf(http));
+    }
+
+    @Operation(summary = "Confirm a verification code",
+            description = "On success the challenge id may be passed to signup as verificationId, within the hour.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "204", description = "Verified."),
+        @ApiResponse(responseCode = "400", description = "invalid_code (with attemptsLeft), code_expired or too_many_attempts.")
+    })
+    @PostMapping(path = "/email/verify/confirm", consumes = MediaType.APPLICATION_JSON_VALUE)
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    void confirmVerification(@Valid @RequestBody VerificationRequests.Confirm request, HttpServletRequest http) {
+        emailVerificationService.confirm(request.challengeId(), request.code(), clientIpOf(http));
     }
 
     @Operation(

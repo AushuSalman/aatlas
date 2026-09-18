@@ -1,5 +1,6 @@
 package com.aatlas.identity.internal;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -16,4 +17,7 @@ interface UserAccountRepository extends JpaRepository<UserAccount, UUID> {
     Optional<UserAccount> findByEmailNormalised(String emailNormalised);
 
     boolean existsByEmailNormalised(String emailNormalised);
+
+    /** The Users screen: everyone in the workspace who has not been removed. */
+    List<UserAccount> findByTenantIdAndStatusNot(UUID tenantId, UserStatus status);
 }

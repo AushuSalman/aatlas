@@ -1,14 +1,11 @@
 package com.aatlas.identity.internal;
 
 /** Whether an account may be used. Stored as the enum name; see {@code users_status_ck}. */
-public enum UserStatus {
-
-    /** Normal. The only state signup produces. */
+enum UserStatus {
     ACTIVE,
-
-    /** Temporarily barred by an administrator. Reversible. */
+    /** Created by an admin; no password until the invitation is accepted. */
+    INVITED,
     SUSPENDED,
-
-    /** Deactivated for good. Kept so past decisions still name their author. */
+    /** Removed from the workspace. The row stays so their decisions keep an author. */
     DISABLED
 }

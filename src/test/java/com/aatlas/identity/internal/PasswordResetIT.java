@@ -72,6 +72,16 @@ class PasswordResetIT extends PostgresIntegrationTest {
             lastEmail.set(email);
             lastToken.set(token);
         }
+
+        @Override
+        public void sendVerificationCode(String email, String fullName, String code, Instant expiresAt) {
+            // Not exercised here; see EmailVerificationIT.
+        }
+
+        @Override
+        public void sendInvitation(String email, String fullName, String inviterName, String company, String token, Instant expiresAt) {
+            // Not exercised here.
+        }
     }
 
     private String signUp(String email, String password) throws Exception {
