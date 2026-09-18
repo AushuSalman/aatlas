@@ -42,6 +42,13 @@ management:
     web:
       exposure:
         include: health,info
+  # spring-modulith-observability's bean post-processor is gated on this property and,
+  # when active, imports and ArchUnit-analyses the entire classpath at startup to build
+  # the module graph - expensive enough to run this instance out of heap and crash the
+  # whole context refresh before a port is ever bound. Not worth it on a single small
+  # instance; this profile does not claim OTLP/tracing support anyway (see header).
+  tracing:
+    enabled: false
 
 aatlas:
   cors:
