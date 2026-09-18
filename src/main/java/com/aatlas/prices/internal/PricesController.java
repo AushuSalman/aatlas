@@ -25,9 +25,11 @@ import org.springframework.web.bind.annotation.RestController;
 class PricesController {
 
     private final PricesService service;
+    private final MarketPriceService marketPrice;
 
-    PricesController(PricesService service) {
+    PricesController(PricesService service, MarketPriceService marketPrice) {
         this.service = service;
+        this.marketPrice = marketPrice;
     }
 
     @Operation(summary = "Suggested list prices, with the basis of each")
@@ -61,5 +63,19 @@ class PricesController {
     @PutMapping(path = "/{item}", consumes = MediaType.APPLICATION_JSON_VALUE)
     PriceDetail set(@PathVariable String item, @Valid @RequestBody SetPriceRequest request) {
         return service.set(item, request);
+    }
+
+    @Operation(summary = "Whether AI market research is configured", description = "False when no search provider key is set.")
+    @GetMapping("/market-research/available")
+    java.util.Map<String, Boolean> marketResearchAvailable() {
+        return java.util.Map.of("available", marketPrice.available());
+    }
+
+    @Operation(summary = "Search the open web for what this item sells for",
+            description = "An AI-synthesised summary of public search results, read for a price. Not your "
+                    + "own data, not verified - a starting point, always shown with its sources.")
+    @GetMapping("/{item}/market-research")
+    MarketPriceView marketResearch(@PathVariable String item) {
+        return marketPrice.research(item);
     }
 }

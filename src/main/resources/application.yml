@@ -225,6 +225,12 @@ aatlas:
     # Signup refuses an address that was not proven with a mailed code.
     require-email-verification: ${REQUIRE_EMAIL_VERIFICATION:true}
 
+  tavily:
+    # Web search for the AI price-research pilot. Empty means the feature is off -
+    # TavilyClient reports itself unavailable rather than calling out with no key.
+    api-key: ${TAVILY_API_KEY:}
+    base-url: https://api.tavily.com
+
   cors:
     allowed-origins:
       - http://localhost:3000

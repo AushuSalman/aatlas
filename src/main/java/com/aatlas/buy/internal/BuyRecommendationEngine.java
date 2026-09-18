@@ -204,7 +204,8 @@ class BuyRecommendationEngine {
         BigDecimal grossAtTarget = sellPrice != null && targetCost != null
                 ? sellPrice.subtract(targetCost).setScale(4, RoundingMode.HALF_UP) : null;
 
-        String destinationName = storeCity(destination) + " — " + destination.subdivisionCode();
+        String subdivision = destination.subdivisionCode();
+        String destinationName = storeCity(destination) + (subdivision == null || subdivision.isBlank() ? "" : " — " + subdivision);
         Lane lane = LogisticsEngine.laneFor(logisticsRef, incumbentCountry != null ? incumbentCountry
                 : (mine != null ? mine.country() : "USA"), region);
 

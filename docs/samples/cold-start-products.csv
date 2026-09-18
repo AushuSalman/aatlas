@@ -1,0 +1,14 @@
+Item No,Description,Category,Subcategory,UOM,Commodity,List Price,Unit Cost,Branch
+CS-PLM-001,1/2 IN COPPER FITTING ELBOW,Plumbing,Fittings,each,copper,,3.20,100100
+CS-PLM-002,3/4 IN BRASS BALL VALVE,Plumbing,Valves,each,brass,,8.75,100100
+CS-HVAC-001,PROGRAMMABLE THERMOSTAT 7-DAY,HVAC,Controls,each,none,,42.00,100100
+CS-FIX-001,SINGLE HANDLE KITCHEN FAUCET CHROME,Fixtures,Faucets,each,none,,58.00,100200
+CS-WH-001,40 GAL ELECTRIC WATER HEATER,Water heating,Tank heaters,each,none,,385.00,100200
+CS-ELE-001,USB-C CHARGING CABLE 6FT,Electronics,Cables,each,none,,2.10,100100
+CS-ELE-002,BLUETOOTH SPEAKER PORTABLE,Electronics,Audio,each,none,,14.50,100100
+CS-OFF-001,HEAVY DUTY STAPLER,Office Supplies,Desk,each,none,,4.80,100200
+CS-OFF-002,SPIRAL NOTEBOOK 100 PAGE,Office Supplies,Paper,each,none,,0.85,100200
+CS-AUTO-001,BRAKE PAD SET FRONT,Automotive,Brakes,set,none,,22.00,100100
+CS-AUTO-002,SYNTHETIC OIL FILTER,Automotive,Filters,each,none,,3.40,100100
+CS-APP-001,COTTON WORK GLOVES PAIR,Apparel,Workwear,pair,none,,1.75,100200
+CS-NOCOST-001,MYSTERY ITEM NO COST ON FILE,Hardware,,each,none,,,100100

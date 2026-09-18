@@ -358,11 +358,11 @@ class ReadinessService {
         if (prices.itemsMissingPrice() > 0) {
             steps.add(new NextStep("set-prices", prices.itemsMissingPrice() + " products have no price yet",
                     "Set list prices from cost, category benchmarks and competitor prices",
-                    "/app/prices?scope=missing", null));
+                    "/app/sell/prices?scope=missing", null));
         }
         if (prices.itemsMissingCost() > 0) {
             steps.add(new NextStep("add-costs", prices.itemsMissingCost() + " products have no cost",
-                    "Add costs to measure margin and get price suggestions", "/app/prices?scope=all", null));
+                    "Add costs to measure margin and get price suggestions", "/app/sell/prices?scope=all", null));
         }
         if (sales.rows() == 0) {
             steps.add(new NextStep("upload-sales", "Upload sales history",
