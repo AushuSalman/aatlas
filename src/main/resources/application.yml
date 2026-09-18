@@ -202,12 +202,20 @@ aatlas:
     public-key-pem: ${JWT_PUBLIC_KEY:}
 
   mail:
-    # log: mail is written to the console (local default). smtp: sent through spring.mail.*.
+    # log: mail is written to the console (local default). smtp: sent through spring.mail.*
+    # (blocked outbound on Render - see ResendMailer). resend: Resend's REST API over HTTPS.
     transport: ${MAIL_TRANSPORT:log}
     from: ${MAIL_FROM:no-reply@aatlas.io}
     from-name: ${MAIL_FROM_NAME:Aatlas}
     # The frontend, for links in mail (password reset).
     app-url: ${APP_URL:http://localhost:3000}
+    resend:
+      # A Resend API key (resend.com/api-keys), not an SMTP relay. Empty means the
+      # transport reports itself unconfigured rather than sending with no key.
+      api-key: ${RESEND_API_KEY:}
+      # Resend's own sandbox sender - works with no domain verification. Override once a
+      # real sending domain is verified in Resend's dashboard.
+      from: ${RESEND_FROM:onboarding@resend.dev}
 
   sso:
     # Google: an OAuth "Web application" client from console.cloud.google.com.
