@@ -45,7 +45,10 @@ management:
 
 aatlas:
   cors:
-    allowed-origins: ${CORS_ORIGINS}
+    # No default here would be fine only if CORS_ORIGINS is always set; it is not worth
+    # the risk - an unresolved placeholder fails the whole context refresh and the
+    # service never opens a port, which is a much worse failure than a wrong CORS list.
+    allowed-origins: ${CORS_ORIGINS:http://localhost:3000,http://127.0.0.1:3000}
   cache:
     mode: caffeine
   clock:
