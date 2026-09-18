@@ -24,10 +24,26 @@ spring:
         format_sql: false
         generate_statistics: false
 
-  # Autoconfigure would otherwise try to reach a broker that is not there.
   autoconfigure:
     exclude:
+      # Autoconfigure would otherwise try to reach a broker that is not there.
       - org.springframework.boot.autoconfigure.kafka.KafkaAutoConfiguration
+      # This is what actually schedules the ArchUnit classpath scan (on a background
+      # SimpleAsyncTaskExecutor thread, so it does not even fail loudly - it just costs
+      # memory this instance does not have to spare). Disabling management.tracing and
+      # the modulith actuator endpoint stops two things that ask for the module graph,
+      # but this autoconfiguration builds it unconditionally regardless of who asks -
+      # excluding it at the source is the only way to actually stop the scan. Safe here:
+      # its other job is invoking ApplicationModuleInitializer beans, and nothing in this
+      # codebase implements that interface - every @ApplicationModuleListener is a plain
+      # event listener and does not need the module graph to be delivered.
+      - org.springframework.modulith.runtime.autoconfigure.SpringModulithRuntimeAutoConfiguration
+      # management.endpoint.modulith.enabled: false (below) only hides this endpoint from
+      # HTTP - Spring still evaluates its @Bean method and its ApplicationModulesRuntime
+      # parameter, which no longer exists once the exclusion above removes it. Excluding
+      # the configuration class itself is the only way that is actually consistent with
+      # the exclusion above; confirmed locally, the property alone left this dangling.
+      - org.springframework.modulith.actuator.autoconfigure.ApplicationModulesEndpointConfiguration
 
 server:
   forward-headers-strategy: framework
@@ -42,13 +58,18 @@ management:
     web:
       exposure:
         include: health,info
-  # spring-modulith-observability's bean post-processor is gated on this property and,
-  # when active, imports and ArchUnit-analyses the entire classpath at startup to build
-  # the module graph - expensive enough to run this instance out of heap and crash the
-  # whole context refresh before a port is ever bound. Not worth it on a single small
-  # instance; this profile does not claim OTLP/tracing support anyway (see header).
+  # Two separate things build and ArchUnit-analyse the whole classpath into an
+  # ApplicationModules graph at startup - expensive enough to run this instance out of
+  # memory before a port is ever bound. `exposure.include` above only hides the modulith
+  # endpoint from HTTP; the bean itself still gets created (and still does the scan)
+  # unless disabled here too. This profile does not claim OTLP/tracing support anyway
+  # (see header), and the module-graph endpoint is a local-dev/CI convenience, not
+  # something this deployment target needs.
   tracing:
     enabled: false
+  endpoint:
+    modulith:
+      enabled: false
 
 aatlas:
   cors:
