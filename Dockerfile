@@ -22,4 +22,8 @@ COPY --from=build /app/target/app.jar app.jar
 
 # Render sets PORT; server.port already reads it (${PORT:8080}).
 EXPOSE 8080
-ENTRYPOINT ["java", "-jar", "app.jar", "--spring.profiles.active=render"]
+# The JVM's default container-aware heap sizing is conservative (25% of available
+# memory); on a small instance that is not enough headroom for Hibernate's metamodel
+# plus a JPA/JDBC pool plus whatever else is loaded during startup - let it use most
+# of what the container actually has instead.
+ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75.0", "-jar", "app.jar", "--spring.profiles.active=render"]

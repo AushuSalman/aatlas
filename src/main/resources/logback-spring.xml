@@ -23,7 +23,7 @@
     </root>
   </springProfile>
 
-  <springProfile name="dev,staging,prod">
+  <springProfile name="dev,staging,prod,render">
     <appender name="JSON" class="ch.qos.logback.core.ConsoleAppender">
       <encoder class="net.logstash.logback.encoder.LogstashEncoder">
         <includeMdcKeyName>traceId</includeMdcKeyName>
