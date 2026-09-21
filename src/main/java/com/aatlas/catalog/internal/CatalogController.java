@@ -49,10 +49,12 @@ class CatalogController {
 
     private final CatalogService catalog;
     private final StoreService storeService;
+    private final ProductService productService;
 
-    CatalogController(CatalogService catalog, StoreService storeService) {
+    CatalogController(CatalogService catalog, StoreService storeService, ProductService productService) {
         this.catalog = catalog;
         this.storeService = storeService;
+        this.productService = productService;
     }
 
     // ---- products ----------------------------------------------------------------------
@@ -82,6 +84,29 @@ class CatalogController {
     @GetMapping("/products/{item}/stores")
     List<StoreView> productStores(@PathVariable String item) {
         return catalog.productStores(item);
+    }
+
+    @Operation(summary = "Add a product",
+            description = """
+                    Heads of sales and purchasing and the commercial director only.
+
+                    One item typed in by hand, under the same rules as a new item in the products import:
+                    blank category and subcategory are `uncategorised`, a blank unit is `each`, and a
+                    commodity must be one the platform tracks. A `listPrice` or `unitCost` goes to the price
+                    list tenant-wide. The item is not priceable (`hasSales=false`) until it has sales history.
+
+                    Like opening a branch, this does not require a connected data source.
+                    """)
+    @ApiResponses({
+        @ApiResponse(responseCode = "201", description = "Created. Location carries the item number."),
+        @ApiResponse(responseCode = "400", description = "unknown_commodity, or a field error."),
+        @ApiResponse(responseCode = "403", description = "not_allowed: this seat may not add products."),
+        @ApiResponse(responseCode = "409", description = "item_number_taken: that item number is in use.")
+    })
+    @PostMapping(path = "/products", consumes = MediaType.APPLICATION_JSON_VALUE)
+    ResponseEntity<ProductView> createProduct(@Valid @RequestBody CreateProductRequest request, UriComponentsBuilder uri) {
+        ProductView product = productService.create(request);
+        return ResponseEntity.created(uri.replacePath("/api/v1/products/{item}").build(product.itemNumber())).body(product);
     }
 
     // ---- stores ------------------------------------------------------------------------

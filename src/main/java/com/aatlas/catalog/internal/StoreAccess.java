@@ -30,9 +30,24 @@ class StoreAccess {
      * @throws ApiException 403 not_allowed if this seat may not change the branch list
      */
     void requireHeadOrDirector() {
-        String role = TenantContext.current().map(TenantContext.Actor::role).orElseThrow(StoreAccess::notAllowed);
+        requireHeadOrDirector(notAllowed());
+    }
+
+    /**
+     * The same seats for the item master: an item decides which category rollup and
+     * benchmark band a price lands in, just as a branch decides the market.
+     *
+     * @throws ApiException 403 not_allowed if this seat may not add to the item master
+     */
+    void requireProductEditor() {
+        requireHeadOrDirector(new ApiException(HttpStatus.FORBIDDEN, "not_allowed",
+                "Only heads of sales and purchasing and the commercial director can add products."));
+    }
+
+    private void requireHeadOrDirector(ApiException refusal) {
+        String role = TenantContext.current().map(TenantContext.Actor::role).orElseThrow(() -> refusal);
         if (!policy.personaFor(TenantContext.requireTenantId(), role).isHeadOrDirector()) {
-            throw notAllowed();
+            throw refusal;
         }
     }
 
