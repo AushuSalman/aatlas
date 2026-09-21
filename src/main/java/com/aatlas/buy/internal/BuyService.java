@@ -18,6 +18,9 @@ import com.aatlas.decisions.RecordDecisionRequest;
 import com.aatlas.decisions.RecordPurchaseRequest;
 import com.aatlas.policy.Persona;
 import com.aatlas.policy.PolicyReader;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -108,10 +111,15 @@ class BuyService {
         int qty = request.qty() != null && request.qty() > 0 ? request.qty() : 1;
         String supplierId = request.supplierId() != null && !request.supplierId().isBlank()
                 ? request.supplierId() : rec.supplierId();
+        // What was actually agreed, when the caller knows it - the winning quote, or the
+        // price on a purchase being recorded after the fact. The model's landed estimate is
+        // only the fallback; recording it as though it were the deal made every saving on
+        // the history screen the model grading itself.
+        BigDecimal agreed = request.unitCost() != null ? request.unitCost() : rec.currentCost();
 
         RecordDecisionRequest decisionRequest = new RecordDecisionRequest(DecisionKind.BUY,
                 rec.description() + " awarded to " + rec.supplierName(), request.itemNumber(),
-                request.regionKey(), rec.targetCost(), rec.currentCost(), request.orderValue(), "one-time order",
+                request.regionKey(), rec.targetCost(), agreed, request.orderValue(), "one-time order",
                 "Awarded to " + rec.supplierName() + " at " + rec.destinationName(), qty, null);
 
         if (canApproveAlone) {
@@ -121,7 +129,7 @@ class BuyService {
                     BuyDecisionEntity.STATUS_RECORDED, null, null);
             entity.setDecisionId(decision.id());
             decisions.save(entity);
-            mirrorPurchase(rec, qty, decision.id());
+            mirrorPurchase(rec, qty, decision.id(), agreed, request.purchasedOn());
             return BuySelectResult.approved();
         }
 
@@ -158,12 +166,12 @@ class BuyService {
      * supplier and a destination are always known here - a real line on the {@code analytics}
      * procurement ledger. Never fails the request itself if the ledger write has a problem.
      */
-    private void mirrorPurchase(BuyRecommendation rec, int qty, UUID decisionId) {
+    private void mirrorPurchase(BuyRecommendation rec, int qty, UUID decisionId, BigDecimal agreed, LocalDate date) {
         try {
             ledger.recordPurchase(new RecordPurchaseRequest(
                     rec.itemNumber(), rec.description(), rec.supplierName(), qty,
                     rec.incumbentCost() != null ? rec.incumbentCost() : rec.currentCost(),
-                    rec.targetCost(), rec.currentCost(), null, true, rec.destinationId(),
+                    rec.targetCost(), agreed, date, true, rec.destinationId(),
                     decisionId, rec.supplierId(), null, null));
         } catch (RuntimeException ex) {
             log.warn("Could not mirror buy award for {}@{} (supplier {}) into the decisions ledger: {}",
@@ -189,7 +197,17 @@ class BuyService {
         BuyRecommendation rec = recommendationEngine.build(entity.getItemNumber(), entity.getDestinationStoreCode(),
                 entity.getSupplierId());
         int qty = entity.getQty() != null && entity.getQty() > 0 ? entity.getQty() : 1;
-        mirrorPurchase(rec, qty, decisionId);
+        // The agreed unit price is not stored on its own, but the order value it produced is,
+        // and so is the quantity - so it is recovered exactly rather than replaced by today's
+        // model estimate. Only when a quantity was actually sent: an older caller that omitted
+        // it sent a total, and dividing that by the default of one would record the total as
+        // a unit price.
+        BigDecimal agreed = entity.getQty() != null && entity.getQty() > 0
+                && entity.getOrderValue() != null && entity.getOrderValue().signum() > 0
+                ? entity.getOrderValue().divide(BigDecimal.valueOf(qty), 4, RoundingMode.HALF_UP)
+                : rec.currentCost();
+        // Recorded on the day it was signed off: that is when the commitment became real.
+        mirrorPurchase(rec, qty, decisionId, agreed, null);
         ledger.resolve(decisionId, DecisionStatus.APPLIED);
         entity.setStatus(BuyDecisionEntity.STATUS_RECORDED);
         decisions.save(entity);

@@ -38,8 +38,28 @@ public class ProductEntity extends TenantScopedEntity {
     @Column(name = "default_store_code")
     private String defaultStoreCode;
 
+    /** Where the row came from: sample, import or manual ({@code products_source_ck}, V22). */
+    @Column(name = "source", nullable = false, updatable = false)
+    private String source = "sample";
+
     protected ProductEntity() {
         // JPA
+    }
+
+    /** An item typed in on the Products screen: not sold anywhere yet, so not priceable until it is. */
+    static ProductEntity manual(
+            UUID tenantId,
+            String itemNumber,
+            String description,
+            String shortName,
+            String category,
+            String subcategory,
+            String commodity,
+            String unit) {
+        ProductEntity product = new ProductEntity(
+                tenantId, itemNumber, description, shortName, category, subcategory, commodity, unit, false, null);
+        product.source = "manual";
+        return product;
     }
 
     ProductEntity(
@@ -99,5 +119,9 @@ public class ProductEntity extends TenantScopedEntity {
 
     public String getDefaultStoreCode() {
         return defaultStoreCode;
+    }
+
+    public String getSource() {
+        return source;
     }
 }
