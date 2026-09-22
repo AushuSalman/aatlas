@@ -365,9 +365,11 @@ class ReadinessService {
                     "/app/data?action=load-sample", null));
         }
         if (catalogue.products() == 0 && sales.rows() == 0) {
+            // Into the connect stepper at its products step: a product master is the least
+            // the workspace opens on, and the stepper carries on to sales from there.
             steps.add(new NextStep("connect", "Connect your data",
-                    "Upload a sales history or a product master to open the workspace",
-                    "/app/data?kind=sales", "sales"));
+                    "Upload a product master or sales history to open the workspace",
+                    "/app/connect?step=products", "products"));
         }
         if (prices.itemsMissingPrice() > 0) {
             steps.add(new NextStep("set-prices", prices.itemsMissingPrice() + " products have no price yet",
@@ -382,6 +384,14 @@ class ReadinessService {
             steps.add(new NextStep("upload-sales", "Upload sales history",
                     "Unlock price recommendations, forecasts and revenue insights",
                     "/app/data?kind=sales", "sales"));
+        }
+        // Suppliers ahead of purchases, matching the stepper: a purchase file whose supplier
+        // names are already on the panel attaches to rated suppliers instead of creating stubs.
+        // Readiness is cached per tenant, not per seat, so the kind names the module a seat
+        // needs to see this step; the frontend drops it for seats without 'suppliers'.
+        if (suppliers.count() == 0) {
+            steps.add(new NextStep("add-suppliers", "Add suppliers",
+                    "Unlock buy comparisons, RFQs and awards", "/app/connect?step=suppliers", "suppliers"));
         }
         if (purchases.rows() == 0) {
             steps.add(new NextStep("upload-purchases", "Upload purchase history",
@@ -404,10 +414,6 @@ class ReadinessService {
             steps.add(new NextStep("upload-competitors", "Add competitor prices",
                     "Anchor every recommendation to the market", "/app/data?kind=competitor_prices",
                     "competitor_prices"));
-        }
-        if (suppliers.count() == 0) {
-            steps.add(new NextStep("add-suppliers", "Add suppliers",
-                    "Unlock buy comparisons, RFQs and awards", "/app/suppliers", null));
         }
         return steps.size() <= 3 ? steps : List.copyOf(steps.subList(0, 3));
     }

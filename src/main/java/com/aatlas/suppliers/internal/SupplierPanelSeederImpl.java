@@ -1,6 +1,7 @@
 package com.aatlas.suppliers.internal;
 
 import com.aatlas.common.time.AatlasClock;
+import com.aatlas.history.HistoryCaches;
 import com.aatlas.suppliers.SupplierPanelSeeder;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
@@ -41,6 +42,7 @@ class SupplierPanelSeederImpl implements SupplierPanelSeeder {
     private final SupplierProductLinkSeeder links;
     private final ObjectMapper json;
     private final AatlasClock clock;
+    private final HistoryCaches caches;
 
     SupplierPanelSeederImpl(
             SupplierRepository suppliers,
@@ -50,7 +52,8 @@ class SupplierPanelSeederImpl implements SupplierPanelSeeder {
             SupplierPerformanceMonthRepository performance,
             SupplierProductLinkSeeder links,
             ObjectMapper json,
-            AatlasClock clock) {
+            AatlasClock clock,
+            HistoryCaches caches) {
         this.suppliers = suppliers;
         this.terms = terms;
         this.ratings = ratings;
@@ -59,6 +62,7 @@ class SupplierPanelSeederImpl implements SupplierPanelSeeder {
         this.links = links;
         this.json = json;
         this.clock = clock;
+        this.caches = caches;
     }
 
     @Override
@@ -85,6 +89,12 @@ class SupplierPanelSeederImpl implements SupplierPanelSeeder {
         // insert is idempotent, so this is what picks up products seeded since. A tenant with
         // no catalogue yet links nothing and that is not an error.
         int linked = links.linkAllForTenant(tenantId);
+        // Readiness and the setup checklist count suppliers from a per-tenant cache, and
+        // POST /suppliers/seed is the one caller that does not evict on its own (the sample
+        // connect does). Evicting here covers both, and a no-op call leaves the cache warm.
+        if (added > 0 || linked > 0) {
+            caches.evictAfterCommit(tenantId);
+        }
         log.info("Seeded {} of {} suppliers for tenant {} ({} product links)",
                 added, entries.size(), tenantId, linked);
         return added;

@@ -3,6 +3,7 @@ package com.aatlas.suppliers.internal;
 import com.aatlas.common.error.ApiException;
 import com.aatlas.common.tenant.TenantContext;
 import com.aatlas.common.time.AatlasClock;
+import com.aatlas.history.HistoryCaches;
 import com.aatlas.history.PurchaseHistory;
 import com.aatlas.history.Window;
 import com.aatlas.policy.Persona;
@@ -57,6 +58,7 @@ class SuppliersService {
     private final SupplierWriter writer;
     private final SupplierProductLinkSeeder links;
     private final PurchaseHistory purchaseHistory;
+    private final HistoryCaches caches;
 
     SuppliersService(
             SupplierRepository suppliers,
@@ -69,7 +71,8 @@ class SuppliersService {
             PolicyReader policy,
             SupplierWriter writer,
             SupplierProductLinkSeeder links,
-            PurchaseHistory purchaseHistory) {
+            PurchaseHistory purchaseHistory,
+            HistoryCaches caches) {
         this.suppliers = suppliers;
         this.terms = terms;
         this.ratings = ratings;
@@ -81,6 +84,7 @@ class SuppliersService {
         this.writer = writer;
         this.links = links;
         this.purchaseHistory = purchaseHistory;
+        this.caches = caches;
     }
 
     // -- Reads ----------------------------------------------------------------------------------
@@ -264,6 +268,9 @@ class SuppliersService {
         suppliers.flush();
         links.linkAllForTenant(tenantId);
 
+        // Readiness (supplier count, buy-compare status) is cached per tenant for 15 minutes;
+        // without this the Data page keeps saying "no suppliers" after the first one lands.
+        caches.evictAfterCommit(tenantId);
         return viewOf(tenantId, saved);
     }
 
@@ -285,6 +292,7 @@ class SuppliersService {
             termsRow.apply(patched(termsRow.toCommercialTerms(), request.terms()));
             terms.save(termsRow);
         }
+        caches.evictAfterCommit(tenantId);
         return get(supplierKey);
     }
 
@@ -305,6 +313,7 @@ class SuppliersService {
         // The FKs from terms, ratings, risk, reviews and performance months to suppliers are
         // all ON DELETE CASCADE (V8__suppliers.sql), so one delete clears the whole row.
         suppliers.delete(s);
+        caches.evictAfterCommit(tenantId);
     }
 
     // -- Risk assembly ----------------------------------------------------------------------------
@@ -602,6 +611,9 @@ class SuppliersService {
         if (!added.isEmpty()) {
             suppliers.flush();
             links.linkAllForTenant(tenantId);
+        }
+        if (!added.isEmpty() || !updated.isEmpty()) {
+            caches.evictAfterCommit(tenantId);
         }
 
         return new ImportSuppliersResponse(added, updated, rejected);

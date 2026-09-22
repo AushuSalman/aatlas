@@ -19,9 +19,10 @@ import org.springframework.transaction.annotation.Transactional;
  * done as soon as one row exists - the point is "have you loaded this at all", not a data
  * quality score.
  *
- * <p>Required lines are the ones without which a core screen cannot answer: sales history
- * (every price) and the product master (cost, list price, stock). The rest make answers
- * better or open more screens, and are marked recommended.
+ * <p>The first four lines are the connect stepper's steps, in its order: suppliers, products,
+ * sales, purchases. Only the product master is required - it is the least a workspace can
+ * open on, and a products-only tenant is a finished setup, not a nagging badge. The rest make
+ * answers better or open more screens, and are marked recommended.
  */
 @Service
 class SetupChecklistService {
@@ -78,23 +79,25 @@ class SetupChecklistService {
                         String.class, actor.userId(), tenant)
                 .stream().anyMatch(r -> !"member".equals(r));
 
+        // The hrefs open the connect stepper at that step (?step=), so the bell drops a person
+        // into the same guided flow whether the workspace is open yet or not.
         List<Item> items = new ArrayList<>();
-        items.add(new Item("sales", "Upload your sales history",
-                sales > 0 ? "%,d sales lines loaded.".formatted(sales)
-                        : "Every recommended price is built from it. Nothing can be priced until it is loaded.",
-                sales > 0, sales, true, "/app/connect", "Upload sales", null));
-        items.add(new Item("products", "Add your products",
-                products > 0 ? "%,d products in the catalogue.".formatted(products)
-                        : "Item master with list price and cost, so margins and landed cost can be worked out.",
-                products > 0, products, true, "/app/data?kind=products", "Upload products", null));
         items.add(new Item("suppliers", "Add your suppliers",
                 suppliers > 0 ? "%,d suppliers on the panel.".formatted(suppliers)
                         : "Lead time and on-time rate for each supplier, for ratings, risk and supplier comparison.",
-                suppliers > 0, suppliers, false, "/app/suppliers", "Add suppliers", "suppliers"));
+                suppliers > 0, suppliers, false, "/app/connect?step=suppliers", "Add suppliers", "suppliers"));
+        items.add(new Item("products", "Add your products",
+                products > 0 ? "%,d products in the catalogue.".formatted(products)
+                        : "Item master with list price and cost, so margins and landed cost can be worked out.",
+                products > 0, products, true, "/app/connect?step=products", "Upload products", null));
+        items.add(new Item("sales", "Upload your sales history",
+                sales > 0 ? "%,d sales lines loaded.".formatted(sales)
+                        : "Recommended prices, forecasts and revenue insights are built from it.",
+                sales > 0, sales, false, "/app/connect?step=sales", "Upload sales", null));
         items.add(new Item("purchases", "Upload your purchase history",
                 purchases > 0 ? "%,d purchase lines loaded.".formatted(purchases)
                         : "Real landed costs and your current supplier per item, for the Buy screen and savings.",
-                purchases > 0, purchases, false, "/app/data?kind=purchases", "Upload purchases", "buy"));
+                purchases > 0, purchases, false, "/app/connect?step=purchases", "Upload purchases", "buy"));
         items.add(new Item("competitor_prices", "Add competitor prices",
                 competitors > 0 ? "%,d competitor prices loaded.".formatted(competitors)
                         : "The best source for the market price. Recommendations are more confident with it.",

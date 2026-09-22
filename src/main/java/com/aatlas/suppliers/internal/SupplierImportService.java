@@ -3,6 +3,7 @@ package com.aatlas.suppliers.internal;
 import com.aatlas.common.error.ApiException;
 import com.aatlas.common.tenant.TenantContext;
 import com.aatlas.common.time.AatlasClock;
+import com.aatlas.history.HistoryCaches;
 import com.aatlas.suppliers.internal.csv.SupplierColumnMapping;
 import com.aatlas.suppliers.internal.csv.SupplierDraft;
 import com.aatlas.suppliers.internal.csv.SupplierImportReport;
@@ -44,6 +45,7 @@ public class SupplierImportService {
     private final SupplierPanelAccess access;
     private final SupplierProductLinkSeeder links;
     private final AatlasClock clock;
+    private final HistoryCaches caches;
 
     SupplierImportService(
             SupplierRepository suppliers,
@@ -51,13 +53,15 @@ public class SupplierImportService {
             SupplierImportValidator validator,
             SupplierPanelAccess access,
             SupplierProductLinkSeeder links,
-            AatlasClock clock) {
+            AatlasClock clock,
+            HistoryCaches caches) {
         this.suppliers = suppliers;
         this.writer = writer;
         this.validator = validator;
         this.access = access;
         this.links = links;
         this.clock = clock;
+        this.caches = caches;
     }
 
     /** What a commit did, on top of what validation found. */
@@ -135,6 +139,10 @@ public class SupplierImportService {
             suppliers.flush();
             linked = links.linkAllForTenant(tenantId);
         }
+
+        // Readiness counts suppliers and is cached per tenant for 15 minutes; evicted after
+        // commit, as ImportCommitter does, so the next read sees the panel it just wrote.
+        caches.evictAfterCommit(tenantId);
 
         log.info("Supplier import for tenant {}: {} created, {} updated, {} rejected, {} product links",
                 tenantId, created, updated, report.rejectedRows(), linked);
