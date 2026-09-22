@@ -116,10 +116,14 @@ class BuyService {
         // only the fallback; recording it as though it were the deal made every saving on
         // the history screen the model grading itself.
         BigDecimal agreed = request.unitCost() != null ? request.unitCost() : rec.currentCost();
+        // The first purchase of an item nobody has priced has no target to be measured against:
+        // the price agreed is the benchmark. purchase_order.target is NOT NULL, and a null here
+        // failed the whole request, so the one way to seed an item's history was the one refused.
+        BigDecimal target = rec.targetCost() != null ? rec.targetCost() : agreed;
 
         RecordDecisionRequest decisionRequest = new RecordDecisionRequest(DecisionKind.BUY,
                 rec.description() + " awarded to " + rec.supplierName(), request.itemNumber(),
-                request.regionKey(), rec.targetCost(), agreed, request.orderValue(), "one-time order",
+                request.regionKey(), target, agreed, request.orderValue(), "one-time order",
                 "Awarded to " + rec.supplierName() + " at " + rec.destinationName(), qty, null);
 
         if (canApproveAlone) {
@@ -129,7 +133,7 @@ class BuyService {
                     BuyDecisionEntity.STATUS_RECORDED, null, null);
             entity.setDecisionId(decision.id());
             decisions.save(entity);
-            mirrorPurchase(rec, qty, decision.id(), agreed, request.purchasedOn());
+            mirrorPurchase(rec, qty, decision.id(), agreed, target, request.purchasedOn());
             return BuySelectResult.approved();
         }
 
@@ -166,12 +170,13 @@ class BuyService {
      * supplier and a destination are always known here - a real line on the {@code analytics}
      * procurement ledger. Never fails the request itself if the ledger write has a problem.
      */
-    private void mirrorPurchase(BuyRecommendation rec, int qty, UUID decisionId, BigDecimal agreed, LocalDate date) {
+    private void mirrorPurchase(BuyRecommendation rec, int qty, UUID decisionId, BigDecimal agreed, BigDecimal target,
+            LocalDate date) {
         try {
             ledger.recordPurchase(new RecordPurchaseRequest(
                     rec.itemNumber(), rec.description(), rec.supplierName(), qty,
-                    rec.incumbentCost() != null ? rec.incumbentCost() : rec.currentCost(),
-                    rec.targetCost(), agreed, date, true, rec.destinationId(),
+                    rec.incumbentCost() != null ? rec.incumbentCost() : (rec.currentCost() != null ? rec.currentCost() : agreed),
+                    target, agreed, date, true, rec.destinationId(),
                     decisionId, rec.supplierId(), null, null));
         } catch (RuntimeException ex) {
             log.warn("Could not mirror buy award for {}@{} (supplier {}) into the decisions ledger: {}",
@@ -207,7 +212,7 @@ class BuyService {
                 ? entity.getOrderValue().divide(BigDecimal.valueOf(qty), 4, RoundingMode.HALF_UP)
                 : rec.currentCost();
         // Recorded on the day it was signed off: that is when the commitment became real.
-        mirrorPurchase(rec, qty, decisionId, agreed, null);
+        mirrorPurchase(rec, qty, decisionId, agreed, rec.targetCost() != null ? rec.targetCost() : agreed, null);
         ledger.resolve(decisionId, DecisionStatus.APPLIED);
         entity.setStatus(BuyDecisionEntity.STATUS_RECORDED);
         decisions.save(entity);

@@ -64,7 +64,15 @@ class SetupChecklistService {
 
         long sales = count("sales_transactions", tenant);
         long products = count("products", tenant);
-        long purchases = count("purchase_order", tenant);
+        // Purchase history is the file (or the sample dataset). A purchase typed in on Buy is an
+        // `award` row on the same table: real, but one item, not a history - counting it ticked
+        // this line off after a single recorded order and hid it from the bell.
+        long purchases = jdbc.queryForObject(
+                "select count(*) from purchase_order where tenant_id = ? and source in ('import', 'sample')",
+                Long.class, tenant);
+        long recordedItems = jdbc.queryForObject(
+                "select count(distinct item_number) from purchase_order where tenant_id = ? and source = 'award'",
+                Long.class, tenant);
         long suppliers = count("suppliers", tenant);
         long competitors = count("competitor_prices", tenant);
         long stock = count("inventory_positions", tenant);
@@ -96,7 +104,10 @@ class SetupChecklistService {
                 sales > 0, sales, false, "/app/connect?step=sales", "Upload sales", null));
         items.add(new Item("purchases", "Upload your purchase history",
                 purchases > 0 ? "%,d purchase lines loaded.".formatted(purchases)
-                        : "Real landed costs and your current supplier per item, for the Buy screen and savings.",
+                        : recordedItems > 0
+                                ? "Only %,d %s recorded by hand on Buy. Upload your purchase orders so every item has a current supplier and a landed cost."
+                                        .formatted(recordedItems, recordedItems == 1 ? "item has a purchase" : "items have purchases")
+                                : "Real landed costs and your current supplier per item, for the Buy screen and savings.",
                 purchases > 0, purchases, false, "/app/connect?step=purchases", "Upload purchases", "buy"));
         items.add(new Item("competitor_prices", "Add competitor prices",
                 competitors > 0 ? "%,d competitor prices loaded.".formatted(competitors)
