@@ -9,6 +9,7 @@ import com.aatlas.decisions.DealRecord;
 import com.aatlas.decisions.Decision;
 import com.aatlas.history.Catalogue;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
@@ -51,7 +52,14 @@ public class HistoryService {
     ImpactData buildImpact() {
         UUID tenantId = TenantContext.requireTenantId();
         if (!deals.existsByTenantId(tenantId)) {
-            throw noHistory();
+            if (!decisions.existsByTenantId(tenantId)) {
+                throw noHistory();
+            }
+            // A decision with no deal yet (the pricing wizard records one without a sale) is
+            // history the screen can show, so the impact is an honest zero rather than a 404.
+            LocalDate today = clock.today();
+            return new ImpactData(HistoryEngine.summarise("sell", List.of(), today),
+                    HistoryEngine.summarise("buy", List.of(), today), List.of(), List.of());
         }
         List<DealRecord> all = allDeals(tenantId);
         List<DealRecord> recorded = all.stream().filter(d -> Boolean.TRUE.equals(d.recorded())).toList();

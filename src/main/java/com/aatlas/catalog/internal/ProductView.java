@@ -17,14 +17,16 @@ record ProductView(
         @Schema(example = "1/2 IN COPPER TYPE L HARD TUBE 10FT") String description,
         @Schema(description = "The branch the demo story opens on for this item.", example = "100959")
                 String defaultTenant,
-        @Schema(description = "False = catalogued but never sold, so not priceable.") boolean hasSales,
+        @Schema(description = "False = catalogued but never sold.") boolean hasSales,
+        @Schema(description = "True = a current list price is on file, at any branch or tenant-wide. "
+                + "Priceable means hasSales or hasPrice.") boolean hasPrice,
         @Schema(example = "Copper Tube 1/2\" Type L") String shortName,
         @Schema(example = "Plumbing") String category,
         @Schema(example = "Pipe & tube") String subcategory,
         @Schema(example = "copper") String commodity,
         @Schema(example = "10 ft length") String unit) {
 
-    static ProductView of(ProductEntity product) {
+    static ProductView of(ProductEntity product, boolean hasPrice) {
         return new ProductView(
                 product.getItemNumber(),
                 product.getItemNumber(),
@@ -32,6 +34,7 @@ record ProductView(
                 product.getDescription(),
                 product.getDefaultStoreCode(),
                 product.isHasSales(),
+                hasPrice,
                 product.getShortName(),
                 product.getCategory(),
                 product.getSubcategory(),

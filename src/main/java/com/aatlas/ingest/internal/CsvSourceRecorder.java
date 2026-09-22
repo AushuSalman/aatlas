@@ -53,7 +53,7 @@ class CsvSourceRecorder {
                 detail, tenantId);
     }
 
-    /** {@code "11,858 sales rows · 26 months, 812 purchase lines, 17 products priced, 64 competitor prices"}. */
+    /** {@code "11,858 sales rows · 26 months, 812 purchase lines, 17 products · 11 priced · 2 branches, 64 competitor prices"}. */
     String detail(UUID tenantId) {
         List<Map<String, Object>> perKind = jdbc.queryForList("""
                 select kind, coalesce(sum(loaded_rows), 0) as rows
@@ -77,11 +77,25 @@ class CsvSourceRecorder {
                 }
                 case "purchases" -> parts.add(String.format("%,d purchase lines", rows));
                 case "products" -> {
+                    // The catalogue as it stands, not the rows loaded: a re-import of the same
+                    // file must not read as twice the products.
+                    Integer products = jdbc.queryForObject(
+                            "select count(*) from products where tenant_id = ?", Integer.class, tenantId);
                     Integer priced = jdbc.queryForObject("""
                             select count(distinct product_id) from product_prices
-                             where tenant_id = ? and source = 'import'
+                             where tenant_id = ? and source = 'import' and list_price is not null
                             """, Integer.class, tenantId);
-                    parts.add(String.format("%,d products priced", priced == null ? 0 : priced));
+                    Integer branches = jdbc.queryForObject(
+                            "select count(*) from stores where tenant_id = ? and source = 'import'", Integer.class,
+                            tenantId);
+                    StringBuilder part = new StringBuilder(String.format("%,d products", products == null ? 0 : products));
+                    if (priced != null && priced > 0) {
+                        part.append(String.format(" · %,d priced", priced));
+                    }
+                    if (branches != null && branches > 0) {
+                        part.append(String.format(" · %,d %s", branches, branches == 1 ? "branch" : "branches"));
+                    }
+                    parts.add(part.toString());
                 }
                 case "competitor_prices" -> parts.add(String.format("%,d competitor prices", rows));
                 default -> parts.add(String.format("%,d rows", rows));

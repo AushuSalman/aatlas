@@ -17,6 +17,7 @@ record ProductDetailView(
         String description,
         String defaultTenant,
         boolean hasSales,
+        boolean hasPrice,
         String shortName,
         String category,
         String subcategory,
@@ -36,8 +37,9 @@ record ProductDetailView(
         static final CommodityTrendView NONE = new CommodityTrendView(BigDecimal.ZERO, "No commodity exposure");
     }
 
-    static ProductDetailView of(ProductEntity product, CommodityTrendView trend, List<String> storeIds) {
-        ProductView row = ProductView.of(product);
+    static ProductDetailView of(ProductEntity product, boolean hasPrice, CommodityTrendView trend,
+            List<String> storeIds) {
+        ProductView row = ProductView.of(product, hasPrice);
         return new ProductDetailView(
                 row.itemNumber(),
                 row.value(),
@@ -45,6 +47,7 @@ record ProductDetailView(
                 row.description(),
                 row.defaultTenant(),
                 row.hasSales(),
+                row.hasPrice(),
                 row.shortName(),
                 row.category(),
                 row.subcategory(),

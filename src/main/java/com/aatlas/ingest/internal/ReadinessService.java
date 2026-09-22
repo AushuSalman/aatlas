@@ -75,7 +75,17 @@ class ReadinessService {
         CompetitorInfo competitors = competitors(tenantId);
         SuppliersInfo suppliers = suppliers(tenantId);
         long deals = count("select count(*) from deal where tenant_id = ?", tenantId);
-        long priceablePairs = count("select count(*) from product_stores where tenant_id = ? and sells", tenantId);
+        // A pair is priceable when it sells or when the price list prices it at that branch -
+        // a products-only import writes the latter and never the former.
+        Long pairs = jdbc.queryForObject("""
+                select count(*) from (
+                    select product_id, store_id from product_stores where tenant_id = ? and sells
+                    union
+                    select product_id, store_id from product_prices
+                     where tenant_id = ? and store_id is not null and list_price > 0 and effective_from <= ?
+                ) x
+                """, Long.class, tenantId, tenantId, Date.valueOf(today));
+        long priceablePairs = pairs == null ? 0 : pairs;
         long performingSuppliers = count("""
                 select count(*) from (select supplier_id from purchase_order
                                        where tenant_id = ? and received_date is not null
@@ -140,23 +150,27 @@ class ReadinessService {
 
     /**
      * The price and cost ladders resolved tenant-wide: an item has a price when the price
-     * list or the trailing twelve months of sales give one; a cost when the price list, the
-     * trailing 90 days of purchases, costed sales or a supplier quote give one.
+     * list (any branch, matching the ladder's tenant-wide fallback) or the trailing twelve
+     * months of sales give one; a cost when the price list, the trailing 90 days of
+     * purchases, costed sales or a supplier quote give one.
      */
     private PricesInfo prices(UUID tenantId, int products, LocalDate today) {
         Date salesFrom = Date.valueOf(today.minusMonths(12).plusDays(1));
         Date purchasesFrom = Date.valueOf(today.minusDays(89));
+        Date asOf = Date.valueOf(today);
         int withPrice = jdbc.queryForObject("""
                 select count(*) from (
-                    select product_id from product_prices where tenant_id = ? and list_price is not null
+                    select product_id from product_prices
+                     where tenant_id = ? and list_price > 0 and effective_from <= ?
                     union
                     select product_id from sales_transactions
                      where tenant_id = ? and product_id is not null and txn_date >= ?
                 ) x
-                """, Integer.class, tenantId, tenantId, salesFrom);
+                """, Integer.class, tenantId, asOf, tenantId, salesFrom);
         int withCost = jdbc.queryForObject("""
                 select count(*) from (
-                    select product_id from product_prices where tenant_id = ? and cost is not null
+                    select product_id from product_prices
+                     where tenant_id = ? and cost > 0 and effective_from <= ?
                     union
                     select product_id from purchase_order
                      where tenant_id = ? and product_id is not null and order_date >= ?
@@ -166,7 +180,7 @@ class ReadinessService {
                     union
                     select product_id from supplier_products where tenant_id = ? and ex_works is not null
                 ) x
-                """, Integer.class, tenantId, tenantId, purchasesFrom, tenantId, salesFrom, tenantId);
+                """, Integer.class, tenantId, asOf, tenantId, purchasesFrom, tenantId, salesFrom, tenantId);
         int quotes = (int) count(
                 "select count(*) from supplier_products where tenant_id = ? and ex_works is not null", tenantId);
         return new PricesInfo(withPrice, withCost, Math.max(0, products - withPrice),
@@ -283,7 +297,7 @@ class ReadinessService {
                 ? new Feature("bulk-sell", "Bulk repricing", "ready", List.of(), sellPricing.detail())
                 : "partial".equals(sellPricing.status()) || ("ready".equals(sellPricing.status()) && priceablePairs < 2)
                         ? new Feature("bulk-sell", "Bulk repricing", "partial", List.of("sales", "products"),
-                                "Fewer than two priceable item-branch pairs")
+                                priceablePairs < 2 ? "Fewer than two priceable item-branch pairs" : sellPricing.detail())
                         : new Feature("bulk-sell", "Bulk repricing", "locked", List.of("sales", "products"),
                                 sellPricing.detail()));
         // bulk-buy

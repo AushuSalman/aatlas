@@ -3,8 +3,12 @@ package com.aatlas.prices.internal;
 import com.aatlas.common.error.ApiException;
 import com.aatlas.common.tenant.TenantContext;
 import com.aatlas.common.time.AatlasClock;
+import com.aatlas.decisions.DecisionKind;
+import com.aatlas.decisions.DecisionRecorder;
+import com.aatlas.decisions.RecordDecisionRequest;
 import com.aatlas.history.Catalogue;
 import com.aatlas.history.CompetitorPrices;
+import com.aatlas.history.HistoryCaches;
 import com.aatlas.history.PriceBook;
 import com.aatlas.history.PriceLadder;
 import com.aatlas.history.PriceList;
@@ -22,15 +26,24 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * The prices workflow: suggestions from the history read layer, writes through
@@ -38,19 +51,24 @@ import org.springframework.transaction.annotation.Transactional;
  * a pair's price rows, which no history contract exposes.
  *
  * <p>The seat gate reads {@code role_policy} directly: the {@code prices} module may depend
- * only on {@code common} and {@code history}, so it mirrors what the policy module would
- * answer rather than importing it.
+ * only on {@code common}, {@code decisions} and {@code history}, so it mirrors what the
+ * policy module would answer rather than importing it.
  */
 @Service
 class PricesService {
+
+    private static final Logger log = LoggerFactory.getLogger(PricesService.class);
 
     static final int MAX_ROWS = 2000;
     static final String SCOPE_MISSING = "missing";
     static final String SCOPE_ALL = "all";
     static final List<String> WRITE_SOURCES = List.of("wizard", "manual");
+    static final String TENANT_WIDE = "Tenant-wide";
 
     private static final BigDecimal MIN_MARGIN_OVERRIDE = BigDecimal.ONE;
     private static final BigDecimal MAX_MARGIN_OVERRIDE = BigDecimal.valueOf(90);
+    /** How many item numbers a decision's detail names before "and N more". */
+    private static final int DETAIL_ITEMS = 5;
 
     private final Catalogue catalogue;
     private final PriceLadder ladder;
@@ -59,13 +77,17 @@ class PricesService {
     private final SalesHistory sales;
     private final CompetitorPrices competitors;
     private final Reference reference;
+    private final DecisionRecorder ledger;
+    private final HistoryCaches caches;
     private final AatlasClock clock;
     private final JdbcTemplate jdbc;
     private final ObjectMapper json;
+    private final TransactionTemplate requiresNew;
 
     PricesService(Catalogue catalogue, PriceLadder ladder, PriceList priceList, PriceBook priceBook,
-            SalesHistory sales, CompetitorPrices competitors, Reference reference, AatlasClock clock,
-            JdbcTemplate jdbc, ObjectMapper json) {
+            SalesHistory sales, CompetitorPrices competitors, Reference reference, DecisionRecorder ledger,
+            HistoryCaches caches, AatlasClock clock, JdbcTemplate jdbc, ObjectMapper json,
+            PlatformTransactionManager transactions) {
         this.catalogue = catalogue;
         this.ladder = ladder;
         this.priceList = priceList;
@@ -73,9 +95,13 @@ class PricesService {
         this.sales = sales;
         this.competitors = competitors;
         this.reference = reference;
+        this.ledger = ledger;
+        this.caches = caches;
         this.clock = clock;
         this.jdbc = jdbc;
         this.json = json;
+        this.requiresNew = new TransactionTemplate(transactions);
+        this.requiresNew.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
     }
 
     // ---- suggestions ---------------------------------------------------------------------
@@ -200,14 +226,112 @@ class PricesService {
                     Map.of("fields", fields));
         }
         PriceBook.WriteResult result = priceBook.write(writes, source, TenantContext.currentUserId().orElse(null), null);
+        if (result.written() > 0) {
+            String branch = branchName(writes.stream().map(PriceBook.PriceWrite::storeCode).toList());
+            recordDecision("Set " + prices(result.written()) + " with the pricing wizard"
+                    + (branch == null ? "" : " at " + branch), branch, result.written(),
+                    detail(writtenItems(writes, result.skipped())));
+        }
         return new BulkPriceResponse(result.writeId(), result.written(), result.skipped(), effectiveFrom);
     }
 
     @Transactional
     UndoResponse undo(UUID writeId) {
         requireSellSeat();
+        // Read before the delete: afterwards the rows that named the branch are gone.
+        String branch = branchName(jdbc.queryForList("""
+                SELECT s.store_code FROM product_prices pp LEFT JOIN stores s ON s.id = pp.store_id
+                 WHERE pp.tenant_id = ? AND pp.write_id = ?
+                """, String.class, TenantContext.requireTenantId(), writeId));
         PriceBook.UndoResult result = priceBook.undo(writeId);
+        if (result.deleted() > 0) {
+            recordDecision("Undid " + prices(result.deleted()), branch, result.deleted(),
+                    "Pricing wizard write " + writeId + " undone");
+        }
         return new UndoResponse(result.deleted(), result.kept());
+    }
+
+    /**
+     * One bulk-sell decision per wizard write, so History and the Overview show what was set.
+     * A price-list write is not a sale, so no deal row goes with it.
+     *
+     * <p>Recorded once the write has committed, in a transaction of its own: the recorder is
+     * transactional too, so a failure inside a joined transaction would mark the write
+     * rollback-only however it was caught, and the user would get a 500 with nothing written.
+     * This way a ledger problem is logged and the prices stay.
+     */
+    private void recordDecision(String title, String branchOrNull, int count, String detail) {
+        RecordDecisionRequest request = new RecordDecisionRequest(DecisionKind.BULK_SELL, title, null,
+                branchOrNull == null ? TENANT_WIDE : branchOrNull, null, null, BigDecimal.ZERO, "/month", detail,
+                count, null);
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            recordNow(request);
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                recordNow(request);
+            }
+        });
+    }
+
+    private void recordNow(RecordDecisionRequest request) {
+        UUID tenantId = TenantContext.requireTenantId();
+        try {
+            requiresNew.executeWithoutResult(status -> {
+                ledger.record(request);
+                // The write's own eviction ran before this row existed; the Overview lists decisions.
+                caches.evictAfterCommit(tenantId);
+            });
+        } catch (RuntimeException ex) {
+            log.warn("Could not record the price write as a decision ({}): {}", request.title(), ex.toString());
+        }
+    }
+
+    /**
+     * The one branch's legal name when every row named the same branch; null for tenant-wide
+     * or mixed. A blank code is a scope of its own (tenant-wide), so one tenant-wide row among
+     * branch rows makes the write mixed rather than that branch's.
+     */
+    private String branchName(List<String> storeCodes) {
+        Set<String> codes = new LinkedHashSet<>();
+        for (String code : storeCodes) {
+            codes.add(code == null ? "" : code.strip());
+        }
+        if (codes.size() != 1) {
+            return null;
+        }
+        String code = codes.iterator().next();
+        if (code.isEmpty()) {
+            return null;
+        }
+        return catalogue.store(code).map(Catalogue.StoreRef::legalName).orElse("Branch " + code);
+    }
+
+    private static List<String> writtenItems(List<PriceBook.PriceWrite> writes, List<PriceBook.Skipped> skipped) {
+        Set<String> skippedKeys = new LinkedHashSet<>();
+        for (PriceBook.Skipped s : skipped) {
+            skippedKeys.add(s.itemNumber() + "@" + s.storeCode());
+        }
+        Set<String> items = new LinkedHashSet<>();
+        for (PriceBook.PriceWrite w : writes) {
+            if (!skippedKeys.contains(w.itemNumber() + "@" + w.storeCode())) {
+                items.add(w.itemNumber());
+            }
+        }
+        return List.copyOf(items);
+    }
+
+    /** {@code "HRD118902, HRD118903 and 11 more"}. */
+    private static String detail(List<String> items) {
+        String head = String.join(", ", items.subList(0, Math.min(items.size(), DETAIL_ITEMS)));
+        int more = items.size() - DETAIL_ITEMS;
+        return more > 0 ? head + " and " + more + " more" : head;
+    }
+
+    private static String prices(int n) {
+        return n + (n == 1 ? " price" : " prices");
     }
 
     @Transactional

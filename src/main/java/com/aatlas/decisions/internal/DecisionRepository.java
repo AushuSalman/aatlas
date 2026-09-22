@@ -13,6 +13,8 @@ interface DecisionRepository extends JpaRepository<DecisionEntity, UUID>, JpaSpe
 
     Optional<DecisionEntity> findByTenantIdAndId(UUID tenantId, UUID id);
 
+    boolean existsByTenantId(UUID tenantId);
+
     /**
      * Newest-first, per tenant, capped at {@code max} rows (the History screen's "recent
      * decisions" reads a bounded window rather than every decision a tenant has ever made -

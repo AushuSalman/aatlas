@@ -61,15 +61,18 @@ class CatalogController {
 
     @Operation(summary = "Search the catalogue",
             description = "The picker. `q` matches the item number or description, case-insensitive; "
-                    + "`hasSales=true` limits to items a price can be produced for.")
+                    + "`hasSales=true` limits to items with sales history; `priceable=true` to items a price "
+                    + "can be produced for - sales history or a current list price at any branch.")
     @GetMapping("/products")
     CursorPage<ProductView> products(
             @Parameter(description = "Substring of the item number or description.") @RequestParam(required = false) String q,
             @Parameter(example = "Plumbing") @RequestParam(required = false) String category,
             @RequestParam(required = false) Boolean hasSales,
+            @Parameter(description = "true: hasSales or a current list price on file.")
+                    @RequestParam(required = false) Boolean priceable,
             @RequestParam(defaultValue = "50") @Min(1) @Max(200) int limit,
             @RequestParam(required = false) String cursor) {
-        return catalog.products(q, category, hasSales, limit, cursor);
+        return catalog.products(q, category, hasSales, priceable, limit, cursor);
     }
 
     @Operation(summary = "One product with its commodity trend and the branches that sell it")

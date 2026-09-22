@@ -202,33 +202,46 @@ public class SellService {
         return atp.allocate(a.intel());
     }
 
-    /** Top three opportunities by uplift% x trailing-twelve-month revenue, among priceable pairs with ≥5 txns. */
+    /**
+     * Top three opportunities by uplift% x trailing-twelve-month revenue, among priceable pairs
+     * with ≥5 txns. When no pair has that much history (a products-only tenant that has just
+     * set prices), the three priceable pairs furthest from their recommendation instead, so
+     * the Sell screen has somewhere to start.
+     */
     @Transactional(readOnly = true)
     public List<StarterDto> starters() {
         requireCatalogue();
         record Weighted(double weight, StarterDto row) {
         }
         List<Weighted> rows = new ArrayList<>();
+        List<Weighted> priced = new ArrayList<>();
+        // Only a tenant with no traded pair gets the fallback: one whose traded pairs all sit
+        // within 4% of recommendation has no opportunity, and must not be handed a price cut.
+        boolean anyHistory = false;
         for (ProductRef p : catalog.sellableProducts()) {
             for (var store : catalog.allStores()) {
                 PricingModel m = pricing.getPricingModel(p.itemNumber(), store.storeCode());
-                if (!m.priceable() || m.recommendation() == null || m.currentPrice() == null
-                        || m.totalTransactions() < 5) {
+                if (!m.priceable() || m.recommendation() == null || m.currentPrice() == null) {
                     continue;
                 }
+                anyHistory |= m.totalTransactions() >= 5;
                 BigDecimal optimal = m.recommendation().optimal();
                 BigDecimal upliftPct = PricingMath.pct(optimal.subtract(m.currentPrice()), m.currentPrice());
-                if (upliftPct == null || upliftPct.doubleValue() < 4) {
+                if (upliftPct == null) {
+                    continue;
+                }
+                StarterDto row = new StarterDto(p.itemNumber(), store.storeCode(), p.shortName(), store.label(),
+                        upliftPct);
+                priced.add(new Weighted(Math.abs(upliftPct.doubleValue()), row));
+                if (m.totalTransactions() < 5 || upliftPct.doubleValue() < 4) {
                     continue;
                 }
                 BigDecimal revenue12m = m.units12m() == null ? BigDecimal.ZERO
                         : m.currentPrice().multiply(m.units12m());
-                double weight = upliftPct.doubleValue() * revenue12m.doubleValue();
-                rows.add(new Weighted(weight, new StarterDto(p.itemNumber(), store.storeCode(), p.shortName(),
-                        store.label(), upliftPct)));
+                rows.add(new Weighted(upliftPct.doubleValue() * revenue12m.doubleValue(), row));
             }
         }
-        return rows.stream()
+        return (anyHistory ? rows : priced).stream()
                 .sorted(Comparator.comparingDouble(Weighted::weight).reversed())
                 .limit(3)
                 .map(Weighted::row)

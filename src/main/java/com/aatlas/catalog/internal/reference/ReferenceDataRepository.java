@@ -104,7 +104,10 @@ public class ReferenceDataRepository {
     }
 
     /** The 90-day trend for one commodity, if the reference knows it. */
-    @Cacheable(cacheNames = CacheNames.REFERENCE, cacheManager = "referenceCacheManager", key = "'commodity:' + #commodity")
+    // Own prefix: history's ReferenceJdbc.commodity shares this cache under 'commodity:' with a
+    // different value type, and one key for two types is a ClassCastException on the second read.
+    @Cacheable(cacheNames = CacheNames.REFERENCE, cacheManager = "referenceCacheManager",
+            key = "'commodity-trend:' + #commodity")
     public Optional<CommodityTrend> commodityTrend(String commodity) {
         List<CommodityTrend> rows = jdbc.query(
                 "select pct90, label from commodities where commodity_key = ?",

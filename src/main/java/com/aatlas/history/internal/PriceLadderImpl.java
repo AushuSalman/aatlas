@@ -292,7 +292,7 @@ class PriceLadderImpl implements PriceLadder {
             Map<UUID, Resolved> supplierList) {
 
         Optional<Resolved> currentPrice(UUID productId, UUID storeIdOrNull) {
-            Optional<Resolved> listed = listed(productId, storeIdOrNull, PriceLadderImpl::listPrice);
+            Optional<Resolved> listed = listed(productId, storeIdOrNull, true);
             if (listed.isPresent()) {
                 return listed;
             }
@@ -312,7 +312,7 @@ class PriceLadderImpl implements PriceLadder {
             if (bought != null) {
                 return Optional.of(bought);
             }
-            Optional<Resolved> listed = listed(productId, storeIdOrNull, PriceLadderImpl::listCost);
+            Optional<Resolved> listed = listed(productId, storeIdOrNull, false);
             if (listed.isPresent()) {
                 return listed;
             }
@@ -327,15 +327,22 @@ class PriceLadderImpl implements PriceLadder {
             return Optional.ofNullable(supplierList.get(productId));
         }
 
-        private Optional<Resolved> listed(UUID productId, UUID storeIdOrNull,
-                java.util.function.Function<PriceList.CurrentPrice, Optional<Resolved>> component) {
+        private Optional<Resolved> listed(UUID productId, UUID storeIdOrNull, boolean price) {
+            java.util.function.Function<PriceList.CurrentPrice, Optional<Resolved>> component =
+                    price ? PriceLadderImpl::listPrice : PriceLadderImpl::listCost;
+            PriceList.CurrentPrice tenant = tenantRows.get(productId);
             if (storeIdOrNull != null) {
                 Optional<Resolved> specific = component.apply(storeRows.get(new Inventory.PairKey(productId, storeIdOrNull)));
                 if (specific.isPresent()) {
                     return specific;
                 }
+                // A tenant-wide entry may be another branch's row standing in (PriceListJdbc.scope);
+                // that stand-in answers tenant-wide reads only, never a different branch.
+                if (tenant != null && (price ? tenant.listPriceStoreSpecific() : tenant.costStoreSpecific())) {
+                    return Optional.empty();
+                }
             }
-            return component.apply(tenantRows.get(productId));
+            return component.apply(tenant);
         }
 
         /** Store-specific price-list pairs: part of the priceable universe. */
@@ -343,8 +350,16 @@ class PriceLadderImpl implements PriceLadder {
             return storeRows.keySet();
         }
 
+        /** Products with a true tenant-wide row for either component - the ones priced at every branch. */
         Set<UUID> tenantWideProducts() {
-            return tenantRows.keySet();
+            Set<UUID> out = new LinkedHashSet<>();
+            tenantRows.forEach((productId, row) -> {
+                if ((row.listPrice() != null && !row.listPriceStoreSpecific())
+                        || (row.cost() != null && !row.costStoreSpecific())) {
+                    out.add(productId);
+                }
+            });
+            return out;
         }
 
         /** Every product any rung could answer for, at a store or tenant-wide. */

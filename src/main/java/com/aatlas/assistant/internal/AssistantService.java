@@ -11,6 +11,7 @@ import com.aatlas.bulk.SellLineReader;
 import com.aatlas.bulk.SupplierEval;
 import com.aatlas.common.time.AatlasClock;
 import com.aatlas.history.Catalogue;
+import com.aatlas.history.PriceList;
 import com.aatlas.policy.Persona;
 import com.aatlas.policy.PolicyReader;
 import java.util.ArrayList;
@@ -58,15 +59,17 @@ public class AssistantService {
     private final SellLineReader sellLines;
     private final BuyLineReader buyLines;
     private final Catalogue catalogue;
+    private final PriceList priceList;
     private final PolicyReader personas;
     private final AssistantQuestionRepository history;
     private final AatlasClock clock;
 
-    AssistantService(SellLineReader sellLines, BuyLineReader buyLines, Catalogue catalogue,
+    AssistantService(SellLineReader sellLines, BuyLineReader buyLines, Catalogue catalogue, PriceList priceList,
             PolicyReader personas, AssistantQuestionRepository history, AatlasClock clock) {
         this.sellLines = sellLines;
         this.buyLines = buyLines;
         this.catalogue = catalogue;
+        this.priceList = priceList;
         this.personas = personas;
         this.history = history;
         this.clock = clock;
@@ -162,8 +165,12 @@ public class AssistantService {
                 new CtaView("Upload sales history", "/app/data?kind=sales"), null);
     }
 
+    /** Sellable = sales history or a current list price, the rule the sell module and {@code GET /products?priceable} share. */
     private List<Catalogue.ProductRef> sellableProducts() {
-        return catalogue.products().stream().filter(Catalogue.ProductRef::hasSales).toList();
+        Set<UUID> priced = priceList.pricedProducts(clock.today());
+        return catalogue.products().stream()
+                .filter(p -> p.hasSales() || priced.contains(p.id()))
+                .toList();
     }
 
     private boolean hasSellableCatalogue() {

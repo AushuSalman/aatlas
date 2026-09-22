@@ -1,17 +1,20 @@
 package com.aatlas.sell.internal.catalog;
 
 import com.aatlas.common.tenant.TenantContext;
+import com.aatlas.common.time.AatlasClock;
 import com.aatlas.history.Catalogue;
 import com.aatlas.history.Catalogue.CustomerRef;
 import com.aatlas.history.Catalogue.ProductRef;
 import com.aatlas.history.Catalogue.RegionRef;
 import com.aatlas.history.Catalogue.StoreRef;
+import com.aatlas.history.PriceList;
 import com.aatlas.history.Reference;
 import com.aatlas.sell.internal.catalog.CatalogRefs.CommodityTrend;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -29,11 +32,16 @@ class CatalogGatewayImpl implements CatalogGateway {
 
     private final Catalogue catalogue;
     private final Reference reference;
+    private final PriceList priceList;
+    private final AatlasClock clock;
     private final JdbcTemplate jdbc;
 
-    CatalogGatewayImpl(Catalogue catalogue, Reference reference, JdbcTemplate jdbc) {
+    CatalogGatewayImpl(Catalogue catalogue, Reference reference, PriceList priceList, AatlasClock clock,
+            JdbcTemplate jdbc) {
         this.catalogue = catalogue;
         this.reference = reference;
+        this.priceList = priceList;
+        this.clock = clock;
         this.jdbc = jdbc;
     }
 
@@ -42,9 +50,17 @@ class CatalogGatewayImpl implements CatalogGateway {
         return catalogue.product(itemNumber);
     }
 
+    /**
+     * Sellable = sales history or a current list price at any branch, the same rule
+     * {@code GET /products?priceable=true} applies: the pricing engine itself gates on a
+     * current price, so a products-only tenant that set prices must reach it.
+     */
     @Override
     public List<ProductRef> sellableProducts() {
-        return catalogue.products().stream().filter(ProductRef::hasSales).toList();
+        Set<UUID> priced = priceList.pricedProducts(clock.today());
+        return catalogue.products().stream()
+                .filter(p -> p.hasSales() || priced.contains(p.id()))
+                .toList();
     }
 
     @Override

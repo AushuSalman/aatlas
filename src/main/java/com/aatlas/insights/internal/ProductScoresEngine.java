@@ -1,7 +1,10 @@
 package com.aatlas.insights.internal;
 
 import com.aatlas.decisions.DealSummaries;
+import com.aatlas.history.Catalogue;
+import com.aatlas.history.PricingMath;
 import com.aatlas.insights.internal.ScoreEngine.OpportunityScore;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -17,16 +20,34 @@ final class ProductScoresEngine {
     private ProductScoresEngine() {
     }
 
+    /**
+     * @param monthlyOpportunity null when the pair has no sales volume - an uplift with no
+     *     units behind it is not a dollar figure
+     * @param storeLabel the branch's legal name, or "Branch code" for one the catalogue has no
+     *     row for
+     */
     record ProductScoreRow(
             String itemNumber, String storeId, int score, String tier, String tierLabel,
-            List<ScoreEngine.ScoreReason> reasons, ScoreEngine.Signals signals, String name, String category) {
+            List<ScoreEngine.ScoreReason> reasons, ScoreEngine.Signals signals, String name, String category,
+            BigDecimal currentPrice, BigDecimal optimalPrice, BigDecimal upliftPct, BigDecimal monthlyOpportunity,
+            String storeLabel) {
     }
 
     private static ProductScoreRow row(PairFacts f, InsightsData data) {
         DealSummaries.Adoption adoption = data.adoptionFor("no-branch".equals(f.storeKey()) ? null : f.storeKey());
         OpportunityScore s = ScoreEngine.compute(f, adoption);
+        Catalogue.StoreRef store = data.storesByCode().get(f.pair().storeCode());
+        // Sales with no branch keep the model's own "No branch on file"; only a real code the
+        // catalogue has no row for is labelled by its code.
+        String storeLabel = store != null && store.legalName() != null && !store.legalName().isBlank()
+                ? store.legalName()
+                : f.pair().storeId() == null ? f.pair().storeLabel() : "Branch " + f.pair().storeCode();
         return new ProductScoreRow(s.itemNumber(), s.storeId(), s.score(), s.tier(), s.tierLabel(),
-                s.reasons(), s.signals(), f.pair().shortName(), f.pair().category());
+                s.reasons(), s.signals(), f.pair().shortName(), f.pair().category(),
+                PricingMath.round2(f.currentPrice()), PricingMath.round2(f.optimalPrice()),
+                PricingMath.round2(f.upliftPct()),
+                f.monthlyUnits().signum() > 0 ? PricingMath.round2(f.monthlyOpportunity()) : null,
+                storeLabel);
     }
 
     static List<ProductScoreRow> scores(String region, String filter, String sort, InsightsData data) {

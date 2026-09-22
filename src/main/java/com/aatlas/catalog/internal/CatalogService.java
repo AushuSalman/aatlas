@@ -2,13 +2,16 @@ package com.aatlas.catalog.internal;
 
 import com.aatlas.catalog.internal.reference.ReferenceDataRepository;
 import com.aatlas.common.error.ApiException;
+import com.aatlas.common.time.AatlasClock;
 import com.aatlas.common.web.CursorPage;
+import com.aatlas.history.PriceList;
 import jakarta.persistence.criteria.Predicate;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
@@ -38,23 +41,33 @@ public class CatalogService {
     private final ProductRepository products;
     private final CustomerRepository customers;
     private final ReferenceDataRepository reference;
+    private final PriceList priceList;
+    private final AatlasClock clock;
 
     CatalogService(
             StoreRepository stores,
             ProductRepository products,
             CustomerRepository customers,
-            ReferenceDataRepository reference) {
+            ReferenceDataRepository reference,
+            PriceList priceList,
+            AatlasClock clock) {
         this.stores = stores;
         this.products = products;
         this.customers = customers;
         this.reference = reference;
+        this.priceList = priceList;
+        this.clock = clock;
     }
 
     // ---- products ----------------------------------------------------------------------
 
-    CursorPage<ProductView> products(String q, String category, Boolean hasSales, int limit, String cursor) {
+    CursorPage<ProductView> products(String q, String category, Boolean hasSales, Boolean priceable, int limit,
+            String cursor) {
         UUID tenantId = Catalogues.requireCatalogue(stores);
         String after = Cursors.decode(cursor);
+        // The other half of "priceable" next to has_sales, read through the history module's
+        // price list (one distinct scan) so this and the sell gate cannot disagree.
+        Set<UUID> priced = priceList.pricedProducts(clock.today());
 
         Specification<ProductEntity> spec = (root, query, cb) -> {
             List<Predicate> where = new ArrayList<>();
@@ -71,6 +84,13 @@ public class CatalogService {
             if (hasSales != null) {
                 where.add(cb.equal(root.get("hasSales"), hasSales));
             }
+            if (priceable != null) {
+                // An empty IN list is not valid SQL, so a tenant with no priced product
+                // reduces to the has_sales test alone.
+                Predicate sells = cb.isTrue(root.get("hasSales"));
+                Predicate isPriceable = priced.isEmpty() ? sells : cb.or(sells, root.get("id").in(priced));
+                where.add(priceable ? isPriceable : cb.not(isPriceable));
+            }
             if (after != null) {
                 where.add(cb.greaterThan(root.get("itemNumber"), after));
             }
@@ -80,7 +100,7 @@ public class CatalogService {
         List<ProductView> rows = products
                 .findBy(spec, fetch -> fetch.sortBy(Sort.by("itemNumber")).limit(limit + 1).all())
                 .stream()
-                .map(ProductView::of)
+                .map(p -> ProductView.of(p, priced.contains(p.getId())))
                 .toList();
         return CursorPage.of(rows, limit, row -> Cursors.encode(row.itemNumber()));
     }
@@ -95,7 +115,10 @@ public class CatalogService {
         List<String> storeIds = stores.findSellingProduct(tenantId, product.getId()).stream()
                 .map(StoreEntity::getStoreCode)
                 .toList();
-        return ProductDetailView.of(product, trend, storeIds);
+        boolean hasPrice = priceList.current(product.getId(), null, clock.today())
+                .map(c -> c.listPrice() != null && c.listPrice().signum() > 0)
+                .orElse(false);
+        return ProductDetailView.of(product, hasPrice, trend, storeIds);
     }
 
     List<StoreView> productStores(String itemNumber) {

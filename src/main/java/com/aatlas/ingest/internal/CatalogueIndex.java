@@ -181,6 +181,11 @@ final class CatalogueIndex {
         return code == null ? null : storesByCode.get(key(code));
     }
 
+    /** Whether the tenant has any branch at all, counting the ones this load created. */
+    boolean hasStores() {
+        return !storesByCode.isEmpty();
+    }
+
     private StoreRef createStore(String storeCode, String legalName) {
         StoreRef ref = jdbc.queryForObject("""
                 insert into stores (tenant_id, store_code, legal_name, country, region_key, source, import_batch_id)

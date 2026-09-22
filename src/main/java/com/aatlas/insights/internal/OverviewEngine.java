@@ -2,6 +2,7 @@ package com.aatlas.insights.internal;
 
 import com.aatlas.common.tenant.TenantContext;
 import com.aatlas.decisions.Decision;
+import com.aatlas.decisions.DecisionKind;
 import com.aatlas.decisions.DecisionRecorder;
 import com.aatlas.history.PricingMath;
 import com.aatlas.history.PurchaseHistory;
@@ -290,6 +291,9 @@ class OverviewEngine {
                     "model-estimate"));
         }
 
+        // A card worth nothing is not an opportunity: with no sales volume every uplift is $0.
+        opportunities.removeIf(o -> o.impact() == 0);
+
         List<RiskItem> allRisks = new ArrayList<>();
         allRisks.add(new RiskItem("spike", "red", "Supplier price spike", supplierSpikeCount, "suppliers",
                 String.join(", ", spikeSupplierNames.stream().limit(2).toList()), "/app/buy/bulk"));
@@ -316,41 +320,60 @@ class OverviewEngine {
     /** Real events: import commits, price applies, supplier awards, decisions - last 6, newest first. */
     private List<ChangeEvent> realChanges(LocalDate today) {
         java.util.UUID tenantId = TenantContext.requireTenantId();
-        record Raw(java.time.Instant at, String label, String tone, String href) {
+        record Raw(String id, java.time.Instant at, String label, String tone, String href) {
         }
         List<Raw> raw = new ArrayList<>();
 
         jdbc.query("""
-                select kind, loaded_rows, committed_at from import_batches
+                select id, kind, loaded_rows, committed_at from import_batches
                  where tenant_id = ? and status = 'COMMITTED' and committed_at is not null
                  order by committed_at desc limit 6
-                """, (rs, i) -> new Raw(rs.getTimestamp("committed_at").toInstant(),
+                """, (rs, i) -> new Raw("import-" + rs.getString("id"), rs.getTimestamp("committed_at").toInstant(),
                 "Imported " + rs.getInt("loaded_rows") + " " + rs.getString("kind") + " rows", "up", "/app/data"),
                 tenantId).forEach(raw::add);
 
+        // One event per write, so the id survives a re-read and the label says which screen
+        // wrote it; rows older than write ids share one event per source.
         jdbc.query("""
-                select source, count(*) n, max(created_at) at from product_prices
+                select source, write_id, count(*) n, max(created_at) at from product_prices
                  where tenant_id = ? and source in ('applied', 'wizard')
-                 group by source, date_trunc('minute', created_at) order by at desc limit 6
-                """, (rs, i) -> new Raw(rs.getTimestamp("at").toInstant(),
-                rs.getInt("n") + " price" + (rs.getInt("n") == 1 ? "" : "s") + " " + rs.getString("source"),
-                "info", "/app/sell/bulk"), tenantId).forEach(raw::add);
+                 group by source, write_id order by at desc limit 6
+                """, (rs, i) -> {
+            int n = rs.getInt("n");
+            String prices = n + " price" + (n == 1 ? "" : "s");
+            String writeId = rs.getString("write_id");
+            boolean wizard = "wizard".equals(rs.getString("source"));
+            return new Raw("prices-" + (writeId != null ? writeId : rs.getString("source")),
+                    rs.getTimestamp("at").toInstant(),
+                    wizard ? "Set " + prices + " with the pricing wizard" : "Applied " + prices + " from Sell",
+                    "info", "/app/products");
+        }, tenantId).forEach(raw::add);
 
         jdbc.query("""
-                select item_number, supplier_name, created_at from purchase_order
+                select id, item_number, supplier_name, created_at from purchase_order
                  where tenant_id = ? and source = 'award' order by created_at desc limit 6
-                """, (rs, i) -> new Raw(rs.getTimestamp("created_at").toInstant(),
+                """, (rs, i) -> new Raw("award-" + rs.getString("id"), rs.getTimestamp("created_at").toInstant(),
                 "Awarded " + rs.getString("item_number") + " to " + rs.getString("supplier_name"), "up", "/app/buy"),
                 tenantId).forEach(raw::add);
 
+        // A wizard write is already the product_prices event above, and its decision carries the
+        // same title (plus the branch); one event per write, so that decision is skipped while
+        // its rows stand. Once undone the rows are gone and both decisions tell the story.
+        List<String> priceLabels = raw.stream().filter(r -> r.id().startsWith("prices-")).map(Raw::label).toList();
         for (Decision d : decisionRecorder.list(6, null).items()) {
-            raw.add(new Raw(d.at(), d.title(), "info", "/app/sell?item=" + d.itemNumber()));
+            boolean wizard = d.kind() == DecisionKind.BULK_SELL && d.itemNumber() == null
+                    && priceLabels.stream().anyMatch(label -> d.title().startsWith(label));
+            if (wizard) {
+                continue;
+            }
+            raw.add(new Raw("decision-" + d.id(), d.at(), d.title(), "info",
+                    d.itemNumber() == null ? "/app/history" : "/app/sell?item=" + d.itemNumber()));
         }
 
         return raw.stream()
                 .sorted((a, b) -> b.at().compareTo(a.at()))
                 .limit(6)
-                .map(r -> new ChangeEvent(String.valueOf(r.at().toEpochMilli()), r.at().toString(), r.label(), r.tone(), r.href()))
+                .map(r -> new ChangeEvent(r.id(), r.at().toString(), r.label(), r.tone(), r.href()))
                 .toList();
     }
 

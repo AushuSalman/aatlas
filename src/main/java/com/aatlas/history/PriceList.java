@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -16,6 +17,12 @@ public interface PriceList {
 
     /** Every product's current price at a store (or tenant-wide), in one query. */
     Map<UUID, CurrentPrice> currentForStore(UUID storeIdOrNull, LocalDate today);
+
+    /**
+     * The products with a current list price on file at any branch or tenant-wide: the
+     * "priceable" half next to {@code has_sales}, one index scan rather than the ladder.
+     */
+    Set<UUID> pricedProducts(LocalDate today);
 
     PriceCoverage coverage(LocalDate today);
 

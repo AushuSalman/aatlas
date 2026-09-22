@@ -7,8 +7,10 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -32,18 +34,32 @@ class PriceListJdbc implements PriceList {
     private record Component(BigDecimal value, String source, LocalDate from, boolean specific, String basis) {
     }
 
-    private static String scope(boolean store) {
-        return store ? "(pp.store_id = :s OR pp.store_id IS NULL)" : "pp.store_id IS NULL";
-    }
-
+    /**
+     * At a branch: its own rows win over tenant-wide ones. Tenant-wide: a tenant-wide row wins,
+     * else the product's most recent branch row's branch stands in for both components (never
+     * one branch's price next to another's cost), flagged {@code specific} so the ladder keeps
+     * the stand-in from answering for a different branch. A products import writes only branch
+     * rows, and a tenant-wide read must still see them.
+     */
     private static String componentSql(String component, boolean product, boolean store) {
-        return "SELECT DISTINCT ON (pp.product_id) pp.product_id, pp." + component + " AS val, pp.source,"
-                + " pp.effective_from, pp.store_id IS NOT NULL AS specific, pp.basis::text AS basis"
-                + " FROM product_prices pp WHERE pp.tenant_id = :t"
-                + (product ? " AND pp.product_id = :p" : "")
-                + " AND " + scope(store)
-                + " AND pp.effective_from <= :today AND pp." + component + " IS NOT NULL AND pp." + component + " > 0"
-                + " ORDER BY pp.product_id, (pp.store_id IS NOT NULL) DESC, pp.effective_from DESC, pp.created_at DESC";
+        String own = product ? " AND pp.product_id = :p" : "";
+        String select = "SELECT DISTINCT ON (pp.product_id) pp.product_id, pp." + component + " AS val, pp.source,"
+                + " pp.effective_from, pp.store_id IS NOT NULL AS specific, pp.basis::text AS basis";
+        String carries = " AND pp.effective_from <= :today AND pp." + component + " IS NOT NULL AND pp." + component
+                + " > 0";
+        if (store) {
+            return select + " FROM product_prices pp WHERE pp.tenant_id = :t" + own
+                    + " AND (pp.store_id = :s OR pp.store_id IS NULL)" + carries
+                    + " ORDER BY pp.product_id, (pp.store_id IS NOT NULL) DESC, pp.effective_from DESC, pp.created_at DESC";
+        }
+        return "WITH fallback AS (SELECT DISTINCT ON (pp.product_id) pp.product_id, pp.store_id"
+                + " FROM product_prices pp WHERE pp.tenant_id = :t" + own
+                + " AND pp.store_id IS NOT NULL AND pp.effective_from <= :today"
+                + " ORDER BY pp.product_id, pp.effective_from DESC, pp.created_at DESC) "
+                + select + " FROM product_prices pp LEFT JOIN fallback fb ON fb.product_id = pp.product_id"
+                + " WHERE pp.tenant_id = :t" + own
+                + " AND (pp.store_id IS NULL OR pp.store_id = fb.store_id)" + carries
+                + " ORDER BY pp.product_id, (pp.store_id IS NULL) DESC, pp.effective_from DESC, pp.created_at DESC";
     }
 
     private static Component readComponent(ResultSet rs) throws SQLException {
@@ -101,8 +117,8 @@ class PriceListJdbc implements PriceList {
 
     /**
      * Every store-specific current row, keyed by (product, store), in one pass per
-     * component. Tenant-wide rows are {@link #currentForStore} with a null store; the ladder
-     * layers the two.
+     * component. Tenant-wide rows (and the branch rows standing in for them) are
+     * {@link #currentForStore} with a null store; the ladder layers the two.
      */
     Map<Inventory.PairKey, CurrentPrice> currentStoreSpecific(LocalDate today) {
         MapSqlParameterSource params = Sql.params().addValue("today", today);
@@ -133,6 +149,18 @@ class PriceListJdbc implements PriceList {
         java.util.Set<K> keys = new java.util.LinkedHashSet<>(a.keySet());
         keys.addAll(b.keySet());
         return keys;
+    }
+
+    @Override
+    public Set<UUID> pricedProducts(LocalDate today) {
+        Set<UUID> out = new HashSet<>();
+        jdbc.query("""
+                SELECT DISTINCT pp.product_id FROM product_prices pp
+                 WHERE pp.tenant_id = :t AND pp.effective_from <= :today AND pp.list_price > 0
+                """, Sql.params().addValue("today", today), rs -> {
+            out.add(Sql.uuid(rs, "product_id"));
+        });
+        return out;
     }
 
     @Override

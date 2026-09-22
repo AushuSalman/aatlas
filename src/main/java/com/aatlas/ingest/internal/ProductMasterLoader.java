@@ -245,6 +245,12 @@ class ProductMasterLoader implements KindLoader<ProductRow> {
 
         @Override
         public LoadResult finish() {
+            // A file with no Branch column creates no branch, and the catalogue gate refuses a
+            // workspace with products but no store - so the main branch is created here, the
+            // way a blank branch cell would have.
+            if (loaded > 0 && !index.hasStores()) {
+                index.main();
+            }
             log.info("Products import {}: {} rows, {} created, {} updated, {} prices, {} stock rows, {} links",
                     batchId, loaded, index.productsCreated(), productsUpdated, pricesWritten, inventoryRowsWritten,
                     supplierLinksWritten);

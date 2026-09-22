@@ -83,7 +83,7 @@ class ProductService {
 
         log.info("Product {} added to tenant {} by user {}", item, tenantId,
                 TenantContext.currentUserId().orElse(null));
-        return ProductView.of(saved);
+        return ProductView.of(saved, request.listPrice() != null && request.listPrice().signum() > 0);
     }
 
     /** Turns the unique index on (tenant, item number) into the 409 it means when two requests race. */

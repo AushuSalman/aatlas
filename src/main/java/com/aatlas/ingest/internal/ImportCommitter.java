@@ -105,7 +105,9 @@ class ImportCommitter {
                 sample, shift, fx);
 
         batch.markCommitted(clock.now(), result, shift);
-        batches.save(batch);
+        // Flushed: the source recorder counts committed batches over JDBC, which does not see
+        // a pending JPA update - without this a first import records "No imports loaded".
+        batches.saveAndFlush(batch);
 
         if (!sample) {
             UUID sourceId = csvSource.recordAfterCommit(tenantId, batch.getUploadedBy());
