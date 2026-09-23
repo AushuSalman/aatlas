@@ -44,6 +44,7 @@ class AuthController {
             SignupService signupService,
             SessionService sessionService,
             PasswordResetService passwordResetService,
+            MagicLinkService magicLinkService,
             EmailVerificationService emailVerificationService,
             SsoService ssoService,
             UserManagementService userManagement,
@@ -52,11 +53,13 @@ class AuthController {
         this.signupService = signupService;
         this.sessionService = sessionService;
         this.passwordResetService = passwordResetService;
+        this.magicLinkService = magicLinkService;
         this.emailVerificationService = emailVerificationService;
         this.ssoService = ssoService;
         this.appUrl = appUrl.replaceAll("/+$", "");
     }
 
+    private final MagicLinkService magicLinkService;
     private final SsoService ssoService;
     private final String appUrl;
     private final UserManagementService userManagement;
@@ -276,6 +279,30 @@ class AuthController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     void resetPassword(@Valid @RequestBody ResetPasswordRequest request, HttpServletRequest http) {
         passwordResetService.reset(request.token(), request.password(), clientIpOf(http));
+    }
+
+    @Operation(summary = "Email a one-time sign-in link",
+            description = "Always 202, whether or not the address has an account. The mail is the only answer.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "202", description = "If the address is registered, a link is on its way."),
+        @ApiResponse(responseCode = "429", description = "Too many links requested from this connection.")
+    })
+    @PostMapping(path = "/magic-link/start", consumes = MediaType.APPLICATION_JSON_VALUE)
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    void startMagicLink(@Valid @RequestBody MagicLinkRequests.Start request, HttpServletRequest http) {
+        magicLinkService.start(request.email(), clientIpOf(http));
+    }
+
+    @Operation(summary = "Sign in from an emailed link",
+            description = "Single use, fifteen minutes. Answers exactly like /login.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Signed in: tokens and the session."),
+        @ApiResponse(responseCode = "400", description = "invalid_magic_link: expired, used or unknown."),
+        @ApiResponse(responseCode = "403", description = "account_inactive.")
+    })
+    @PostMapping(path = "/magic-link/consume", consumes = MediaType.APPLICATION_JSON_VALUE)
+    AuthResponse consumeMagicLink(@Valid @RequestBody MagicLinkRequests.Consume request, HttpServletRequest http) {
+        return magicLinkService.consume(request.token(), clientIpOf(http), userAgentOf(http));
     }
 
     /**

@@ -17,6 +17,9 @@ interface Mailer {
      */
     void sendPasswordReset(String email, String fullName, String token, Instant expiresAt);
 
+    /** A one-time sign-in link; the mailbox is the proof of who is asking. */
+    void sendMagicLink(String email, String fullName, String token, Instant expiresAt);
+
     /**
      * @param fullName may be null on a resend
      * @param code the six digits; as with the reset token, only the mail carries it in the clear

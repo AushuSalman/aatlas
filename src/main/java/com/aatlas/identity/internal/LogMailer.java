@@ -31,6 +31,16 @@ class LogMailer implements Mailer {
     }
 
     @Override
+    public void sendMagicLink(String email, String fullName, String token, Instant expiresAt) {
+        log.info("""
+                [mail] To: {} ({})
+                [mail] Subject: Your Aatlas sign-in link
+                [mail] Open within fifteen minutes (expires {}):
+                [mail]   /auth/magic?token={}""",
+                email, fullName, expiresAt, token);
+    }
+
+    @Override
     public void sendVerificationCode(String email, String fullName, String code, Instant expiresAt) {
         log.info("""
                 [mail] To: {}

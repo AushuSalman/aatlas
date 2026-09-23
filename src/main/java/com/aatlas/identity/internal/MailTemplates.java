@@ -38,6 +38,25 @@ final class MailTemplates {
         return new Message(code + " is your Aatlas verification code", text, html);
     }
 
+    static Message magicLink(String fullName, String link) {
+        String text = """
+                Hi %s,
+
+                Here is your one-time link to sign in to Aatlas. It works once, for fifteen minutes:
+
+                %s
+
+                If you did not ask for it, ignore this email; nobody can sign in without opening the link.
+                """.formatted(fullName, link);
+        String html = layout("""
+                <p style="margin:0 0 16px">Hi %s,</p>
+                <p style="margin:0 0 24px">Here is your one-time link to sign in to Aatlas. It works once, for fifteen minutes.</p>
+                <p style="margin:0 0 24px"><a href="%s" style="display:inline-block;background:#465fff;color:#fff;text-decoration:none;padding:12px 20px;border-radius:8px;font-weight:600">Sign in to Aatlas</a></p>
+                <p style="margin:0;color:#667085;font-size:13px">If you did not ask for it, ignore this email; nobody can sign in without opening the link.</p>
+                """.formatted(HtmlUtils.htmlEscape(fullName), HtmlUtils.htmlEscape(link)));
+        return new Message("Your Aatlas sign-in link", text, html);
+    }
+
     static Message passwordReset(String fullName, String link) {
         String text = """
                 Hi %s,

@@ -74,6 +74,11 @@ class PasswordResetIT extends PostgresIntegrationTest {
         }
 
         @Override
+        public void sendMagicLink(String email, String fullName, String token, Instant expiresAt) {
+            // Not exercised here; see MagicLinkIT.
+        }
+
+        @Override
         public void sendVerificationCode(String email, String fullName, String code, Instant expiresAt) {
             // Not exercised here; see EmailVerificationIT.
         }

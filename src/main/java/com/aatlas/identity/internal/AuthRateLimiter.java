@@ -60,6 +60,12 @@ class AuthRateLimiter {
                 "Too many reset requests from this connection. Try again later."),
         PASSWORD_RESET(10, Duration.ofHours(1), "too_many_attempts",
                 "Too many reset attempts from this connection. Try again later."),
+        /** Each request is a real mail sent, the same budget as a password reset. */
+        MAGIC_LINK_START(5, Duration.ofHours(1), "too_many_attempts",
+                "Too many sign-in links requested from this connection. Try again later."),
+        /** Opening a link is a sign-in attempt; a guessed token is 256 random bits, so this only caps noise. */
+        MAGIC_LINK_CONSUME(10, Duration.ofMinutes(15), "too_many_attempts",
+                "Too many sign-in attempts from this connection. Try again in a few minutes."),
         /** Start and resend alike: each one is a real mail sent. */
         EMAIL_VERIFY_SEND(10, Duration.ofHours(1), "rate_limited",
                 "Too many codes requested from this connection. Try again later."),

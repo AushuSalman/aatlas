@@ -63,6 +63,10 @@ class EmailVerificationIT extends PostgresIntegrationTest {
         }
 
         @Override
+        public void sendMagicLink(String email, String fullName, String token, Instant expiresAt) {
+        }
+
+        @Override
         public void sendVerificationCode(String email, String fullName, String code, Instant expiresAt) {
             lastCode.set(code);
         }

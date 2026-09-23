@@ -54,6 +54,12 @@ class SmtpMailer implements Mailer {
     }
 
     @Override
+    public void sendMagicLink(String email, String fullName, String token, Instant expiresAt) {
+        var m = MailTemplates.magicLink(fullName, appUrl + "/auth/magic?token=" + token);
+        send(email, m.subject(), m.text(), m.html());
+    }
+
+    @Override
     public void sendInvitation(String email, String fullName, String inviterName, String company, String token, Instant expiresAt) {
         var m = MailTemplates.invitation(fullName, inviterName, company, appUrl + "/accept-invite?token=" + token);
         send(email, m.subject(), m.text(), m.html());
