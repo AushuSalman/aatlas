@@ -41,6 +41,21 @@ class MarketPriceService {
     }
 
     MarketPriceView research(String itemNumber) {
+        return research(itemNumber, false);
+    }
+
+    /**
+     * What a supplier would charge for the item, rather than what it sells for.
+     *
+     * <p>The buy side asks a different question: the sell search reads street and retail listings,
+     * which are the wrong benchmark for a purchase. This asks for wholesale, trade and distributor
+     * pricing, so the figure can honestly be set beside a supplier's landed quote.
+     */
+    MarketPriceView researchBuy(String itemNumber) {
+        return research(itemNumber, true);
+    }
+
+    private MarketPriceView research(String itemNumber, boolean buySide) {
         if (!tavily.available()) {
             throw ApiException.badRequest("market_research_unavailable",
                     "AI market research is not configured for this environment.");
@@ -48,7 +63,7 @@ class MarketPriceService {
         Catalogue.ProductRef product = catalogue.product(itemNumber)
                 .orElseThrow(() -> ApiException.notFound("Item", itemNumber));
 
-        String query = query(product);
+        String query = buySide ? buyQuery(product) : query(product);
         TavilyClient.Response res;
         try {
             res = tavily.search(query, 6, true);
@@ -57,12 +72,19 @@ class MarketPriceService {
                     "The market could not be searched right now: " + ex.getMessage(), List.of());
         }
 
+        // A web search for a price also returns share prices, company directories and
+        // encyclopaedia entries. They are not sellers, and their figures are not this item's -
+        // a stock quote read as a unit price moves the median - so they are dropped before
+        // anything is read from them or shown as somebody to buy from.
+        List<TavilyClient.Result> results = res.results() == null ? List.of()
+                : res.results().stream().filter(MarketPriceService::looksLikeASeller).toList();
+
         List<BigDecimal> found = extractAmounts(res.answer());
         // The answer line is the one thing here written for a human to read in full; if it
         // named no figure, scanning the raw result snippets too is one more honest try
         // before giving up, rather than a second AI call.
-        if (found.isEmpty() && res.results() != null) {
-            for (TavilyClient.Result r : res.results()) {
+        if (found.isEmpty()) {
+            for (TavilyClient.Result r : results) {
                 found.addAll(extractAmounts(r.content()));
                 if (found.size() >= 3) {
                     break;
@@ -70,22 +92,74 @@ class MarketPriceService {
             }
         }
 
-        List<MarketPriceView.Source> sources = res.results() == null ? List.of()
-                : res.results().stream().limit(6)
-                        .map(r -> new MarketPriceView.Source(r.title(), r.url()))
-                        .toList();
+        List<MarketPriceView.Source> sources = results.stream().limit(6)
+                .map(r -> new MarketPriceView.Source(r.title(), r.url()))
+                .toList();
 
         if (found.isEmpty()) {
             return new MarketPriceView(product.itemNumber(), product.description(), query, null, null,
                     res.answer() != null ? res.answer()
-                            : "No public price could be found for this item. This is common for parts quoted "
-                                    + "directly to distributors rather than listed publicly.",
+                            : buySide
+                                    ? "No public wholesale price could be found for this item. Trade pricing is often "
+                                            + "quoted rather than listed, so an RFQ is the way to a real number."
+                                    : "No public price could be found for this item. This is common for parts quoted "
+                                            + "directly to distributors rather than listed publicly.",
                     sources);
         }
         Collections.sort(found);
         BigDecimal suggested = median(found);
         return new MarketPriceView(product.itemNumber(), product.description(), query, suggested, found, res.answer(),
                 sources);
+    }
+
+    /**
+     * Hosts that answer a price search but never sell the thing: markets and financial news,
+     * company directories and data brokers, maps and reviews, social networks, encyclopaedias.
+     * Matched on the registrable part of the host, so a country subdomain is caught too.
+     */
+    private static final List<String> NOT_SELLERS = List.of(
+            "investing.com", "bloomberg.com", "reuters.com", "marketwatch.com", "yahoo.com", "ft.com",
+            "wsj.com", "nasdaq.com", "nyse.com", "moneycontrol.com", "economictimes.com", "tradingview.com",
+            "tracxn.com", "crunchbase.com", "zoominfo.com", "dnb.com", "owler.com", "pitchbook.com",
+            "mapquest.com", "yelp.com", "yellowpages.com", "bbb.org", "manta.com", "foursquare.com",
+            "linkedin.com", "facebook.com", "twitter.com", "x.com", "instagram.com", "reddit.com",
+            "youtube.com", "pinterest.com", "quora.com", "wikipedia.org", "wikimedia.org",
+            "indeed.com", "glassdoor.com", "ziprecruiter.com");
+
+    /** Titles that are plainly about a company's shares rather than its goods. */
+    private static final Pattern NOT_A_PRICE = Pattern.compile(
+            "(?i)\\b(share price|stock price|market cap|quarterly results|earnings|annual report|"
+                    + "company profile|financials|revenue growth|shareholding)\\b");
+
+    static boolean looksLikeASeller(TavilyClient.Result r) {
+        if (r == null || r.url() == null || r.url().isBlank()) {
+            return false;
+        }
+        String host;
+        try {
+            host = java.net.URI.create(r.url()).getHost();
+        } catch (IllegalArgumentException malformed) {
+            return false;
+        }
+        if (host == null) {
+            return false;
+        }
+        String lower = host.toLowerCase(java.util.Locale.ROOT);
+        for (String blocked : NOT_SELLERS) {
+            if (lower.equals(blocked) || lower.endsWith("." + blocked) || lower.contains("." + blocked + ".")) {
+                return false;
+            }
+        }
+        return r.title() == null || !NOT_A_PRICE.matcher(r.title()).find();
+    }
+
+    /** The buy-side question: what a trade buyer pays, not what a shop charges. */
+    private static String buyQuery(Catalogue.ProductRef p) {
+        StringBuilder q = new StringBuilder("wholesale trade price per unit for ").append(p.description());
+        if (meaningful(p.category())) {
+            q.append(' ').append(p.category());
+        }
+        return q.append(" from distributors or suppliers, bulk pricing").toString();
     }
 
     private static String query(Catalogue.ProductRef p) {

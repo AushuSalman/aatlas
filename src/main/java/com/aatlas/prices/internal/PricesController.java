@@ -78,4 +78,13 @@ class PricesController {
     MarketPriceView marketResearch(@PathVariable String item) {
         return marketPrice.research(item);
     }
+
+    @Operation(summary = "Search the open web for what this item costs to buy",
+            description = "The buy side's question: wholesale, trade and distributor pricing rather than the "
+                    + "street price, so the figure can be set beside a supplier's landed quote. Not your own "
+                    + "data, not verified - a starting point for an RFQ, always shown with its sources.")
+    @GetMapping("/{item}/market-research/buy")
+    MarketPriceView buyMarketResearch(@PathVariable String item) {
+        return marketPrice.researchBuy(item);
+    }
 }
