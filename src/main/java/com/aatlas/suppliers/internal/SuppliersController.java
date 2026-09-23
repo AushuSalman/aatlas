@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -141,6 +142,25 @@ class SuppliersController {
     @PostMapping(path = "/import", consumes = MediaType.APPLICATION_JSON_VALUE)
     ImportSuppliersResponse importSuppliers(@Valid @RequestBody ImportSuppliersRequest request) {
         return service.importSuppliers(request);
+    }
+
+    @Operation(summary = "Set what this supplier charges for one item",
+            description = """
+                    Buy seats and the commercial director only.
+
+                    The ex-works price per unit, which the buy engine lands at a branch by adding that
+                    lane's freight and duty. This is how a price found on the market or agreed over the
+                    phone reaches a supplier's price list without a CSV: from the next read on, the item
+                    shows this supplier in its comparison and its RFQ.
+                    """)
+    @ApiResponses({
+        @ApiResponse(responseCode = "403", description = "not_allowed: this seat may not change the panel."),
+        @ApiResponse(responseCode = "404", description = "not_found: no such supplier, or no such item.")
+    })
+    @PutMapping(path = "/{id}/items/{item}", consumes = MediaType.APPLICATION_JSON_VALUE)
+    SupplierProfileView setItemPrice(@PathVariable String id, @PathVariable String item,
+            @Valid @RequestBody SetSupplierItemPriceRequest request) {
+        return service.setItemPrice(id, item, request);
     }
 
     @Operation(summary = "Edit a supplier's contact, category or terms")

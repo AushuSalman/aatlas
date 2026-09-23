@@ -3,6 +3,7 @@ package com.aatlas.suppliers.internal;
 import com.aatlas.common.error.ApiException;
 import com.aatlas.common.tenant.TenantContext;
 import com.aatlas.common.time.AatlasClock;
+import com.aatlas.history.Catalogue;
 import com.aatlas.history.HistoryCaches;
 import com.aatlas.history.PurchaseHistory;
 import com.aatlas.history.Window;
@@ -59,6 +60,8 @@ class SuppliersService {
     private final SupplierProductLinkSeeder links;
     private final PurchaseHistory purchaseHistory;
     private final HistoryCaches caches;
+    private final Catalogue catalogue;
+    private final SupplierItemPriceWriter itemPrices;
 
     SuppliersService(
             SupplierRepository suppliers,
@@ -72,7 +75,9 @@ class SuppliersService {
             SupplierWriter writer,
             SupplierProductLinkSeeder links,
             PurchaseHistory purchaseHistory,
-            HistoryCaches caches) {
+            HistoryCaches caches,
+            Catalogue catalogue,
+            SupplierItemPriceWriter itemPrices) {
         this.suppliers = suppliers;
         this.terms = terms;
         this.ratings = ratings;
@@ -85,6 +90,31 @@ class SuppliersService {
         this.links = links;
         this.purchaseHistory = purchaseHistory;
         this.caches = caches;
+        this.catalogue = catalogue;
+        this.itemPrices = itemPrices;
+    }
+
+    /**
+     * Record what this supplier charges for one item.
+     *
+     * <p>How a price found on the market, or given over the phone, gets onto a supplier's price
+     * list without a CSV. It is written to the same table the importers write, so the supplier
+     * appears in the buy comparison and the RFQ for that item straight away.
+     */
+    @Transactional
+    SupplierProfileView setItemPrice(String supplierKey, String itemNumber, SetSupplierItemPriceRequest request) {
+        requireBuySeatOrDirector();
+        UUID tenantId = TenantContext.requireTenantId();
+        SupplierEntity supplier = requireSupplier(tenantId, supplierKey);
+        Catalogue.ProductRef product = catalogue.product(itemNumber)
+                .orElseThrow(() -> ApiException.notFound("Item", itemNumber));
+
+        itemPrices.write(tenantId, supplier.getId(), product.id(), request.exWorks(), request.moq(),
+                request.leadTimeDays(), clock.today());
+        // The buy engine reads quotes through the history caches; without this the panel keeps
+        // answering from the price list it read before this price existed.
+        caches.evictAfterCommit(tenantId);
+        return get(supplierKey);
     }
 
     // -- Reads ----------------------------------------------------------------------------------
