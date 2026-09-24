@@ -408,7 +408,13 @@ class ReadinessService {
         }
         if (inventory.items() == 0) {
             steps.add(new NextStep("upload-inventory", "Add stock on hand",
-                    "Unlock weeks of cover and liquidation", "/app/data?kind=products", "products"));
+                    // Stock is a column of the product master, not a file of its own. A step that did
+                    // not say so sent people looking for an upload that does not exist - next to a
+                    // products card already reading "already loaded".
+                    catalogue.products() > 0
+                            ? "Add an On hand column to your product file and upload it again"
+                            : "An On hand column in the product file unlocks weeks of cover and liquidation",
+                    "/app/data?kind=products", "products"));
         }
         if (competitors.observations() == 0) {
             steps.add(new NextStep("upload-competitors", "Add competitor prices",

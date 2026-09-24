@@ -115,7 +115,13 @@ class SetupChecklistService {
                 competitors > 0, competitors, false, "/app/data?kind=competitor_prices", "Upload prices", null));
         items.add(new Item("stock", "Add stock on hand",
                 stock > 0 ? "Stock counts loaded for %,d item-branch pairs.".formatted(stock)
-                        : "Weeks of cover, overstock warnings and sell-now-or-hold need it. It comes from the products file.",
+                        // A product file without an On hand column is the commonest reason this line
+                        // stays open next to a products card that says "already loaded" - so say so
+                        // rather than repeating what the feature needs.
+                        : products > 0
+                                ? "Your product file loaded without an On hand column, so there is no stock to read. "
+                                        + "Add one and upload it again to unlock weeks of cover, overstock warnings and sell-now-or-hold."
+                                : "Weeks of cover, overstock warnings and sell-now-or-hold need it. It is a column in the products file.",
                 stock > 0, stock, false, "/app/data?kind=products", "Upload stock", null));
         if (unplaced > 0 || sales > 0) {
             items.add(new Item("branches", "Place your branches on the map",
