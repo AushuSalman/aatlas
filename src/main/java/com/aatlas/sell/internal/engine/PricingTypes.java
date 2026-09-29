@@ -73,7 +73,7 @@ public final class PricingTypes {
 
             BigDecimal beta, BigDecimal betaR2, String elasticityBasis,
 
-            BigDecimal commodityPct90, String commodityLabel, LocalDate commodityAsOf,
+            BigDecimal commodityPct90, String commodityLabel, LocalDate commodityAsOf, String commoditySource,
 
             BigDecimal units90, BigDecimal unitsPrior90, BigDecimal units12m, BigDecimal avgPrice30,
             BigDecimal avgPrice90p,

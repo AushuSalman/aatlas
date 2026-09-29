@@ -196,7 +196,7 @@ final class SuggestionEngine {
             com.put("pct90", pct90);
             com.put("asOf", commodity.asOf() == null ? null : commodity.asOf().toString());
             com.put("multiplier", cd.setScale(3, RoundingMode.HALF_UP));
-            com.put("source", "reference");
+            com.put("source", commodity.provenance());
             basis.put("commodity", com);
         } else {
             basis.put("commodity", null);
@@ -256,7 +256,7 @@ final class SuggestionEngine {
         Reference.Commodity commodity = in.commodity();
         if (commodity != null && !"none".equals(commodity.key()) && pct90.signum() != 0) {
             text.append("; ").append(commodity.key()).append(' ').append(pct90.signum() > 0 ? "+" : "")
-                    .append(pct90.stripTrailingZeros().toPlainString()).append("% over 90 days (reference");
+                    .append(pct90.stripTrailingZeros().toPlainString()).append("% over 90 days (").append(commodity.provenance());
             if (commodity.asOf() != null) {
                 text.append(", ").append(LONG_DATE.format(commodity.asOf()));
             }

@@ -15,6 +15,10 @@ public final class CatalogRefs {
     }
 
     /** {@code pct90} 0 and {@code label} "No commodity exposure" for an unknown/absent key. */
-    public record CommodityTrend(double pct90, String label, LocalDate asOf) {
+    public record CommodityTrend(double pct90, String label, LocalDate asOf, String provenance) {
+
+        public CommodityTrend(double pct90, String label, LocalDate asOf) {
+            this(pct90, label, asOf, "reference");
+        }
     }
 }

@@ -239,6 +239,56 @@ aatlas:
     api-key: ${TAVILY_API_KEY:}
     base-url: https://api.tavily.com
 
+  competition:
+    # Live competitor prices (competition module). Each provider is independent: an empty key
+    # leaves that one off, and the Competition screen says which env var would turn it on.
+    serpapi:
+      # Google Shopping. Free plan: 250 searches/month - https://serpapi.com/manage-api-key
+      api-key: ${SERPAPI_API_KEY:}
+      base-url: https://serpapi.com
+    ebay:
+      # Browse API, free: 5,000 calls/day - https://developer.ebay.com/my/keys (Production keyset)
+      client-id: ${EBAY_CLIENT_ID:}
+      client-secret: ${EBAY_CLIENT_SECRET:}
+      base-url: https://api.ebay.com
+    rainforest:
+      # Amazon, paid - https://app.rainforestapi.com
+      api-key: ${RAINFOREST_API_KEY:}
+      base-url: https://api.rainforestapi.com
+    oxylabs:
+      # Google Shopping via Web Scraper API, paid (free trial) - https://dashboard.oxylabs.io
+      username: ${OXYLABS_USERNAME:}
+      password: ${OXYLABS_PASSWORD:}
+      base-url: https://realtime.oxylabs.io
+      # The same account also prices tracked competitors' own product pages (CompetitorSites).
+    dataforseo:
+      # Finds online competitors (DataForSEO Labs). Pay as you go, about $0.01 a search;
+      # login and the generated API password at https://app.dataforseo.com/api-access
+      login: ${DATAFORSEO_LOGIN:}
+      password: ${DATAFORSEO_PASSWORD:}
+      base-url: https://api.dataforseo.com
+
+  market-data:
+    # Live reference feeds (marketdata module): daily at 06:30 UTC and once at startup.
+    enabled: ${MARKET_DATA_ENABLED:true}
+    cron: "0 30 6 * * *"
+    fred:
+      # Free key: https://fredaccount.stlouisfed.org/apikeys. Empty = commodity moves stay on the seed.
+      api-key: ${FRED_API_KEY:}
+      base-url: https://api.stlouisfed.org
+      # One monthly producer price index per commodities.commodity_key; its 3-month change becomes pct90.
+      series:
+        copper: WPU102502        # PPI: Copper and brass mill shapes
+        brass: WPU102502         # same - no live brass-only PPI exists
+        steel: WPU1017           # PPI: Steel mill products
+        iron: PCU331511331511    # PPI: Iron foundries
+        pvc: WPU072106033        # PPI: Plastics water pipe
+        pex: PCU326122326122     # PPI: Plastics pipe and pipe fitting manufacturing
+        equipment: PCU333415333415 # PPI: AC, refrigeration and forced-air heating equipment
+    fx:
+      # European Central Bank reference rates, no key. VND is not published there and keeps its seed.
+      base-url: https://api.frankfurter.dev/v1
+
   cors:
     # Comma-separated exact origins (scheme + host + port, no path). The browser blocks
     # every request from an origin not on this list, however the request itself succeeds

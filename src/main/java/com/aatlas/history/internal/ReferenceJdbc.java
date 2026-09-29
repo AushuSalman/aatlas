@@ -93,9 +93,9 @@ class ReferenceJdbc implements Reference {
     }
 
     private List<Commodity> commodityRows(String key) {
-        return jdbc.query("SELECT commodity_key, label, pct90, as_of FROM commodities WHERE commodity_key = ?",
+        return jdbc.query("SELECT commodity_key, label, pct90, as_of, source FROM commodities WHERE commodity_key = ?",
                 (rs, i) -> new Commodity(rs.getString("commodity_key"), rs.getString("label"),
-                        rs.getBigDecimal("pct90"), Sql.date(rs, "as_of")), key);
+                        rs.getBigDecimal("pct90"), Sql.date(rs, "as_of"), rs.getString("source")), key);
     }
 
     @Override

@@ -8,8 +8,9 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Prices the tenant observed at competitors ({@code competitor_prices}). Never fetched by the
- * platform: only what a file or a person supplied, which is what makes them citable.
+ * Prices the tenant observed at competitors ({@code competitor_prices}): what a file or a person
+ * supplied, or what a live shopping-data lookup kept (the {@code competition} module). Every row
+ * names its source and, where it has one, its URL - which is what makes them citable.
  */
 public interface CompetitorPrices {
 

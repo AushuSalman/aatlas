@@ -1,0 +1,142 @@
+package com.aatlas.competition.internal;
+
+import com.aatlas.competition.internal.ShoppingProvider.Listing;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.Set;
+
+/**
+ * Which listings a keyword search returned are this item's price, and why the rest are not.
+ *
+ * <p>A shopping search for "1/2 in PVC ball valve" also returns a 2-inch valve, a 10-pack,
+ * a wrench, and the same valve from the same store three times. Four rules, in order, each
+ * naming what it dropped so the screen can show it:
+ * <ol>
+ *   <li>no price, or a price in another currency;</li>
+ *   <li>a title sharing too few of the query's words ({@link #MIN_MATCH});</li>
+ *   <li>a second listing from a seller already kept - one observation per competitor per day,
+ *       which is what {@code competitor_prices} holds and what the median should count;</li>
+ *   <li>with three or more left, a price under a third or over three times their median: a
+ *       pack, a part, or a different size.</li>
+ * </ol>
+ * Pure: no I/O, no clock.
+ */
+final class ListingFilter {
+
+    /** Share of the query's words a title must contain. */
+    static final BigDecimal MIN_MATCH = new BigDecimal("0.34");
+    static final BigDecimal OUTLIER_FACTOR = BigDecimal.valueOf(3);
+
+    private static final Set<String> STOP = Set.of("the", "and", "for", "with", "from", "per", "each", "inch",
+            "pack", "new", "set", "pcs", "piece");
+
+    private ListingFilter() {
+    }
+
+    record Judged(Listing listing, boolean kept, String reason, BigDecimal match) {
+    }
+
+    static List<Judged> judge(String query, String currency, List<Listing> listings) {
+        Set<String> words = words(query);
+        List<Judged> out = new ArrayList<>();
+        List<Integer> candidates = new ArrayList<>();
+        Set<String> sellers = new HashSet<>();
+        for (Listing l : listings) {
+            BigDecimal match = match(words, l.title());
+            if (l.price() == null || l.price().signum() <= 0) {
+                out.add(new Judged(l, false, "No price on the listing", match));
+            } else if (l.currency() != null && !l.currency().equalsIgnoreCase(currency)) {
+                out.add(new Judged(l, false, "Priced in " + l.currency() + ", not " + currency, match));
+            } else if (match.compareTo(MIN_MATCH) < 0) {
+                out.add(new Judged(l, false, "Title matches too little of the item (" + pct(match) + " of its words)",
+                        match));
+            } else if (!sellers.add(seller(l))) {
+                out.add(new Judged(l, false, "Another listing from " + l.merchant() + " was kept", match));
+            } else {
+                candidates.add(out.size());
+                out.add(new Judged(l, true, null, match));
+            }
+        }
+        if (candidates.size() >= 3) {
+            BigDecimal median = median(candidates.stream().map(i -> out.get(i).listing().price()).toList());
+            BigDecimal low = median.divide(OUTLIER_FACTOR, 4, RoundingMode.HALF_UP);
+            BigDecimal high = median.multiply(OUTLIER_FACTOR);
+            for (int i : candidates) {
+                Judged j = out.get(i);
+                BigDecimal p = j.listing().price();
+                if (p.compareTo(low) < 0 || p.compareTo(high) > 0) {
+                    String times = p.divide(median, 1, RoundingMode.HALF_UP).toPlainString();
+                    out.set(i, new Judged(j.listing(), false,
+                            "Far from the other listings (" + times + "× their median) - likely a pack, a part or another size",
+                            j.match()));
+                }
+            }
+        }
+        return out;
+    }
+
+    /**
+     * One key per store however a source spells it: "The Home Depot", "Home Depot" and
+     * "homedepot.com" are one competitor, so a store's own page and its Google Shopping listing
+     * count once. eBay sellers keep their prefix - each is a competitor of its own.
+     */
+    static String seller(Listing l) {
+        if (l.merchant() == null) {
+            return "";
+        }
+        String s = l.merchant().strip().toLowerCase(Locale.ROOT);
+        if (s.startsWith("ebay:")) {
+            return s;
+        }
+        s = s.replaceFirst("^the\\s+", "").replaceFirst("^www\\.", "")
+                .replaceFirst("\\.(com|co\\.uk|net|org|us|biz|store|shop)$", "");
+        return s.replaceAll("[^a-z0-9]", "");
+    }
+
+    /** The query's meaningful words: three letters or more, or anything with a digit ("1/2", "3x4"). */
+    static Set<String> words(String text) {
+        Set<String> out = new LinkedHashSet<>();
+        if (text == null) {
+            return out;
+        }
+        for (String w : text.toLowerCase(Locale.ROOT).split("[^a-z0-9/.]+")) {
+            String t = w.replaceAll("^[/.]+|[/.]+$", "");
+            if (t.isEmpty() || STOP.contains(t)) {
+                continue;
+            }
+            if (t.length() >= 3 || t.chars().anyMatch(Character::isDigit)) {
+                out.add(t);
+            }
+        }
+        return out;
+    }
+
+    static BigDecimal match(Set<String> words, String title) {
+        if (words.isEmpty()) {
+            return BigDecimal.ONE;
+        }
+        Set<String> have = words(title);
+        String flat = title == null ? "" : title.toLowerCase(Locale.ROOT);
+        long hits = words.stream().filter(w -> have.contains(w) || flat.contains(w)).count();
+        return BigDecimal.valueOf(hits).divide(BigDecimal.valueOf(words.size()), 2, RoundingMode.HALF_UP);
+    }
+
+    static BigDecimal median(List<BigDecimal> values) {
+        if (values.isEmpty()) {
+            return null;
+        }
+        List<BigDecimal> sorted = values.stream().sorted().toList();
+        int n = sorted.size();
+        return n % 2 == 1 ? sorted.get(n / 2)
+                : sorted.get(n / 2 - 1).add(sorted.get(n / 2)).divide(BigDecimal.valueOf(2), 4, RoundingMode.HALF_UP);
+    }
+
+    private static String pct(BigDecimal ratio) {
+        return ratio.multiply(BigDecimal.valueOf(100)).setScale(0, RoundingMode.HALF_UP) + "%";
+    }
+}

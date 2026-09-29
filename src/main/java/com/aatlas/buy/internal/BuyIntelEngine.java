@@ -347,7 +347,7 @@ public class BuyIntelEngine implements BuyIntelReader {
             boolean falling = drift30 < -0.8;
             int incumbentLead = incumbent != null && incumbent.leadDays() != null ? incumbent.leadDays() : 30;
             String waitRisk = rising ? (drift30 > 2 ? "High" : "Medium") : falling ? (incumbentLead > 30 ? "Medium" : "Low") : "Low";
-            String driverLabel = commodity.label() != null ? commodity.label() + " (reference, as of "
+            String driverLabel = commodity.label() != null ? commodity.label() + " (" + commodity.provenance() + ", as of "
                     + (commodity.asOf() != null ? commodity.asOf() : "n/a") + ")" : "No commodity exposure";
             String nowVsWaitReason = rising
                     ? driverLabel + ": the same order is expected to cost " + Js.fmtMoney(Math.abs(deltaPerUnit))

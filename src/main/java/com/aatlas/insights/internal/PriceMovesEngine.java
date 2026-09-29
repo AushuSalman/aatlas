@@ -20,7 +20,19 @@ final class PriceMovesEngine {
             Double currentPrice, double driftPct90, Double commodityPct90, String commoditySource) {
     }
 
-    static List<PriceMove> compute(String region, String storeId, String category, InsightsData data) {
+    /**
+     * {@code all} is the client's word for "do not narrow this", the same as it is on
+     * {@code /insights/demographics}. Compared as a literal it matched no region and no
+     * category, so the unfiltered call - which is the one the screen makes on load - answered
+     * with an empty list every time.
+     */
+    private static String narrowing(String value) {
+        return value == null || "all".equalsIgnoreCase(value.strip()) ? null : value;
+    }
+
+    static List<PriceMove> compute(String regionParam, String storeId, String categoryParam, InsightsData data) {
+        String region = narrowing(regionParam);
+        String category = narrowing(categoryParam);
         List<PairFacts> pairs = storeId != null ? data.atStore(storeId) : data.pairsByKey().values().stream().toList();
 
         List<PriceMove> moves = new ArrayList<>();

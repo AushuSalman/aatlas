@@ -306,7 +306,13 @@ class GeoEngine {
                 ? Fmt.dv(PricingMath.pct(costedRevenue.subtract(cogs), costedRevenue)) : null;
         Integer pricingAccuracyPct = priceableCount > 0 ? (int) Math.round(accurate * 100.0 / priceableCount) : null;
         Double avgCover = coverCount > 0 ? coverSum.doubleValue() / coverCount : null;
-        String inventoryRisk = !anyInventory ? null : avgCover > 13 ? "High" : avgCover > 9 ? "Medium" : "Low";
+        // Cover needs both sides: stock on hand and something sold to burn it down. A branch can
+        // have the first without the second - stock arrived, nothing moved in ninety days - and
+        // then `weeksOfCover` is null for every pair, so `avgCover` is too even though
+        // `anyInventory` is true. Keying the risk off `anyInventory` unboxed that null and threw,
+        // which 500s every screen that reads a branch: Insights, Stores, and the region rolls-up
+        // above them. Unknown cover is its own answer, and it is null rather than "Low".
+        String inventoryRisk = avgCover == null ? null : avgCover > 13 ? "High" : avgCover > 9 ? "Medium" : "Low";
         double demandPct = driftCount > 0 ? Fmt.round1(driftSum.doubleValue() / driftCount) : 0;
 
         DealSummaries.Adoption storeAdoption = data.adoptionFor(noBranch ? null : storeCode);

@@ -19,6 +19,10 @@ final class BulkBuyDtos {
             String itemNumber,
             String name,
             int qty,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, description = "The supplier this line is "
+                    + "baselined against: the incumbent when there is one, else a supplier with a quote. "
+                    + "Never null - a line with nothing to compare against is left out of the plan, and the "
+                    + "client reads this on every line to draw the \"before\" side.")
             SupplierEval incumbent,
             List<SupplierEval> suppliers,
             double currentTotal) {

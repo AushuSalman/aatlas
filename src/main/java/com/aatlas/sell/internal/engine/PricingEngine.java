@@ -155,6 +155,7 @@ public class PricingEngine {
         BigDecimal commodityPct90 = commodity == null ? null : BigDecimal.valueOf(commodity.pct90());
         String commodityLabel = commodity == null ? null : commodity.label();
         LocalDate commodityAsOf = commodity == null ? null : commodity.asOf();
+        String commoditySource = commodity == null ? null : commodity.provenance();
 
         BigDecimal rpp = store != null ? store.rpp() : null;
         double msaMultD = rpp != null ? 1 - ((rpp.doubleValue() - 100) / 100) * 0.55 : 1;
@@ -211,7 +212,7 @@ public class PricingEngine {
                 band.map(PriceBand::min).orElse(null), band.map(PriceBand::max).orElse(null),
                 beta, elasticity.r2(), elasticity.basis(),
 
-                commodityPct90, commodityLabel, commodityAsOf,
+                commodityPct90, commodityLabel, commodityAsOf, commoditySource,
                 w90Stats.units(), w90pStats.units(), itemStoreStats.units(), w30Stats.avgPrice(), w90pStats.avgPrice(),
                 onHandUnits, inventoryAsOf, stale,
                 buckets, rec,
@@ -231,7 +232,7 @@ public class PricingEngine {
                 0, 0,
                 null, null,
                 SalesHistory.Elasticity.defaultValue().coefficient(), null, SalesHistory.Elasticity.DEFAULT,
-                null, null, null,
+                null, null, null, null,
                 null, null, null, null, null,
                 null, null, false,
                 List.of(), null,
@@ -377,7 +378,7 @@ public class PricingEngine {
         if (m.commodityPct90() != null) {
             steps.add(new CalcStepDto("Commodity pass-through",
                     Fmt.fixed(m.commodityPct90().doubleValue(), 1) + "%",
-                    (m.commodityLabel() != null ? m.commodityLabel() : "Commodity index") + " (reference, as of "
+                    (m.commodityLabel() != null ? m.commodityLabel() : "Commodity index") + " (" + m.commoditySource() + ", as of "
                             + m.commodityAsOf() + "); a quarter of the 90-day move reaches the price.",
                     "step"));
         }

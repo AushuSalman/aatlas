@@ -149,7 +149,7 @@ public class SellEngine {
                     eff(rec.afterDemand() != null ? rec.afterDemand() : rec.base(), rec.afterCommodity()),
                     m.commodityPct90() != null
                             ? (m.commodityLabel() != null ? m.commodityLabel() : "Commodity index")
-                                    + " (reference, as of " + m.commodityAsOf() + ")."
+                                    + " (" + m.commoditySource() + ", as of " + m.commodityAsOf() + ")."
                             : "This item carries no commodity exposure.",
                     rec.afterCommodity()));
             boolean rppless = "off".equals(m.msaMode());
@@ -207,7 +207,7 @@ public class SellEngine {
             double k = m.commodityPct90() != null ? d(m.commodityPct90()) : 0;
             driver = Math.abs(k) >= Math.abs(movePercent)
                     ? (m.commodityLabel() != null
-                            ? m.commodityLabel() + " (reference, as of " + m.commodityAsOf() + ")" : "Commodity index")
+                            ? m.commodityLabel() + " (" + m.commoditySource() + ", as of " + m.commodityAsOf() + ")" : "Commodity index")
                     : (m.demand() != null ? m.demand().label() : "Local demand");
         }
         BigDecimal d30 = forecastBase == null ? null

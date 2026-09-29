@@ -107,7 +107,7 @@ class CatalogGatewayImpl implements CatalogGateway {
     public CommodityTrend commodityTrend(String commodityKey) {
         Reference.Commodity c = reference.commodity(commodityKey);
         double pct90 = c.pct90() == null ? 0 : c.pct90().doubleValue();
-        return new CommodityTrend(pct90, c.label(), c.asOf());
+        return new CommodityTrend(pct90, c.label(), c.asOf(), c.provenance());
     }
 
     @Override

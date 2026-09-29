@@ -47,7 +47,12 @@ public class BulkBuyEngine {
                 continue;
             }
             double currentTotal = round2(reference.landed() * qty);
-            lines.add(new LineView(itemNumber, intel.name(), qty, intel.incumbent(), intel.suppliers(),
+            // `reference`, not `intel.incumbent()`. The two differ exactly when the item has no
+            // incumbent and the baseline fell back to a quoted supplier - and there the incumbent
+            // is null, which is the one thing this line may not be. `currentTotal` a line above is
+            // already `reference.landed() * qty`, so sending the incumbent here also gave the
+            // client a baseline that disagreed with the total sitting beside it.
+            lines.add(new LineView(itemNumber, intel.name(), qty, reference, intel.suppliers(),
                     currentTotal));
         }
 

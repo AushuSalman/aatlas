@@ -141,7 +141,10 @@ class ReferenceDataLoader implements ApplicationRunner {
                 values (?, ?, ?, ?)
                 on conflict (commodity_key) do update
                     set label = excluded.label, pct90 = excluded.pct90, as_of = excluded.as_of, updated_at = now()
+                    where commodities.source = 'seed'
                 """, rows);
+        // A figure a live feed wrote (marketdata's FRED refresh) outranks the shipped seed: a
+        // restart must not put last month's reference number back over today's index.
         return rows.size();
     }
 

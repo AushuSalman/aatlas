@@ -1,0 +1,117 @@
+package com.aatlas.competition.internal;
+
+import com.aatlas.competition.internal.CompetitionDtos.ItemCompetition;
+import com.aatlas.competition.internal.CompetitionDtos.LookupResult;
+import com.aatlas.competition.internal.CompetitionDtos.ProvidersView;
+import com.aatlas.competition.internal.CompetitionDtos.RefreshRequest;
+import com.aatlas.competition.internal.CompetitionDtos.RefreshResult;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import java.util.List;
+import org.springframework.http.MediaType;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+/**
+ * Live competitor prices and the pricing method. Thin by rule: every call is one
+ * {@link CompetitionService} method.
+ */
+@RestController
+@RequestMapping(path = "/api/v1/competition", produces = MediaType.APPLICATION_JSON_VALUE)
+@Tag(name = "Competition", description = "Live competitor prices from shopping-data providers, and how prices are set.")
+class CompetitionController {
+
+    private final CompetitionService service;
+
+    CompetitionController(CompetitionService service) {
+        this.service = service;
+    }
+
+    @Operation(summary = "Which competitor-price providers are configured, what each covers and costs")
+    @GetMapping("/providers")
+    ProvidersView providers() {
+        return service.providers();
+    }
+
+    @Operation(summary = "How a price is set: sources, steps, weights and this tenant's guardrails")
+    @GetMapping("/method")
+    PricingMethod.MethodView method() {
+        return service.method();
+    }
+
+    @Operation(summary = "One item's competitor observations on file, each with its source, and the anchor")
+    @GetMapping("/items/{item}")
+    ItemCompetition item(@PathVariable String item) {
+        return service.item(item);
+    }
+
+    @Operation(summary = "Search one item's competitor prices now",
+            description = "Every listing each provider returned, kept or dropped with the reason. With save=true "
+                    + "(the default) the kept listings become today's observations and the item's anchor.")
+    @PostMapping("/items/{item}/lookup")
+    LookupResult lookup(@PathVariable String item,
+            @RequestParam(required = false) List<String> providers,
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false, defaultValue = "true") boolean save) {
+        return service.lookup(item, providers, q, save);
+    }
+
+    @Operation(summary = "Buy-side benchmarks for one item: retail ceiling and bulk-lot price per unit",
+            description = "Retail listings on every configured provider, and lots/cases (eBay by preference) divided "
+                    + "down to a unit price. Nothing is saved.")
+    @PostMapping("/items/{item}/buy-check")
+    CompetitionDtos.BuyCheck buyCheck(@PathVariable String item,
+            @RequestParam(required = false) List<String> providers,
+            @RequestParam(required = false) String q) {
+        return service.buyCheck(item, providers, q);
+    }
+
+    @Operation(summary = "The competitors this tenant tracks; active ones are priced from their own sites")
+    @GetMapping("/competitors")
+    List<CompetitionDtos.CompetitorView> competitors() {
+        return service.competitors();
+    }
+
+    @Operation(summary = "Find online competitors with DataForSEO",
+            description = "From your own website's domain (the sites sharing your Google keywords), or from keywords, "
+                    + "or item descriptions (the sites ranking for them). Nothing is tracked until you add one.")
+    @PostMapping(path = "/competitors/discover", consumes = MediaType.APPLICATION_JSON_VALUE)
+    CompetitionDtos.Discovery discover(@RequestBody CompetitionDtos.DiscoverRequest request) {
+        return service.discover(request);
+    }
+
+    @Operation(summary = "Track a competitor by domain (or re-activate it)")
+    @PostMapping(path = "/competitors", consumes = MediaType.APPLICATION_JSON_VALUE)
+    CompetitionDtos.CompetitorView track(@Valid @RequestBody CompetitionDtos.TrackRequest request) {
+        return service.track(request);
+    }
+
+    @Operation(summary = "Pause or resume pricing a tracked competitor")
+    @org.springframework.web.bind.annotation.PatchMapping(path = "/competitors/{id}",
+            consumes = MediaType.APPLICATION_JSON_VALUE)
+    CompetitionDtos.CompetitorView setActive(@PathVariable java.util.UUID id,
+            @RequestBody CompetitionDtos.ActiveRequest request) {
+        return service.setActive(id, request.active());
+    }
+
+    @Operation(summary = "Stop tracking a competitor (its saved prices stay)")
+    @org.springframework.web.bind.annotation.DeleteMapping("/competitors/{id}")
+    org.springframework.http.ResponseEntity<Void> untrack(@PathVariable java.util.UUID id) {
+        service.untrack(id);
+        return org.springframework.http.ResponseEntity.noContent().build();
+    }
+
+    @Operation(summary = "Search and save competitor prices for a list of items",
+            description = "At most " + CompetitionService.MAX_BULK_ITEMS + " items per call; each item costs one "
+                    + "search per provider.")
+    @PostMapping(path = "/refresh", consumes = MediaType.APPLICATION_JSON_VALUE)
+    RefreshResult refresh(@Valid @RequestBody RefreshRequest request) {
+        return service.refresh(request.items(), request.providers());
+    }
+}

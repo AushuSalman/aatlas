@@ -34,7 +34,24 @@ public interface Reference {
             BigDecimal highMarginPct, String note, String matched) {
     }
 
-    record Commodity(String key, String label, BigDecimal pct90, LocalDate asOf) {
+    /**
+     * A commodity's 90-day index move.
+     *
+     * @param source {@code seed} for the shipped reference figure, else the live feed that wrote it
+     *               ("FRED WPU102502")
+     */
+    record Commodity(String key, String label, BigDecimal pct90, LocalDate asOf, String source) {
+
+        public Commodity(String key, String label, BigDecimal pct90, LocalDate asOf) {
+            this(key, label, pct90, asOf, SEED);
+        }
+
+        public static final String SEED = "seed";
+
+        /** What an explanation cites: "reference" for the seed figure, the feed and series otherwise. */
+        public String provenance() {
+            return source == null || SEED.equals(source) ? "reference" : source;
+        }
     }
 
     /** From {@code logistics_origins}; {@code fallback} is true for a country with no lane. */
