@@ -42,6 +42,14 @@ final class ListingFilter {
     }
 
     static List<Judged> judge(String query, String currency, List<Listing> listings) {
+        return judge(query, currency, listings, true);
+    }
+
+    /**
+     * @param onePerSeller apply rule 3. Off for bulk lots on the buy side: several lots from eBay
+     *                     are several data points for a per-unit price, and nothing is saved from them.
+     */
+    static List<Judged> judge(String query, String currency, List<Listing> listings, boolean onePerSeller) {
         Set<String> words = words(query);
         List<Judged> out = new ArrayList<>();
         List<Integer> candidates = new ArrayList<>();
@@ -55,7 +63,7 @@ final class ListingFilter {
             } else if (match.compareTo(MIN_MATCH) < 0) {
                 out.add(new Judged(l, false, "Title matches too little of the item (" + pct(match) + " of its words)",
                         match));
-            } else if (!sellers.add(seller(l))) {
+            } else if (onePerSeller && !sellers.add(seller(l))) {
                 out.add(new Judged(l, false, "Another listing from " + l.merchant() + " was kept", match));
             } else {
                 candidates.add(out.size());
@@ -83,16 +91,13 @@ final class ListingFilter {
     /**
      * One key per store however a source spells it: "The Home Depot", "Home Depot" and
      * "homedepot.com" are one competitor, so a store's own page and its Google Shopping listing
-     * count once. eBay sellers keep their prefix - each is a competitor of its own.
+     * count once.
      */
     static String seller(Listing l) {
         if (l.merchant() == null) {
             return "";
         }
         String s = l.merchant().strip().toLowerCase(Locale.ROOT);
-        if (s.startsWith("ebay:")) {
-            return s;
-        }
         s = s.replaceFirst("^the\\s+", "").replaceFirst("^www\\.", "")
                 .replaceFirst("\\.(com|co\\.uk|net|org|us|biz|store|shop)$", "");
         return s.replaceAll("[^a-z0-9]", "");

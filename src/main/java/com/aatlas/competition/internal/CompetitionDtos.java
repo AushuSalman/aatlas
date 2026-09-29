@@ -22,6 +22,46 @@ final class CompetitionDtos {
             boolean discoveryAvailable, int trackedActive) {
     }
 
+    // ---- Settings → Competitor price sources, and the background jobs ----------------------
+
+    /**
+     * @param configured  the tenant has chosen at least once (the post-import prompt shows until then)
+     * @param productCount products in the catalogue - what a full price check covers
+     * @param latestJob    the most recent background price check, or null
+     */
+    record SourcesSettings(boolean configured, List<SourceView> sources, int productCount, JobView latestJob) {
+    }
+
+    /**
+     * @param available  the server has this source's key
+     * @param enabled    the tenant has switched it on
+     * @param comingSoon shown, but not selectable yet
+     */
+    record SourceView(String key, String label, String description, boolean available, boolean enabled,
+            boolean comingSoon) {
+    }
+
+    /** @param fetchNow start a price check over the whole catalogue; null = only the first time */
+    record SaveSourcesRequest(List<String> enabledSources, Boolean fetchNow) {
+    }
+
+    /** @param job the price check the save started, or null */
+    record SaveSourcesResult(SourcesSettings settings, JobView job) {
+    }
+
+    /**
+     * A background price check.
+     *
+     * @param trigger {@code setup} (from Settings), {@code import} (new products) or {@code manual}
+     * @param status  {@code queued}, {@code running}, {@code done} or {@code failed}
+     * @param sources the sources' labels
+     * @param priced  items with at least one competitor price kept
+     */
+    record JobView(java.util.UUID id, String trigger, String status, List<String> sources, int total, int done,
+            int priced, int observations, int failed, String error, java.time.OffsetDateTime startedAt,
+            java.time.OffsetDateTime finishedAt) {
+    }
+
     /** A competitor the tenant follows; its own product pages are priced on every lookup while active. */
     record CompetitorView(java.util.UUID id, String domain, String name, String source, boolean active) {
     }

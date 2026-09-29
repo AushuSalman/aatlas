@@ -41,9 +41,10 @@ class LotQuantityTest {
     @Test
     void bulkListingsAreJudgedPerUnitAndTitlesWithNoQuantityGoOut() {
         List<Listing> lots = List.of(
-                new Listing("ebay", "Lot of 50 1/2 in PVC ball valve", new BigDecimal("150.00"), "USD", "eBay: a", "u1"),
-                new Listing("ebay", "1/2 in PVC ball valve", new BigDecimal("6.00"), "USD", "eBay: b", "u2"),
-                new Listing("ebay", "1/2 in PVC ball valve 10-pack", new BigDecimal("40.00"), "USD", "eBay: c", "u3"));
+                // All "eBay": bulk lots skip one-per-seller, so both lots count.
+                new Listing("ebay", "Lot of 50 1/2 in PVC ball valve", new BigDecimal("150.00"), "USD", "eBay", "u1"),
+                new Listing("ebay", "1/2 in PVC ball valve", new BigDecimal("6.00"), "USD", "eBay", "u2"),
+                new Listing("ebay", "1/2 in PVC ball valve 10-pack", new BigDecimal("40.00"), "USD", "eBay", "u3"));
         IdentityHashMap<Listing, Listing> toLot = new IdentityHashMap<>();
         List<Judged> judged = CompetitionService.judgeBulk("1/2 in PVC ball valve", "USD", lots, toLot);
 

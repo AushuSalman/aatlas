@@ -82,7 +82,7 @@ class ProviderParsingTest {
         List<Listing> out = new EbayBrowse(base, "id", "secret").search("1/2 pvc ball valve", US, 10);
 
         assertThat(out).containsExactly(new Listing("ebay", "1/2 PVC Ball Valve", new java.math.BigDecimal("5.25"),
-                "USD", "eBay: acme_supply", "https://www.ebay.com/itm/1"));
+                "USD", "eBay", "https://www.ebay.com/itm/1"));
         String search = requests.get("/buy/browse/v1/item_summary/search");
         assertThat(search).contains("auth=Bearer tok", "market=EBAY_US", "%7BNEW%7D");
         assertThat(requests.get("/identity/v1/oauth2/token")).startsWith("POST").contains("auth=Basic ");

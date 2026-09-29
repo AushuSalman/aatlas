@@ -138,7 +138,5 @@ class CompetitorDiscoveryAndSitesTest {
         Listing b = new Listing("site", "t", BigDecimal.ONE, "USD", "homedepot.com", null);
         Listing c = new Listing("site", "t", BigDecimal.ONE, "USD", "Home Depot", null);
         assertThat(ListingFilter.seller(a)).isEqualTo(ListingFilter.seller(b)).isEqualTo(ListingFilter.seller(c));
-        assertThat(ListingFilter.seller(new Listing("ebay", "t", BigDecimal.ONE, "USD", "eBay: The Home Depot", null)))
-                .isNotEqualTo(ListingFilter.seller(a));
     }
 }

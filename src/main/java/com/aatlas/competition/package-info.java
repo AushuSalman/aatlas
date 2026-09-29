@@ -10,11 +10,12 @@
  * with the provider as its {@code source} and the listing's URL, so it is as citable as an
  * imported row and the pricing engines read it the same way: it becomes the competitor anchor.
  *
- * <p>Depends on {@code common} and {@code history} only: the catalogue, the competitor read
- * contract, the reference guardrails and the cache eviction that makes a new observation show
- * in the next recommendation.
+ * <p>Depends on {@code common} and {@code history} (the catalogue, the competitor read contract,
+ * the reference guardrails, the cache eviction that makes a new observation show in the next
+ * recommendation), {@code ingest} for the event that a product import finished, and
+ * {@code notifications} for the bell that says a background price check is done.
  */
 @org.springframework.modulith.ApplicationModule(
         displayName = "competition",
-        allowedDependencies = {"common", "history"})
+        allowedDependencies = {"common", "history", "ingest", "notifications"})
 package com.aatlas.competition;

@@ -61,11 +61,12 @@ class CompetitionService {
     private final PricingMethod method;
     private final TrackedCompetitors tracked;
     private final DataForSeoClient dataForSeo;
+    private final PriceSourceSettings sourceSettings;
     private final AatlasClock clock;
 
     CompetitionService(List<ShoppingProvider> providers, Catalogue catalogue, CompetitorPrices competitorPrices,
             CompetitorObservations observations, PricingMethod method, TrackedCompetitors tracked,
-            DataForSeoClient dataForSeo, AatlasClock clock) {
+            DataForSeoClient dataForSeo, PriceSourceSettings sourceSettings, AatlasClock clock) {
         // Priority order: when two providers find the same store, the first one's listing is kept.
         // A competitor's own page outranks an aggregator's listing of the same store.
         List<String> order = List.of(CompetitorSites.KEY, "serpapi", "oxylabs", "rainforest", "ebay");
@@ -78,6 +79,7 @@ class CompetitionService {
         this.method = method;
         this.tracked = tracked;
         this.dataForSeo = dataForSeo;
+        this.sourceSettings = sourceSettings;
         this.clock = clock;
     }
 
@@ -317,7 +319,7 @@ class CompetitionService {
                 perUnit.add(unit);
             }
         }
-        java.util.Iterator<Judged> judged = ListingFilter.judge(query, currency, perUnit).iterator();
+        java.util.Iterator<Judged> judged = ListingFilter.judge(query, currency, perUnit, false).iterator();
         List<Judged> out = new ArrayList<>();
         for (Listing l : listings) {
             if (LotQuantity.parse(l.title()) != null && l.price() != null) {
@@ -357,37 +359,57 @@ class CompetitionService {
                     "At most " + MAX_BULK_ITEMS + " items per refresh; send the rest in another call.");
         }
         List<ShoppingProvider> chosen = chosen(providerKeys);
-        Market market = Market.of(catalogue.country());
-        UUID tenantId = TenantContext.requireTenantId();
-        LocalDate today = clock.today();
         List<TrackedCompetitors.Tracked> sites = sites(chosen);
         List<RefreshRow> rows = new ArrayList<>();
         int saved = 0;
         int searched = 0;
         for (String itemNumber : items.stream().distinct().toList()) {
-            var product = catalogue.product(itemNumber).orElse(null);
-            if (product == null) {
-                rows.add(new RefreshRow(itemNumber, null, "not-found", 0, 0, null, null, "Not in the catalogue."));
-                continue;
+            RefreshRow row = refreshItem(itemNumber, chosen, sites);
+            if (!"not-found".equals(row.status())) {
+                searched++;
             }
-            String q = defaultQuery(product);
-            Searched s = search(chosen, q, market, sites);
-            searched++;
-            List<Listing> kept = ListingFilter.judge(q, market.currency(), s.listings()).stream()
-                    .filter(Judged::kept).map(Judged::listing).toList();
-            int written = observations.save(tenantId, product.id(), today, kept);
-            saved += written;
-            Summary sum = summary(s.listings().size(), kept);
-            BigDecimal anchor = competitorPrices.anchor(product.id(), null, null, today).map(Anchor::value).orElse(null);
-            String status = !kept.isEmpty() ? "saved"
-                    : s.failures().size() == chosen.size() ? "failed" : "nothing-kept";
-            String message = s.failures().isEmpty() ? null : String.join("; ", s.failures().values());
-            rows.add(new RefreshRow(product.itemNumber(), product.description(), status, sum.found(), sum.kept(),
-                    sum.median(), anchor, message));
+            saved += row.kept();
+            rows.add(row);
         }
         log.info("Competitor refresh: {} items searched on {}, {} observations saved", searched,
                 chosen.stream().map(ShoppingProvider::key).toList(), saved);
         return new RefreshResult(items.size(), searched, saved, rows);
+    }
+
+    /**
+     * Search one item on {@code chosen} and save what is kept - one step of a bulk refresh or a
+     * background job. Needs a bound tenant. {@code kept} on the row is also the observations written.
+     */
+    RefreshRow refreshItem(String itemNumber, List<ShoppingProvider> chosen, List<TrackedCompetitors.Tracked> sites) {
+        var product = catalogue.product(itemNumber).orElse(null);
+        if (product == null) {
+            return new RefreshRow(itemNumber, null, "not-found", 0, 0, null, null, "Not in the catalogue.");
+        }
+        Market market = Market.of(catalogue.country());
+        LocalDate today = clock.today();
+        String q = defaultQuery(product);
+        Searched s = search(chosen, q, market, sites);
+        List<Listing> kept = ListingFilter.judge(q, market.currency(), s.listings()).stream()
+                .filter(Judged::kept).map(Judged::listing).toList();
+        observations.save(TenantContext.requireTenantId(), product.id(), today, kept);
+        Summary sum = summary(s.listings().size(), kept);
+        BigDecimal anchor = competitorPrices.anchor(product.id(), null, null, today).map(Anchor::value).orElse(null);
+        long searchedOn = chosen.stream().filter(ShoppingProvider::available).count();
+        String status = !kept.isEmpty() ? "saved"
+                : searchedOn > 0 && s.failures().size() >= searchedOn ? "failed" : "nothing-kept";
+        String message = s.failures().isEmpty() ? null : String.join("; ", s.failures().values());
+        return new RefreshRow(product.itemNumber(), product.description(), status, sum.found(), sum.kept(),
+                sum.median(), anchor, message);
+    }
+
+    /** The configured providers among {@code keys}, in priority order; unknown or keyless keys are skipped. */
+    List<ShoppingProvider> providersFor(List<String> keys) {
+        return providers.stream().filter(p -> keys.contains(p.key()) && p.available()).toList();
+    }
+
+    /** Every provider, configured or not, in priority order - for the settings screen. */
+    List<ShoppingProvider> allProviders() {
+        return providers;
     }
 
     // ---- internals ---------------------------------------------------------------------
@@ -466,7 +488,18 @@ class CompetitionService {
                             + "and OXYLABS_PASSWORD.");
         }
         if (keys == null || keys.isEmpty()) {
-            return providers.stream().filter(ShoppingProvider::available).toList();
+            // The tenant's own choice from Settings, once made; before that, every configured source.
+            PriceSourceSettings.Settings s = sourceSettings.get(TenantContext.requireTenantId());
+            if (s.configured()) {
+                List<ShoppingProvider> on = providersFor(s.enabled());
+                if (on.isEmpty()) {
+                    throw ApiException.badRequest("no_sources_enabled",
+                            "No price source is switched on. Choose them in Settings → Competitor price sources.");
+                }
+                return on;
+            }
+            return providers.stream().filter(ShoppingProvider::available)
+                    .filter(p -> !CompetitorSites.KEY.equals(p.key())).toList();
         }
         List<String> wanted = keys.stream().map(k -> k.strip().toLowerCase(Locale.ROOT)).toList();
         List<ShoppingProvider> out = providers.stream().filter(p -> wanted.contains(p.key())).toList();

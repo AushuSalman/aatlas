@@ -28,9 +28,39 @@ import org.springframework.web.bind.annotation.RestController;
 class CompetitionController {
 
     private final CompetitionService service;
+    private final PriceSourcesService sources;
 
-    CompetitionController(CompetitionService service) {
+    CompetitionController(CompetitionService service, PriceSourcesService sources) {
         this.service = service;
+        this.sources = sources;
+    }
+
+    @Operation(summary = "Which price sources this tenant has switched on, and the latest background price check")
+    @GetMapping("/settings")
+    CompetitionDtos.SourcesSettings settings() {
+        return sources.get();
+    }
+
+    @Operation(summary = "Switch price sources on or off",
+            description = "The first save (or fetchNow=true) starts a background price check over every product; "
+                    + "the bell says when it is done.")
+    @org.springframework.web.bind.annotation.PutMapping(path = "/settings", consumes = MediaType.APPLICATION_JSON_VALUE)
+    CompetitionDtos.SaveSourcesResult saveSettings(@RequestBody CompetitionDtos.SaveSourcesRequest request) {
+        return sources.save(request);
+    }
+
+    @Operation(summary = "The most recent background price check, or nothing")
+    @GetMapping("/jobs/latest")
+    org.springframework.http.ResponseEntity<CompetitionDtos.JobView> latestJob() {
+        CompetitionDtos.JobView job = sources.latestJob();
+        return job == null ? org.springframework.http.ResponseEntity.noContent().build()
+                : org.springframework.http.ResponseEntity.ok(job);
+    }
+
+    @Operation(summary = "One background price check's progress")
+    @GetMapping("/jobs/{id}")
+    CompetitionDtos.JobView job(@PathVariable java.util.UUID id) {
+        return sources.job(id);
     }
 
     @Operation(summary = "Which competitor-price providers are configured, what each covers and costs")

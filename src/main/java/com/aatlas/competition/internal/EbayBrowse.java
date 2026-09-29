@@ -20,6 +20,9 @@ import org.springframework.web.client.RestClientException;
  * <p>An application token first (OAuth client credentials, the public {@code api_scope}),
  * cached until a minute before it expires; then one GET per search, new condition only so a
  * used part never sets a new price. {@code price.value} is a string on this API.
+ *
+ * <p>Every listing's merchant is "eBay": the seller's username is never read, so nothing about
+ * an eBay user is stored anywhere.
  */
 @Component
 class EbayBrowse implements ShoppingProvider {
@@ -92,10 +95,10 @@ class EbayBrowse implements ShoppingProvider {
                 break;
             }
             JsonNode price = r.path("price");
-            String seller = r.path("seller").path("username").asText(null);
+            // "eBay", never the seller's username: no eBay user data is kept, which is what lets the
+            // Production keyset claim the Marketplace Account Deletion exemption. eBay is one competitor.
             out.add(new Listing(key(), r.path("title").asText(null), ShoppingProvider.money(price.get("value")),
-                    price.path("currency").asText(market.currency()),
-                    seller == null ? "eBay seller" : "eBay: " + seller, r.path("itemWebUrl").asText(null)));
+                    price.path("currency").asText(market.currency()), "eBay", r.path("itemWebUrl").asText(null)));
         }
         return out;
     }

@@ -31,7 +31,8 @@ interface ShoppingProvider {
     /**
      * A priced listing as the provider returned it.
      *
-     * @param merchant who sells it: the store on Google Shopping, the seller on eBay, Amazon on Rainforest
+     * @param merchant who sells it: the store on Google Shopping, "eBay" on eBay (never the seller's
+     *                 username), "Amazon" on Rainforest
      */
     record Listing(String provider, String title, BigDecimal price, String currency, String merchant, String url) {
     }
