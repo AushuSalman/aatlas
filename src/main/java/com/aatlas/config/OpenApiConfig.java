@@ -62,7 +62,8 @@ public class OpenApiConfig {
                 .group("1-platform")
                 .displayName("Auth, tenant, users, policy")
                 .pathsToMatch("/api/v1/auth/**", "/api/v1/me", "/api/v1/users/**", "/api/v1/roles/**",
-                        "/api/v1/tenant/**", "/api/v1/guardrails/**", "/api/v1/reference/**")
+                        "/api/v1/tenant/**", "/api/v1/guardrails/**", "/api/v1/pricing-model/**",
+                        "/api/v1/reference/**")
                 .build();
     }
 

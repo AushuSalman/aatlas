@@ -77,7 +77,30 @@ public final class PricingDtos {
             BigDecimal upliftPerUnit, String blurb) {
     }
 
-    /** {@code SellRecommendation}: the "why this price" derivation, {@code buildSellRecommendation}. */
+    /**
+     * The pricing model as it ran for this pair: how many of its steps are switched on, which
+     * segment the item fell in and which tier therefore leads, how far along the phase-in the
+     * quoted prices are (1 with the ramp off), what the competitor prices were allowed to do
+     * ({@code absent}, {@code anchor}, {@code directional_adjust}, {@code ignored_divergent})
+     * and the chain's warnings ({@code constraint_conflict}, {@code tier_gap_infeasible}...).
+     */
+    public record ModelSummaryDto(
+            int on,
+            int total,
+            String segment,
+            String headlineTier,
+            BigDecimal maturity,
+            String externalRole,
+            List<String> flags) {
+    }
+
+    /**
+     * {@code SellRecommendation}: the "why this price" derivation, {@code buildSellRecommendation}.
+     *
+     * @param steps the chain as it ran: the cost foundation, one row per model step with its
+     *              {@code kind} {@code applied}, {@code skipped} or {@code off}, then the result
+     * @param model null when the pair is not priceable
+     */
     public record SellDerivationDto(
             String itemNumber,
             String description,
@@ -101,6 +124,7 @@ public final class PricingDtos {
             List<FactorWeightDto> weights,
             BigDecimal marginFloor,
             BigDecimal peerBandFloor,
-            BigDecimal ceilingPrice) {
+            BigDecimal ceilingPrice,
+            ModelSummaryDto model) {
     }
 }

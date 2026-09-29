@@ -59,6 +59,7 @@ public class CacheConfig {
         perCache.put(CacheNames.DEMOGRAPHICS, defaults.entryTtl(Duration.ofMinutes(30)));
         // Policy: read on nearly every request, changed rarely, evicted on save.
         perCache.put(CacheNames.GUARDRAILS, defaults.entryTtl(Duration.ofHours(6)));
+        perCache.put(CacheNames.PRICING_MODEL, defaults.entryTtl(Duration.ofHours(6)));
         perCache.put(CacheNames.TENANT_SETTINGS, defaults.entryTtl(Duration.ofHours(6)));
 
         return RedisCacheManager.builder(connectionFactory)

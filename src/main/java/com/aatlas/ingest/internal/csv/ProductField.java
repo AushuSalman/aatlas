@@ -48,14 +48,17 @@ public enum ProductField implements ImportFieldSpec {
             List.of("commodity", "commoditygroup", "commoditycode", "material", "materialtype", "metal",
                     "rawmaterial")),
 
-    LIST_PRICE("listPrice", "List price", false,
-            "Your current selling price. Becomes the price list; blank leaves it to sales history.",
+    LIST_PRICE("listPrice", "List price (current selling price)", false,
+            "What you sell one unit for today, before customer discounts - your price book. Shown as Current in the "
+                    + "pricing wizard; blank means the item has no price yet and the wizard will suggest one.",
             "List Price", "27.10",
             List.of("listprice", "sellprice", "sellingprice", "salesprice", "retailprice", "baseprice",
                     "listprc", "baseprc", "variantprice", "unitprice")),
 
-    UNIT_COST("unitCost", "Unit cost", false,
-            "Your current cost. The wizard prices from it when there is no history.",
+    UNIT_COST("unitCost", "Unit cost (what one unit costs you)", false,
+            "Your landed or standard cost per unit today - one figure, not a minimum or maximum. Every suggested "
+                    + "price and margin is built from it; the wizard's floor and ceiling are derived from it using the "
+                    + "category's margin band.",
             "Unit Cost", "19.85",
             List.of("unitcost", "stdcost", "standardcost", "costprice", "avgcost", "averagecost", "currentcost",
                     "landedcost", "costperitem", "variantcost", "stndcost", "purchasecost")),

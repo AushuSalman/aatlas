@@ -9,6 +9,7 @@ import com.aatlas.history.BulkModelReader.BulkModel;
 import com.aatlas.history.BulkModelReader.PairModel;
 import com.aatlas.history.Catalogue;
 import com.aatlas.history.PricingMath;
+import com.aatlas.history.PricingModel;
 import com.aatlas.history.PurchaseHistory;
 import com.aatlas.history.Reference;
 import com.aatlas.history.Resolved;
@@ -16,6 +17,7 @@ import com.aatlas.history.SalesHistory;
 import com.aatlas.history.Window;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -66,6 +68,8 @@ class InsightsDataLoader {
         List<Catalogue.RegionRef> regions = catalogue.regions();
         BulkModel bulk = bulkModelReader.bulkModel(null, today);
         Reference.Guardrails guardrails = reference.guardrails();
+        // One read of the tenant's model per load; every pair is priced with the same one.
+        PricingModel.Config model = reference.pricingModel();
         Window w12 = Window.trailingMonths(today, 12);
 
         Map<String, Catalogue.ProductRef> productsByItem = products.stream()
@@ -78,7 +82,7 @@ class InsightsDataLoader {
         Map<String, List<PairFacts>> pairsByItem = new LinkedHashMap<>();
 
         for (PairModel p : bulk.pairs()) {
-            PairFacts facts = buildFacts(p, guardrails, today);
+            PairFacts facts = buildFacts(p, guardrails, model, today);
             String key = InsightsData.key(p.itemNumber(), facts.storeKey());
             pairsByKey.put(key, facts);
             pairsByStore.computeIfAbsent(facts.storeKey(), k -> new ArrayList<>()).add(facts);
@@ -112,9 +116,17 @@ class InsightsDataLoader {
                 byOrigin, savedTotalW12, savedTotalW12Prior, overpaidTotalW12);
     }
 
-    private PairFacts buildFacts(PairModel p, Reference.Guardrails guardrails, LocalDate today) {
+    /**
+     * One pair through the same chain the Sell screen runs, from the bulk model's own fields:
+     * no per-pair elasticity fit (the default stands, so only the aggressive tier - which
+     * insights never shows - would differ) and no decision track record ({@link
+     * PricingMath.Track#none()}), so the phase-in starts every pair at its launch point.
+     */
+    private PairFacts buildFacts(PairModel p, Reference.Guardrails guardrails, PricingModel.Config model,
+            LocalDate today) {
         BigDecimal commodityPct90 = reference.commodity(p.commodity()).pct90();
-        Anchor anchor = buildAnchor(p);
+        Reference.Benchmark benchmark = reference.benchmark(p.category(), p.subcategory());
+        Anchor anchor = buildAnchor(p, benchmark);
 
         PricingMath.Demand demand = null;
         if (p.storeId() != null) {
@@ -123,11 +135,25 @@ class InsightsDataLoader {
         }
 
         BigDecimal cost = p.cost() == null ? null : p.cost().value();
+        BigDecimal currentPrice = p.currentPrice() == null ? null : p.currentPrice().value();
         BigDecimal ownRef = p.w12() == null ? null : p.w12().lastPrice();
-        BigDecimal bandQ1 = p.band() == null ? null : p.band().q1();
-        BigDecimal peerQ3 = p.peer() == null ? null : p.peer().q3();
-        var recommendation = PricingMath.recommend(cost, anchor, ownRef, demand, commodityPct90, p.rpp() == null ? 1
-                : 1 - ((p.rpp().doubleValue() - 100) / 100) * 0.55, PairFacts.DEFAULT_BETA, guardrails, bandQ1, peerQ3);
+        Anchor competitor = p.competitor();
+        BigDecimal competitorMedian = competitor == null ? null : competitor.value();
+        int competitorCount = competitor == null ? 0 : competitor.observations();
+        SalesHistory.PeerBand peer = p.peer();
+        SalesHistory.PriceBand band = p.band();
+        long ordersAtStore = p.w12() == null ? 0 : p.w12().txns();
+        String rampSalt = p.itemNumber() + "|" + (p.storeCode() == null ? "" : p.storeCode()) + "|"
+                + YearMonth.from(today);
+
+        PricingMath.Inputs inputs = new PricingMath.Inputs(cost, currentPrice, ownRef, anchor,
+                competitorMedian, competitorCount,
+                peer == null ? null : peer.q2(), peer == null ? null : peer.q3(), peer == null ? 0 : peer.stores(),
+                band == null ? null : band.q1(), band == null ? null : band.q3(), band == null ? 0 : band.n(),
+                demand, null, today, commodityPct90, p.rpp(), SalesHistory.Elasticity.defaultValue(), ordersAtStore,
+                benchmark == null ? null : benchmark.targetMarginPct(), guardrails, PricingMath.Track.none(),
+                rampSalt);
+        var recommendation = PricingMath.recommend(inputs, model);
 
         return new PairFacts(p, demand, anchor, commodityPct90, recommendation);
     }
@@ -138,7 +164,7 @@ class InsightsDataLoader {
      * fields (competitor medians and peer bands are already loaded for every pair) rather than
      * an extra call per pair, so insights agrees with sell/bulk without re-querying.
      */
-    private Anchor buildAnchor(PairModel p) {
+    private static Anchor buildAnchor(PairModel p, Reference.Benchmark benchmark) {
         if (p.competitor() != null && p.competitor().value() != null && p.competitor().value().signum() > 0) {
             return p.competitor();
         }
@@ -147,7 +173,6 @@ class InsightsDataLoader {
         }
         Resolved cost = p.cost();
         if (cost != null && cost.value() != null && cost.value().signum() > 0) {
-            Reference.Benchmark benchmark = reference.benchmark(p.category(), p.subcategory());
             if (benchmark != null && benchmark.targetMarginPct() != null) {
                 BigDecimal value = PricingMath.priceAtMargin(cost.value(), benchmark.targetMarginPct());
                 if (value != null && value.signum() > 0) {

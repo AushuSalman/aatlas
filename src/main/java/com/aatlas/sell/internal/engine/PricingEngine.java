@@ -4,14 +4,20 @@ import static com.aatlas.sell.internal.engine.Round.round2;
 import static com.aatlas.sell.internal.engine.Wire.bd;
 
 import com.aatlas.common.time.AatlasClock;
+import com.aatlas.decisions.DealSummaries;
 import com.aatlas.history.Anchor;
 import com.aatlas.history.Catalogue.ProductRef;
 import com.aatlas.history.Catalogue.StoreRef;
 import com.aatlas.history.CompetitorPrices;
 import com.aatlas.history.CompetitorPrices.Observation;
+import com.aatlas.history.DecisionPatterns;
+import com.aatlas.history.DecisionPatterns.Acceptance;
 import com.aatlas.history.Inventory;
 import com.aatlas.history.PriceLadder;
+import com.aatlas.history.PriceList;
 import com.aatlas.history.PricingMath;
+import com.aatlas.history.PricingMath.Step;
+import com.aatlas.history.PricingMath.Track;
 import com.aatlas.history.Reference;
 import com.aatlas.history.Resolved;
 import com.aatlas.history.SalesHistory;
@@ -29,6 +35,7 @@ import com.aatlas.sell.internal.dto.PricingDtos.CalcStepDto;
 import com.aatlas.sell.internal.dto.PricingDtos.CompetitorDto;
 import com.aatlas.sell.internal.dto.PricingDtos.DemandInfoDto;
 import com.aatlas.sell.internal.dto.PricingDtos.FactorWeightDto;
+import com.aatlas.sell.internal.dto.PricingDtos.ModelSummaryDto;
 import com.aatlas.sell.internal.dto.PricingDtos.PriceBandDto;
 import com.aatlas.sell.internal.dto.PricingDtos.PriceTierDto;
 import com.aatlas.sell.internal.dto.PricingDtos.SellDerivationDto;
@@ -36,12 +43,17 @@ import com.aatlas.sell.internal.engine.PricingTypes.Competitor;
 import com.aatlas.sell.internal.engine.PricingTypes.DemandModel;
 import com.aatlas.sell.internal.engine.PricingTypes.PricingModel;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.net.URI;
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 /**
@@ -55,22 +67,44 @@ import org.springframework.stereotype.Component;
 @Component
 public class PricingEngine {
 
+    private static final Logger log = LoggerFactory.getLogger(PricingEngine.class);
+
+    /** The tenant's pricing model, {@code history.PricingModel}, distinct from this package's {@link PricingModel} record. */
+    private static final String LEARNING = com.aatlas.history.PricingModel.LEARNING;
+    private static final String LEARNING_STRATEGY = com.aatlas.history.PricingModel.LEARNING_STRATEGY;
+    private static final String LEARNING_WINDOW_DAYS = com.aatlas.history.PricingModel.LEARNING_WINDOW_DAYS;
+    private static final String LOCAL_MARKET = com.aatlas.history.PricingModel.LOCAL_MARKET;
+    private static final String LOCAL_MARKET_WEIGHT = com.aatlas.history.PricingModel.LOCAL_MARKET_WEIGHT;
+
+    /** Fewest bulk picks of one strategy, and its share of all picks, before it counts as a habit. */
+    static final int HABIT_MIN_PICKS = 3;
+    static final double HABIT_MIN_SHARE_PCT = 60;
+
+    /** How many recorded decisions the lean is learned from, per basis. */
+    static final int LEARNING_ROWS_ITEM = 200;
+    static final int LEARNING_ROWS_TENANT = 300;
+
     private final CatalogGateway catalog;
     private final SalesHistory sales;
     private final PriceLadder ladder;
     private final Inventory inventory;
     private final CompetitorPrices competitorPrices;
     private final Reference reference;
+    private final PriceList priceList;
+    private final DealSummaries deals;
     private final AatlasClock clock;
 
     public PricingEngine(CatalogGateway catalog, SalesHistory sales, PriceLadder ladder, Inventory inventory,
-            CompetitorPrices competitorPrices, Reference reference, AatlasClock clock) {
+            CompetitorPrices competitorPrices, Reference reference, PriceList priceList, DealSummaries deals,
+            AatlasClock clock) {
         this.catalog = catalog;
         this.sales = sales;
         this.ladder = ladder;
         this.inventory = inventory;
         this.competitorPrices = competitorPrices;
         this.reference = reference;
+        this.priceList = priceList;
+        this.deals = deals;
         this.clock = clock;
     }
 
@@ -158,9 +192,6 @@ public class PricingEngine {
         String commoditySource = commodity == null ? null : commodity.provenance();
 
         BigDecimal rpp = store != null ? store.rpp() : null;
-        double msaMultD = rpp != null ? 1 - ((rpp.doubleValue() - 100) / 100) * 0.55 : 1;
-        BigDecimal msaMult = BigDecimal.valueOf(msaMultD);
-        String msaMode = rpp != null ? "competition" : "off";
 
         SalesHistory.Elasticity elasticity = sales.elasticity(productId, storeUuid, today);
         BigDecimal beta = elasticity.coefficient();
@@ -185,13 +216,36 @@ public class PricingEngine {
             locked.add("inventory");
         }
 
-        Optional<PricingMath.Recommendation> recOpt = PricingMath.recommend(costR.map(Resolved::value).orElse(null),
-                anchorR.orElse(null), ownRef, demand, commodityPct90, msaMultD, beta.doubleValue(), guardrails,
-                bandQ1, peerQ3);
-        PricingMath.Recommendation rec = recOpt.orElse(null);
+        // -- the chain, as the tenant's model configures it ---------------------------------
+        com.aatlas.history.PricingModel.Config cfg = reference.pricingModel();
+        String storeCode = store != null ? store.storeCode() : null;
+        LocalDate lastSale = storeUuid == null ? null : sales.lastSale(productId, storeUuid).orElse(null);
+        Reference.Benchmark benchmark = reference.benchmark(product.category(), product.subcategory());
+        BigDecimal benchmarkTargetMarginPct = benchmark == null ? null : benchmark.targetMarginPct();
+        Track track = track(item, storeCode, productId, storeUuid, today, cfg);
+        String rampSalt = item + "|" + (hasStoreId ? storeId : "") + "|" + YearMonth.from(today);
 
-        String segment = store != null && store.segment() != null ? store.segment() : "occasional";
-        String recommendedTier = "regular".equals(segment) ? "aggressive" : "optimal";
+        PricingMath.Inputs inputs = new PricingMath.Inputs(costR.map(Resolved::value).orElse(null),
+                currentPriceValue, ownRef, anchorR.orElse(null), competitorMedian, observations.size(),
+                peerQ2, peerQ3, peerStores, bandQ1, band.map(PriceBand::q3).orElse(null),
+                band.map(PriceBand::n).orElse(0L), demand, lastSale, today, commodityPct90, rpp, elasticity,
+                itemStoreStats.txns(), benchmarkTargetMarginPct, guardrails, track, rampSalt);
+        PricingMath.Recommendation rec = PricingMath.recommend(inputs, cfg).orElse(null);
+
+        // The regional multiplier the chain would apply; "competition" only when the step ran
+        // (a competitor anchor is already a local price, so the chain skips it).
+        boolean localMarketOn = rpp != null && cfg.on(LOCAL_MARKET);
+        double msaMultD = !localMarketOn ? 1
+                : 1 - ((rpp.doubleValue() - 100) / 100) * (cfg.number(LOCAL_MARKET_WEIGHT) / 100);
+        BigDecimal msaMult = BigDecimal.valueOf(msaMultD);
+        boolean localMarketApplied = rec == null ? localMarketOn : stepApplied(rec, LOCAL_MARKET);
+        String msaMode = localMarketApplied ? "competition" : "off";
+
+        // The model decides the segment and which tier leads: a regular item leads with the
+        // optimal price, an occasional one with the aggressive price (or the tenant's habit).
+        String segment = rec != null ? rec.segment()
+                : store != null && store.segment() != null ? store.segment() : "occasional";
+        String recommendedTier = rec != null ? rec.headlineTier() : "optimal";
 
         return new PricingModel(item, productId, storeId, storeUuid, priceable,
                 costR.map(Resolved::value).orElse(null), costR.map(Resolved::source).orElse(null),
@@ -199,8 +253,14 @@ public class PricingEngine {
                 currentPriceValue, currentPriceR.map(Resolved::source).orElse(null),
                 currentPriceR.map(Resolved::asOf).orElse(null),
                 ownRef,
-                anchorR.map(Anchor::value).orElse(null), anchorR.map(Anchor::source).orElse(null),
-                anchorR.map(Anchor::observations).orElse(0),
+                // The anchor the chain actually started from, not the ladder's: with the internal
+                // baseline on, that is the peer median and the count is the branches behind it.
+                rec != null ? rec.anchor() : anchorR.map(Anchor::value).orElse(null),
+                rec != null ? rec.anchorSource() : anchorR.map(Anchor::source).orElse(null),
+                rec == null ? anchorR.map(Anchor::observations).orElse(0)
+                        : "internal-peer".equals(rec.anchorSource()) || Anchor.PEER.equals(rec.anchorSource()) ? peerStores
+                        : Anchor.COMPETITOR.equals(rec.anchorSource()) ? competitors.size()
+                        : anchorR.map(Anchor::observations).orElse(0),
                 rec != null ? rec.optimal() : null, rec != null ? rec.aggressive() : null, recommendedTier,
                 rec != null ? rec.floor() : null, rec != null ? rec.ceiling() : null,
                 peerQ1, peerQ2, peerQ3, peerStores,
@@ -215,8 +275,58 @@ public class PricingEngine {
                 commodityPct90, commodityLabel, commodityAsOf, commoditySource,
                 w90Stats.units(), w90pStats.units(), itemStoreStats.units(), w30Stats.avgPrice(), w90pStats.avgPrice(),
                 onHandUnits, inventoryAsOf, stale,
-                buckets, rec,
+                buckets, rec, cfg,
                 List.copyOf(locked));
+    }
+
+    /**
+     * The pair's decision history, in the shape the chain reads: how many prices were already
+     * applied for this item here (the phase-in's n, recorded deals plus price-list writes),
+     * the lean the past decisions show, and the bulk strategy habit. A failing read - a
+     * tenant whose decision tables are not there yet - degrades to no track record with a
+     * warning, never a failed recommendation.
+     */
+    private Track track(String item, String storeCode, UUID productId, UUID storeUuid, LocalDate today,
+            com.aatlas.history.PricingModel.Config cfg) {
+        try {
+            long priorApplied = deals.priorApplied(item, storeCode) + priceList.appliedCount(productId, storeUuid);
+            LocalDate since = today.minusDays((long) cfg.number(LEARNING_WINDOW_DAYS));
+            DecisionPatterns.Learning learning = null;
+            if (cfg.on(LEARNING)) {
+                List<Acceptance> rows = new ArrayList<>();
+                if (storeCode != null) {
+                    addAcceptance(rows, deals.acceptance(item, storeCode, since, LEARNING_ROWS_ITEM), Acceptance.ITEM_STORE);
+                }
+                addAcceptance(rows, deals.acceptance(item, null, since, LEARNING_ROWS_ITEM), Acceptance.ITEM);
+                addAcceptance(rows, deals.acceptance(null, null, since, LEARNING_ROWS_TENANT), Acceptance.TENANT);
+                learning = DecisionPatterns.learn(rows, today, cfg);
+            }
+            DecisionPatterns.Habit habit = null;
+            if (cfg.on(LEARNING_STRATEGY)) {
+                habit = DecisionPatterns.habit(deals.strategyPicks(since), HABIT_MIN_PICKS, HABIT_MIN_SHARE_PCT)
+                        .orElse(null);
+            }
+            return new Track(priorApplied, learning, habit);
+        } catch (RuntimeException ex) {
+            log.warn("Decision history unavailable for {}@{} ({}); pricing without a track record", item,
+                    storeCode == null ? "-" : storeCode, ex.getMessage());
+            return Track.none();
+        }
+    }
+
+    private static void addAcceptance(List<Acceptance> out, List<DealSummaries.Acceptance> rows, String basis) {
+        for (DealSummaries.Acceptance a : rows) {
+            out.add(new Acceptance(a.date(), a.suggested(), a.actual(), basis));
+        }
+    }
+
+    private static boolean stepApplied(PricingMath.Recommendation rec, String key) {
+        for (Step s : rec.steps()) {
+            if (key.equals(s.key())) {
+                return Step.APPLIED.equals(s.status());
+            }
+        }
+        return false;
     }
 
     private static PricingModel emptyModel(String item, String storeId) {
@@ -235,7 +345,7 @@ public class PricingEngine {
                 null, null, null, null,
                 null, null, null, null, null,
                 null, null, false,
-                List.of(), null,
+                List.of(), null, com.aatlas.history.PricingModel.Config.defaults(),
                 List.of("margin", "demand", "inventory", "competitors", "forecast"));
     }
 
@@ -272,7 +382,21 @@ public class PricingEngine {
                 optimal, aggressive, m.recommendedTier(), demandDto(m.demand()), competitorDtos(m.competitors()),
                 buildBenchmarks(m), buildBands(m), m.observedMin(), m.observedMax(),
                 (int) m.totalTransactions(), buildCalcSteps(m, m.recommendedTier()), buildWeights(m, m.recommendedTier()),
-                m.floorPrice(), m.peerQ1(), m.ceilingPrice());
+                m.floorPrice(), m.peerQ1(), m.ceilingPrice(), modelSummary(m));
+    }
+
+    /** The model as it ran for the pair; null when the pair is not priceable. */
+    static ModelSummaryDto modelSummary(PricingModel m) {
+        PricingMath.Recommendation rec = m.recommendation();
+        if (rec == null) {
+            return null;
+        }
+        com.aatlas.history.PricingModel.Config cfg = m.modelConfig() != null ? m.modelConfig()
+                : com.aatlas.history.PricingModel.Config.defaults();
+        int[] toggles = cfg.toggleCount();
+        return new ModelSummaryDto(toggles[0], toggles[1], rec.segment(), rec.headlineTier(),
+                BigDecimal.valueOf(rec.maturity()).setScale(2, RoundingMode.HALF_UP), rec.externalRole(),
+                rec.flags());
     }
 
     private static PriceTierDto tierView(String label, BigDecimal price, PricingModel m, String blurb) {
@@ -336,7 +460,12 @@ public class PricingEngine {
                 .toList();
     }
 
-    /** The real recommendation chain, {@code PricingMath.recommend}'s own running values. */
+    /**
+     * The chain as it ran: the cost foundation, then one row per model step with both tiers
+     * after it ("$10.26 / $11.36", or one figure while they still agree) and the step's status
+     * as its {@code kind} - {@code applied}, {@code skipped} (on, but its input was missing) or
+     * {@code off} (switched off in the model) - then the result, whose note names the headline.
+     */
     static List<CalcStepDto> buildCalcSteps(PricingModel m, String tier) {
         List<CalcStepDto> steps = new ArrayList<>();
         if (m.cost() != null) {
@@ -353,81 +482,94 @@ public class PricingEngine {
             return steps;
         }
 
-        boolean hasAnchor = m.anchorValue() != null;
-        steps.add(new CalcStepDto(hasAnchor ? m.anchorSource() + " benchmark" : "Own reference price",
-                hasAnchor ? Fmt.fmtMoney(m.anchorValue().doubleValue()) : "—",
-                hasAnchor ? m.anchorObservations() + " observation(s) behind the " + m.anchorSource() + " anchor."
-                        : "No market anchor; the pair's own last price is the starting point.",
-                "step"));
-
-        if (m.peerQ1() != null && m.peerQ3() != null) {
-            steps.add(new CalcStepDto("Peer pricing band",
-                    Fmt.fmtMoney(m.peerQ1().doubleValue()) + " – " + Fmt.fmtMoney(m.peerQ3().doubleValue()),
-                    "Q1 to Q3 of what other stores in the network charge for this item.", "step"));
+        for (Step s : rec.steps()) {
+            steps.add(new CalcStepDto(s.label(), tiers(s.win(), s.profit()), s.note(), s.status()));
         }
-
-        if (m.demand() != null) {
-            DemandModel d = m.demand();
-            steps.add(new CalcStepDto("Demand (recent sales pace)",
-                    (d.movePercent().signum() > 0 ? "+" : "") + Fmt.fixed(d.movePercent().doubleValue(), 1) + "%",
-                    d.label() + " — recent pace " + Fmt.jsNum(d.recentVelocity().doubleValue()) + "/wk against "
-                            + Fmt.jsNum(d.expectedVelocity().doubleValue()) + "/wk expected.",
-                    "demand"));
-        }
-
-        if (m.commodityPct90() != null) {
-            steps.add(new CalcStepDto("Commodity pass-through",
-                    Fmt.fixed(m.commodityPct90().doubleValue(), 1) + "%",
-                    (m.commodityLabel() != null ? m.commodityLabel() : "Commodity index") + " (" + m.commoditySource() + ", as of "
-                            + m.commodityAsOf() + "); a quarter of the 90-day move reaches the price.",
-                    "step"));
-        }
-
-        boolean rppOff = "off".equals(m.msaMode());
-        steps.add(new CalcStepDto("Local market (RPP)",
-                rppOff ? "not applied" : Fmt.fixed((m.msaMult().doubleValue() - 1) * 100, 1) + "%",
-                rppOff ? "This branch is priced nationally." : "Regional price parity adjustment.", "step"));
-
-        String floorLabel = m.cost() != null ? Fmt.fmtMoney(rec.floor().doubleValue())
-                : "own lower quartile " + Fmt.fmtMoney(rec.floor() == null ? 0 : rec.floor().doubleValue());
-        steps.add(new CalcStepDto("Guardrails",
-                "floor " + floorLabel + " · ceiling " + Fmt.fmtMoney(rec.ceiling().doubleValue()),
-                "A minimum-margin floor and a market ceiling bound every recommendation.", "step"));
 
         BigDecimal price = "aggressive".equals(tier) ? rec.aggressive() : rec.optimal();
         String resultLabel = "aggressive".equals(tier) ? "Aggressive price" : "Optimal price";
+        BigDecimal margin = marginPercent(price, m.cost());
         steps.add(new CalcStepDto(resultLabel, Fmt.fmtMoney(price.doubleValue()),
-                "Clamped to the guardrails; keeps about "
-                        + Fmt.fixed(marginPercent(price, m.cost()) == null ? 0 : marginPercent(price, m.cost()).doubleValue(), 1)
-                        + "% gross margin.",
+                headline(rec) + (margin == null ? " No cost on file, so the margin is unknown."
+                        : " Keeps about " + Fmt.fixed(margin.doubleValue(), 1) + "% gross margin."),
                 "result"));
         return steps;
     }
 
-    /** {@code buildWeights}: a share of the move each real factor contributed, summing to 100. */
+    /** "Optimal price leads (regular item)." */
+    static String headline(PricingMath.Recommendation rec) {
+        return capitalize(rec.headlineTier()) + " price leads (" + rec.segment() + " item).";
+    }
+
+    /** Both tiers after a step, or one figure while they agree. */
+    private static String tiers(BigDecimal win, BigDecimal profit) {
+        if (win == null && profit == null) {
+            return "—";
+        }
+        if (win == null || profit == null || win.compareTo(profit) == 0) {
+            return Fmt.fmtMoney((win != null ? win : profit).doubleValue());
+        }
+        return Fmt.fmtMoney(win.doubleValue()) + " / " + Fmt.fmtMoney(profit.doubleValue());
+    }
+
+    /** The adjusting steps a factor weight is derived from, by model key. */
+    private static final Map<String, String> ADJUSTING_STEPS = Map.of(
+            com.aatlas.history.PricingModel.DEMAND, "Demand (sales pace)",
+            com.aatlas.history.PricingModel.COMMODITY, "Commodity pass-through",
+            LOCAL_MARKET, "Local market (RPP)",
+            LEARNING, "Your decisions");
+
+    /**
+     * {@code buildWeights}: a share of the move each applied step contributed to the headline
+     * tier - the anchor by how much it is trusted, the cost floor, then demand, commodity, the
+     * local market and the tenant's own decisions by how far each actually moved the price -
+     * scaled to sum to 100.
+     */
     static List<FactorWeightDto> buildWeights(PricingModel m, String tier) {
         record Raw(String label, double w, String direction) {
         }
+        PricingMath.Recommendation rec = m.recommendation();
+        if (rec == null) {
+            return List.of();
+        }
         List<Raw> raw = new ArrayList<>();
-        boolean hasAnchor = m.anchorValue() != null;
-        if (hasAnchor) {
-            double w = switch (m.anchorSource() == null ? "" : m.anchorSource()) {
-                case Anchor.COMPETITOR -> PricingMath.WEIGHT_COMPETITOR;
-                case Anchor.PEER -> PricingMath.WEIGHT_PEER;
-                case Anchor.BENCHMARK -> PricingMath.WEIGHT_BENCHMARK;
-                default -> 0.15;
-            };
-            raw.add(new Raw(m.anchorSource() != null ? capitalize(m.anchorSource()) + " benchmark" : "Market",
-                    Math.max(0.05, w) * 100,
-                    m.currentPrice() != null && m.anchorValue().compareTo(m.currentPrice()) > 0 ? "up" : "down"));
+        String source = rec.anchorSource() == null ? "" : rec.anchorSource();
+        String anchorLabel = switch (source) {
+            case "internal-peer" -> "Your other branches";
+            case Anchor.COMPETITOR -> "Competitor benchmark";
+            case Anchor.PEER -> "Peer benchmark";
+            case Anchor.BENCHMARK -> "Benchmark margin";
+            case Anchor.HISTORY -> "Own price history";
+            default -> "Own reference price";
+        };
+        double anchorW = switch (source) {
+            case "internal-peer" -> 0.5;
+            case Anchor.COMPETITOR -> PricingMath.WEIGHT_COMPETITOR;
+            case Anchor.PEER -> PricingMath.WEIGHT_PEER;
+            case Anchor.BENCHMARK -> PricingMath.WEIGHT_BENCHMARK;
+            default -> 0.15;
+        };
+        BigDecimal anchorRef = rec.anchor() != null ? rec.anchor() : rec.ownRef();
+        raw.add(new Raw(anchorLabel, Math.max(0.05, anchorW) * 100,
+                m.currentPrice() != null && anchorRef != null && anchorRef.compareTo(m.currentPrice()) > 0 ? "up" : "down"));
+        if (m.cost() != null) {
+            raw.add(new Raw("Cost + margin floor", 22, "up"));
         }
-        raw.add(new Raw("Cost + margin floor", 22, "up"));
-        if (m.demand() != null && m.demand().movePercent().signum() != 0) {
-            raw.add(new Raw("Demand (sales pace)", 10 + Math.min(10, Math.abs(m.demand().movePercent().doubleValue())),
-                    m.demand().movePercent().signum() > 0 ? "up" : "down"));
-        }
-        if (!"off".equals(m.msaMode()) && m.msaMult() != null && Math.abs(m.msaMult().doubleValue() - 1) > 0.005) {
-            raw.add(new Raw("Local market (RPP)", 10, m.msaMult().doubleValue() > 1 ? "up" : "down"));
+        boolean aggressive = "aggressive".equals(tier);
+        BigDecimal before = null;
+        for (Step s : rec.steps()) {
+            BigDecimal after = aggressive ? s.profit() : s.win();
+            String label = ADJUSTING_STEPS.get(s.key());
+            if (label != null && Step.APPLIED.equals(s.status()) && before != null && after != null
+                    && before.signum() != 0) {
+                double movePct = after.subtract(before).doubleValue() / before.doubleValue() * 100;
+                if (Math.abs(movePct) >= 0.05) {
+                    raw.add(new Raw(label, 10 + Math.min(10, Math.abs(movePct)), movePct > 0 ? "up" : "down"));
+                }
+            }
+            if (after != null) {
+                before = after;
+            }
         }
         if (raw.isEmpty()) {
             return List.of();

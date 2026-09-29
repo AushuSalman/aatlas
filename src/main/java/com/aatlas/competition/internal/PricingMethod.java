@@ -1,6 +1,7 @@
 package com.aatlas.competition.internal;
 
 import com.aatlas.history.PricingMath;
+import com.aatlas.history.PricingModel;
 import com.aatlas.history.Reference;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -28,8 +29,12 @@ class PricingMethod {
         this.reference = reference;
     }
 
+    /**
+     * @param model this tenant's pricing model: every step of the chain that can be switched
+     *              off, with its current state
+     */
     record MethodView(List<Section> competition, List<Step> singleItem, List<Step> bulk, List<Step> wizard,
-            Guardrails guardrails) {
+            Guardrails guardrails, ModelView model) {
     }
 
     record Section(String title, String detail) {
@@ -40,6 +45,17 @@ class PricingMethod {
 
     record Guardrails(BigDecimal minMarginPct, BigDecimal maxMarketDeviationPct, BigDecimal maxDiscountPct,
             BigDecimal maxSpeedPremiumPct) {
+    }
+
+    /** {@code on} of {@code total} switchable steps are on; {@code steps} lists them in the settings screen's order. */
+    record ModelView(int on, int total, List<ModelStep> steps) {
+    }
+
+    /**
+     * @param group the settings section ({@code measure}, {@code compose}, {@code adjust}, {@code learn}, {@code guard})
+     * @param status {@code on} or {@code off} - off also when the step's parent is off
+     */
+    record ModelStep(String key, String group, String label, String status, String description) {
     }
 
     MethodView describe(List<ShoppingProvider> providers) {
@@ -126,7 +142,19 @@ class PricingMethod {
                         "Every suggestion shows this basis line by line before you apply it."));
 
         return new MethodView(competition, single, bulk, wizard,
-                new Guardrails(g.minMarginPct(), g.maxMarketDeviationPct(), g.maxDiscountPct(), g.maxSpeedPremiumPct()));
+                new Guardrails(g.minMarginPct(), g.maxMarketDeviationPct(), g.maxDiscountPct(), g.maxSpeedPremiumPct()),
+                modelView(reference.pricingModel()));
+    }
+
+    /** Every toggle of the registry with this tenant's state. */
+    static ModelView modelView(PricingModel.Config config) {
+        List<ModelStep> steps = PricingModel.registry().stream()
+                .filter(PricingModel.Parameter::toggle)
+                .map(p -> new ModelStep(p.key(), p.group().key(), p.label(), config.on(p.key()) ? "on" : "off",
+                        p.description()))
+                .toList();
+        int[] count = config.toggleCount();
+        return new ModelView(count[0], count[1], steps);
     }
 
     private static String weight(double w) {

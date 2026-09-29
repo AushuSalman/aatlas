@@ -123,18 +123,37 @@ public class SellEngine {
         List<ChainStepDto> chain = new ArrayList<>();
         if (rec != null) {
             boolean hasAnchor = rec.anchor() != null;
-            chain.add(new ChainStepDto("market", "Market benchmark",
-                    hasAnchor ? Fmt.fmtMoney(d(rec.anchor())) : "No market anchor", null,
-                    hasAnchor ? Fmt.groupInt(m.anchorObservations()) + " observation(s), source " + rec.anchorSource() + "."
-                            : "No competitor, peer or benchmark anchor for this pair.",
-                    rec.anchor()));
-            chain.add(new ChainStepDto("history", "Blend with own reference", Fmt.fmtMoney(d(rec.base())),
-                    eff(rec.anchor(), rec.base()),
-                    ownRef != null
-                            ? "Own last price " + Fmt.fmtMoney(d(ownRef)) + ", blended at weight "
-                                    + Fmt.fixed(rec.anchorWeight(), 2) + " on the market anchor."
-                            : "No sales history at this store yet; the market anchor alone is the base.",
-                    rec.base()));
+            boolean internal = "internal-peer".equals(rec.anchorSource());
+            String anchorNote;
+            if (!hasAnchor) {
+                anchorNote = "No competitor, peer or benchmark anchor for this pair.";
+            } else if (internal) {
+                anchorNote = "Median of what your other " + Fmt.groupInt(m.anchorObservations()) + " branch"
+                        + (m.anchorObservations() == 1 ? "" : "es") + " charge."
+                        + ("directional_adjust".equals(rec.externalRole()) ? " Competitor prices nudged it within bounds."
+                        : "ignored_divergent".equals(rec.externalRole()) ? " A competitor price was too far away to count."
+                        : "");
+            } else {
+                anchorNote = Fmt.groupInt(m.anchorObservations()) + " observation(s), source " + rec.anchorSource() + ".";
+            }
+            chain.add(new ChainStepDto("market", internal ? "Your other branches" : "Market benchmark",
+                    hasAnchor ? Fmt.fmtMoney(d(rec.anchor())) : "No market anchor", null, anchorNote, rec.anchor()));
+            String baseNote;
+            if (internal) {
+                baseNote = rec.base().compareTo(rec.anchor()) == 0
+                        ? "The branch median stands as the win reference; today's price is only where the phase-in starts."
+                        : "The branch median adjusted for the competitor median = the win reference; today's price is only "
+                                + "where the phase-in starts.";
+            } else if (ownRef != null && rec.anchorWeight() > 0 && rec.anchorWeight() < 1) {
+                baseNote = "Own last price " + Fmt.fmtMoney(d(ownRef)) + ", blended at weight "
+                        + Fmt.fixed(rec.anchorWeight(), 2) + " on the market anchor.";
+            } else if (ownRef != null) {
+                baseNote = "The anchor alone is the base; your last price " + Fmt.fmtMoney(d(ownRef)) + " is not blended in.";
+            } else {
+                baseNote = "No sales history at this store yet; the market anchor alone is the base.";
+            }
+            chain.add(new ChainStepDto("history", internal ? "Win reference" : "Blend with own reference",
+                    Fmt.fmtMoney(d(rec.base())), eff(rec.anchor(), rec.base()), baseNote, rec.base()));
             chain.add(new ChainStepDto("demand", "Demand movement",
                     m.demand() != null ? (m.demand().movePercent().signum() >= 0 ? "+" : "−")
                             + Fmt.fixed(Math.abs(d(m.demand().movePercent())), 1) + "%" : "No signal",

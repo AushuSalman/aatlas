@@ -3,14 +3,17 @@ package com.aatlas.prices.internal;
 import com.aatlas.history.Anchor;
 import com.aatlas.history.Catalogue;
 import com.aatlas.history.CompetitorPrices;
+import com.aatlas.history.DecisionPatterns;
+import com.aatlas.history.PricingMath;
+import com.aatlas.history.PricingModel;
 import com.aatlas.history.Reference;
 import com.aatlas.history.Resolved;
 import com.aatlas.history.SalesHistory;
-import com.aatlas.history.PricingMath;
 import com.aatlas.history.Stats;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -20,6 +23,17 @@ import java.util.Map;
  * "Set your prices": one suggested list price per item (spec A §4), with the basis spelled
  * out so a prospect can read where the number came from and the UI can recompute it when a
  * slider moves. Pure: everything it needs is handed in.
+ *
+ * <p>The tenant's pricing model ({@link PricingModel.Config}) says which steps run. With
+ * every toggle on and every number at its default the maths is the wizard's original chain
+ * exactly; each step the wizard consults is reported under {@code basis.model} as
+ * {@code applied}, {@code skipped} (on, but nothing to work with) or {@code off}.
+ *
+ * <p><b>The live margin recompute.</b> {@code cost} is the cost the suggestion was priced
+ * from and {@code suggestedMarginPct} describes the suggestion alone. When the user edits a
+ * price, the page recomputes the margin from {@code cost} and the edited price
+ * ({@code (price − cost) ÷ price}); nothing in the model touches {@code cost}, so an edited
+ * row's margin is the same arithmetic whatever the model says.
  */
 final class SuggestionEngine {
 
@@ -29,8 +43,24 @@ final class SuggestionEngine {
 
     static final BigDecimal BENCHMARK_WEIGHT_WITH_COMPETITOR = new BigDecimal("0.5");
     static final BigDecimal BENCHMARK_WEIGHT_WITH_PEER = new BigDecimal("0.6");
+    /**
+     * The documented default of {@link PricingModel#LOCAL_MARKET_WEIGHT} (55%). What runs is
+     * the tenant's number, through {@link #regionalIndex}.
+     */
     static final BigDecimal RPP_SENSITIVITY = new BigDecimal("0.55");
 
+    /** Step statuses: the same three words as {@link PricingMath.Step}. */
+    static final String APPLIED = "applied";
+    static final String SKIPPED = "skipped";
+    static final String OFF = "off";
+
+    /** The model steps the wizard consults, in the order {@code basis.model.steps} lists them. */
+    static final List<String> MODEL_STEPS = List.of(PricingModel.COMPETITORS, PricingModel.BLEND_OWN_PRICE,
+            PricingModel.LOCAL_MARKET, PricingModel.COMMODITY, PricingModel.LEARNING,
+            PricingModel.CEILING_PLAUSIBILITY, PricingModel.MOVE_CAP, PricingModel.ROUNDING);
+
+    private static final BigDecimal TEN_THOUSAND = BigDecimal.valueOf(10_000);
+    private static final BigDecimal TWO = BigDecimal.valueOf(2);
     private static final DateTimeFormatter LONG_DATE = DateTimeFormatter.ofPattern("d MMM uuuu", Locale.ENGLISH);
 
     private SuggestionEngine() {
@@ -45,11 +75,17 @@ final class SuggestionEngine {
      * @param competitorObservations the latest observation per competitor, matched rows flagged
      * @param band the item's trailing-twelve-month price band, null when none
      * @param targetMarginOverride the request's per-category override, null when none
+     * @param config the tenant's pricing model; null reads as the defaults
+     * @param learning the lean from the tenant's own decisions, null when none was read
      */
     record Inputs(Catalogue.ProductRef product, Catalogue.StoreRef store, Resolved cost, Resolved currentPrice,
             List<CompetitorPrices.Observation> competitorObservations, SalesHistory.PriceBand band,
             Reference.Benchmark benchmark, BigDecimal targetMarginOverride, Reference.Commodity commodity,
-            String currency) {
+            String currency, PricingModel.Config config, DecisionPatterns.Learning learning) {
+
+        Inputs {
+            config = config == null ? PricingModel.Config.defaults() : config;
+        }
     }
 
     static SuggestionRow suggest(Inputs in) {
@@ -62,81 +98,219 @@ final class SuggestionEngine {
                     null, null, null, null, null, null, null, null, null, null, STATUS_NEEDS_COST, true,
                     REASON_NO_COST);
         }
-        BigDecimal c = in.cost().value();
-        Reference.Benchmark benchmark = in.benchmark();
-        BigDecimal tm = in.targetMarginOverride() != null ? in.targetMarginOverride() : benchmark.targetMarginPct();
-        BigDecimal lo = PricingMath.min(benchmark.lowMarginPct(), tm);
-        BigDecimal hi = PricingMath.max(benchmark.highMarginPct(), tm);
+        PricingModel.Config cfg = in.config();
+        Run r = new Run();
+        r.sym = symbol(in.currency());
+        r.c = in.cost().value();
+        r.benchmark = in.benchmark();
+        r.tm = in.targetMarginOverride() != null ? in.targetMarginOverride() : r.benchmark.targetMarginPct();
+        BigDecimal lo = PricingMath.min(r.benchmark.lowMarginPct(), r.tm);
+        BigDecimal hi = PricingMath.max(r.benchmark.highMarginPct(), r.tm);
+        r.floor = PricingMath.priceAtMargin(r.c, lo);
+        r.ceiling = PricingMath.priceAtMargin(r.c, hi);
 
-        // 2. regional index, store variant only
-        BigDecimal ri = BigDecimal.ONE;
+        // 1. regional index, store variant only
         Catalogue.StoreRef store = in.store();
-        if (store != null && store.rpp() != null) {
-            ri = BigDecimal.ONE.subtract(store.rpp().subtract(PricingMath.HUNDRED)
-                    .divide(PricingMath.HUNDRED, PricingMath.RATIO_SCALE, RoundingMode.HALF_UP)
-                    .multiply(RPP_SENSITIVITY)).setScale(PricingMath.RATIO_SCALE, RoundingMode.HALF_UP);
+        if (!cfg.on(PricingModel.LOCAL_MARKET)) {
+            r.steps.add(PricingModel.LOCAL_MARKET, "Local market", OFF, "Off.");
+        } else if (store == null || store.rpp() == null) {
+            r.steps.add(PricingModel.LOCAL_MARKET, "Local market", SKIPPED,
+                    store == null ? "Tenant-wide, so no regional index." : "This branch is priced nationally.");
+        } else {
+            r.ri = regionalIndex(store, cfg);
+            r.regionApplied = true;
+            r.steps.add(PricingModel.LOCAL_MARKET, "Local market", APPLIED, "Regional price parity "
+                    + plain(store.rpp()) + " at " + plain(cfg.value(PricingModel.LOCAL_MARKET_WEIGHT))
+                    + "% weight → ×" + r.ri.setScale(3, RoundingMode.HALF_UP).toPlainString() + ".");
         }
-        // 3. commodity drift, reference
-        Reference.Commodity commodity = in.commodity();
-        BigDecimal pct90 = commodity == null || commodity.pct90() == null ? BigDecimal.ZERO : commodity.pct90();
-        BigDecimal cd = BigDecimal.ONE.add(pct90.multiply(BigDecimal.valueOf(PricingMath.COMMODITY_PASS_THROUGH))
-                .divide(PricingMath.HUNDRED, PricingMath.RATIO_SCALE, RoundingMode.HALF_UP));
-        // 4. benchmark price with the multipliers inside (the wizard has no chain)
-        BigDecimal atMargin = PricingMath.priceAtMargin(c, tm);
-        BigDecimal b = PricingMath.money(atMargin.multiply(ri).multiply(cd));
 
-        // 5. anchors
-        CompetitorSummary competitor = competitor(in.competitorObservations());
-        PeerSummary peer = in.band() == null || in.band().median() == null ? null
+        // 2. commodity drift, reference
+        Reference.Commodity commodity = in.commodity();
+        boolean linked = commodity != null && !"none".equals(commodity.key());
+        r.pct90 = commodity == null || commodity.pct90() == null ? BigDecimal.ZERO : commodity.pct90();
+        if (!cfg.on(PricingModel.COMMODITY)) {
+            r.steps.add(PricingModel.COMMODITY, "Commodity", OFF, "Off.");
+        } else if (!linked) {
+            r.steps.add(PricingModel.COMMODITY, "Commodity", SKIPPED, "No commodity linked to this item.");
+        } else {
+            BigDecimal share = cfg.value(PricingModel.COMMODITY_PASS_THROUGH);
+            r.cd = BigDecimal.ONE.add(r.pct90.multiply(share)
+                    .divide(TEN_THOUSAND, PricingMath.RATIO_SCALE, RoundingMode.HALF_UP));
+            r.commodityApplied = true;
+            r.steps.add(PricingModel.COMMODITY, "Commodity", APPLIED, commodity.key() + " moved " + signed(r.pct90)
+                    + "% over ninety days; " + plain(share) + "% of that reaches the price (×"
+                    + r.cd.setScale(3, RoundingMode.HALF_UP).toPlainString() + ").");
+        }
+
+        // 3. benchmark price with the multipliers inside (the wizard has no chain)
+        r.atMargin = PricingMath.priceAtMargin(r.c, r.tm);
+        r.b = PricingMath.money(r.atMargin.multiply(r.ri).multiply(r.cd));
+
+        // 4. anchors
+        r.observed = competitor(in.competitorObservations());
+        if (!cfg.on(PricingModel.COMPETITORS)) {
+            r.steps.add(PricingModel.COMPETITORS, "Competitor prices", OFF, r.observed == null ? "Off."
+                    : "Off; " + observations(r.observed.observations()) + " on file not used.");
+        } else if (r.observed == null) {
+            r.steps.add(PricingModel.COMPETITORS, "Competitor prices", SKIPPED,
+                    "No competitor price on file for this item.");
+        } else if (cfg.on(PricingModel.COMPETITORS_PLAUSIBILITY) && implausible(r.observed.median(), r.floor)) {
+            r.steps.add(PricingModel.COMPETITORS, "Competitor prices", SKIPPED, "Competitor median "
+                    + r.money(r.observed.median()) + " is under half or over twice the minimum-margin price "
+                    + r.money(r.floor) + ", more likely a different product than a market; ignored.");
+        } else {
+            r.competitor = r.observed;
+            r.steps.add(PricingModel.COMPETITORS, "Competitor prices", APPLIED, "Median " + r.money(r.competitor.median())
+                    + " over " + observations(r.competitor.observations())
+                    + (r.competitor.regionMatched() ? ", region-matched" : "") + ".");
+        }
+        r.peer = in.band() == null || in.band().median() == null ? null
                 : new PeerSummary(PricingMath.round2(in.band().median()), in.band().n());
 
-        // 6. blend, band, rounding
+        // 5. blend
+        boolean blendOn = cfg.on(PricingModel.BLEND_OWN_PRICE);
         BigDecimal raw;
-        String anchor;
-        BigDecimal benchmarkWeight;
-        BigDecimal anchorPrice;
-        if (competitor != null) {
-            benchmarkWeight = BENCHMARK_WEIGHT_WITH_COMPETITOR;
-            raw = b.multiply(benchmarkWeight).add(competitor.median().multiply(BigDecimal.ONE.subtract(benchmarkWeight)));
-            anchor = Anchor.COMPETITOR;
-            anchorPrice = competitor.median();
-        } else if (peer != null) {
-            benchmarkWeight = BENCHMARK_WEIGHT_WITH_PEER;
-            raw = b.multiply(benchmarkWeight).add(peer.median().multiply(BigDecimal.ONE.subtract(benchmarkWeight)));
-            anchor = Anchor.PEER;
-            anchorPrice = peer.median();
+        if (blendOn && r.competitor != null) {
+            r.benchmarkWeight = BENCHMARK_WEIGHT_WITH_COMPETITOR;
+            raw = r.b.multiply(r.benchmarkWeight)
+                    .add(r.competitor.median().multiply(BigDecimal.ONE.subtract(r.benchmarkWeight)));
+            r.anchor = Anchor.COMPETITOR;
+            r.anchorPrice = r.competitor.median();
+            r.steps.add(PricingModel.BLEND_OWN_PRICE, "Blend", APPLIED, "Benchmark " + r.money(r.b)
+                    + " × 50% + competitor median " + r.money(r.competitor.median()) + " × 50%.");
+        } else if (blendOn && r.peer != null) {
+            r.benchmarkWeight = BENCHMARK_WEIGHT_WITH_PEER;
+            raw = r.b.multiply(r.benchmarkWeight).add(r.peer.median().multiply(BigDecimal.ONE.subtract(r.benchmarkWeight)));
+            r.anchor = Anchor.PEER;
+            r.anchorPrice = r.peer.median();
+            r.steps.add(PricingModel.BLEND_OWN_PRICE, "Blend", APPLIED, "Benchmark " + r.money(r.b)
+                    + " × 60% + your own median " + r.money(r.peer.median()) + " × 40%.");
         } else {
-            benchmarkWeight = BigDecimal.ONE;
-            raw = b;
-            anchor = Anchor.BENCHMARK;
-            anchorPrice = b;
+            r.benchmarkWeight = BigDecimal.ONE;
+            raw = r.b;
+            r.anchor = Anchor.BENCHMARK;
+            r.anchorPrice = r.b;
+            r.steps.add(PricingModel.BLEND_OWN_PRICE, "Blend", blendOn ? SKIPPED : OFF, blendOn
+                    ? "No competitor or own median to blend with; the benchmark price alone."
+                    : "Off; the benchmark price alone.");
         }
-        raw = PricingMath.money(raw);
-        BigDecimal floor = PricingMath.priceAtMargin(c, lo);
-        BigDecimal ceiling = PricingMath.priceAtMargin(c, hi);
-        BigDecimal clamped = PricingMath.clamp(raw, floor, ceiling);
-        BigDecimal suggested = PricingMath.roundPricePoint(clamped);
-        if (ceiling != null && suggested.compareTo(ceiling) > 0) {
-            suggested = PricingMath.roundPricePoint(clamped, RoundingMode.FLOOR);
-        }
-        if (floor != null && suggested.compareTo(floor) < 0) {
-            suggested = PricingMath.roundPricePoint(clamped, RoundingMode.CEILING);
-        }
-        BigDecimal marginPct = PricingMath.marginPct(suggested, c);
-        BigDecimal margin1 = marginPct == null ? null : marginPct.setScale(1, RoundingMode.HALF_UP);
+        r.raw = PricingMath.money(raw);
 
-        BenchmarkSummary benchmarkSummary = new BenchmarkSummary(tm, benchmark.lowMarginPct(),
-                benchmark.highMarginPct(), ri.setScale(3, RoundingMode.HALF_UP), pct90, PricingMath.round2(b),
-                benchmark.note(), benchmark.matched());
+        // 6. the lean from the tenant's own decisions, before the band
+        DecisionPatterns.Learning learning = in.learning();
+        if (!cfg.on(PricingModel.LEARNING)) {
+            r.steps.add(PricingModel.LEARNING, "Your decisions", OFF, "Off.");
+        } else if (learning == null || !learning.available()) {
+            r.steps.add(PricingModel.LEARNING, "Your decisions", SKIPPED,
+                    learning == null ? "No decisions recorded yet." : learning.note());
+        } else {
+            r.leaned = learning;
+            BigDecimal factor = BigDecimal.ONE.add(BigDecimal.valueOf(learning.movePct())
+                    .divide(PricingMath.HUNDRED, PricingMath.RATIO_SCALE, RoundingMode.HALF_UP));
+            r.raw = PricingMath.money(r.raw.multiply(factor));
+            r.steps.add(PricingModel.LEARNING, "Your decisions", APPLIED, learning.note());
+        }
 
-        Map<String, Object> basis = basis(in, c, atMargin, tm, benchmark, ri, cd, pct90, competitor, peer,
-                benchmarkWeight, anchor, floor, ceiling, raw, suggested, margin1, b);
+        // 7. plausibility cap on the ceiling
+        if (!cfg.on(PricingModel.CEILING_PLAUSIBILITY)) {
+            r.steps.add(PricingModel.CEILING_PLAUSIBILITY, "Ceiling plausibility", OFF, "Off.");
+        } else {
+            BigDecimal multiple = cfg.value(PricingModel.CEILING_COST_MULTIPLE);
+            BigDecimal cap = PricingMath.money(r.c.multiply(multiple));
+            if (r.ceiling == null || cap.compareTo(r.ceiling) < 0) {
+                r.ceilingCap = cap;
+                r.ceiling = PricingMath.max(cap, r.floor);
+                r.steps.add(PricingModel.CEILING_PLAUSIBILITY, "Ceiling plausibility", APPLIED, "Ceiling capped at "
+                        + plain(multiple) + "× cost (" + r.money(cap) + ")"
+                        + (r.ceiling.compareTo(cap) > 0 ? ", held at the floor " + r.money(r.floor) : "") + ".");
+            } else {
+                r.steps.add(PricingModel.CEILING_PLAUSIBILITY, "Ceiling plausibility", APPLIED, "Ceiling "
+                        + r.money(r.ceiling) + " is within " + plain(multiple) + "× cost (" + r.money(cap) + ").");
+            }
+        }
+
+        // 8. the band, then the move cap - never under the floor or over the ceiling
+        BigDecimal clamped = PricingMath.clamp(r.raw, r.floor, r.ceiling);
+        BigDecimal roundLo = r.floor;
+        BigDecimal roundHi = r.ceiling;
+        r.current = current;
+        if (!cfg.on(PricingModel.MOVE_CAP)) {
+            r.steps.add(PricingModel.MOVE_CAP, "Move cap", OFF, "Off.");
+        } else if (current == null || current.signum() <= 0) {
+            r.steps.add(PricingModel.MOVE_CAP, "Move cap", SKIPPED, "No price today, so nothing to hold to.");
+        } else {
+            BigDecimal pct = cfg.value(PricingModel.MOVE_CAP_MAX_PCT);
+            BigDecimal share = pct.divide(PricingMath.HUNDRED, PricingMath.RATIO_SCALE, RoundingMode.HALF_UP);
+            BigDecimal capLo = PricingMath.money(current.multiply(BigDecimal.ONE.subtract(share)));
+            BigDecimal capHi = PricingMath.money(current.multiply(BigDecimal.ONE.add(share)));
+            BigDecimal held = PricingMath.clamp(clamped, capLo, capHi);
+            BigDecimal legal = PricingMath.clamp(held, r.floor, r.ceiling);
+            String within = "±" + plain(pct) + "% of today's " + r.money(current);
+            String note;
+            if (held.compareTo(clamped) == 0) {
+                note = "Within " + within + "; nothing to hold.";
+            } else if (legal.compareTo(held) == 0) {
+                r.moveCapBound = true;
+                note = "Held within " + within + ", to " + r.money(legal) + ".";
+            } else if (legal.compareTo(clamped) == 0) {
+                note = "The " + within + " cap would leave the band; the floor and ceiling win.";
+            } else {
+                r.moveCapBound = true;
+                note = "Held within " + within + ", then " + (legal.compareTo(held) < 0
+                        ? "brought under the ceiling " : "lifted to the floor ") + r.money(legal) + ".";
+            }
+            clamped = legal;
+            BigDecimal tightLo = PricingMath.max(r.floor, capLo);
+            BigDecimal tightHi = PricingMath.min(r.ceiling, capHi);
+            if (tightLo != null && tightHi != null && tightLo.compareTo(tightHi) <= 0) {
+                roundLo = tightLo;
+                roundHi = tightHi;
+            }
+            r.steps.add(PricingModel.MOVE_CAP, "Move cap", APPLIED, note);
+        }
+
+        // 9. rounding
+        if (cfg.on(PricingModel.ROUNDING)) {
+            r.rounded = true;
+            r.suggested = roundInside(clamped, roundLo, roundHi);
+            r.steps.add(PricingModel.ROUNDING, "Rounded", APPLIED, "To retail price points, inside the band.");
+        } else {
+            r.suggested = PricingMath.round2(clamped);
+            r.steps.add(PricingModel.ROUNDING, "Rounded", OFF, "To the cent only.");
+        }
+        BigDecimal marginPct = PricingMath.marginPct(r.suggested, r.c);
+        r.marginPct = marginPct == null ? null : marginPct.setScale(1, RoundingMode.HALF_UP);
+
+        BenchmarkSummary benchmarkSummary = new BenchmarkSummary(r.tm, r.benchmark.lowMarginPct(),
+                r.benchmark.highMarginPct(), r.ri.setScale(3, RoundingMode.HALF_UP), r.pct90, PricingMath.round2(r.b),
+                r.benchmark.note(), r.benchmark.matched());
+
+        Map<String, Object> basis = basis(in, cfg, r);
 
         return new SuggestionRow(product.itemNumber(), product.description(), product.category(),
-                product.subcategory(), product.unit(), product.commodity(), PricingMath.round2(c),
-                in.cost().source(), current, currentSource, anchor, PricingMath.round2(anchorPrice), competitor, peer,
-                benchmarkSummary, suggested, margin1, PricingMath.round2(floor), PricingMath.round2(ceiling), basis,
-                STATUS_OK, false, null);
+                product.subcategory(), product.unit(), product.commodity(), PricingMath.round2(r.c),
+                in.cost().source(), current, currentSource, r.anchor, PricingMath.round2(r.anchorPrice), r.observed,
+                r.peer, benchmarkSummary, r.suggested, r.marginPct, PricingMath.round2(r.floor),
+                PricingMath.round2(r.ceiling), basis, STATUS_OK, false, null);
+    }
+
+    /**
+     * The multiplier a branch's regional price parity applies to the benchmark price:
+     * {@code 1 − (rpp − 100)/100 × weight}, the weight being the model's
+     * {@link PricingModel#LOCAL_MARKET_WEIGHT} ÷ 100. Exactly 1 with the step off, without a
+     * branch or with a branch priced nationally - the one place the wizard and its response
+     * header read it from.
+     */
+    static BigDecimal regionalIndex(Catalogue.StoreRef store, PricingModel.Config cfg) {
+        PricingModel.Config config = cfg == null ? PricingModel.Config.defaults() : cfg;
+        if (store == null || store.rpp() == null || !config.on(PricingModel.LOCAL_MARKET)) {
+            return BigDecimal.ONE.setScale(PricingMath.RATIO_SCALE, RoundingMode.HALF_UP);
+        }
+        BigDecimal weight = config.value(PricingModel.LOCAL_MARKET_WEIGHT)
+                .divide(PricingMath.HUNDRED, PricingMath.RATIO_SCALE, RoundingMode.HALF_UP);
+        return BigDecimal.ONE.subtract(store.rpp().subtract(PricingMath.HUNDRED)
+                .divide(PricingMath.HUNDRED, PricingMath.RATIO_SCALE, RoundingMode.HALF_UP)
+                .multiply(weight)).setScale(PricingMath.RATIO_SCALE, RoundingMode.HALF_UP);
     }
 
     /** Median, low and high over the matched observations when any match, else over all. */
@@ -155,26 +329,46 @@ final class SuggestionEngine {
                 !matched.isEmpty());
     }
 
-    private static Map<String, Object> basis(Inputs in, BigDecimal c, BigDecimal atMargin, BigDecimal tm,
-            Reference.Benchmark benchmark, BigDecimal ri, BigDecimal cd, BigDecimal pct90, CompetitorSummary competitor,
-            PeerSummary peer, BigDecimal benchmarkWeight, String anchor, BigDecimal floor, BigDecimal ceiling,
-            BigDecimal raw, BigDecimal suggested, BigDecimal marginPct, BigDecimal b) {
+    /** Under half or over twice the minimum-margin price: a different product or unit, not a market. */
+    static boolean implausible(BigDecimal median, BigDecimal floor) {
+        if (median == null || floor == null || floor.signum() <= 0) {
+            return false;
+        }
+        return median.multiply(TWO).compareTo(floor) < 0 || median.compareTo(floor.multiply(TWO)) > 0;
+    }
+
+    /** Rounds to the price step, then back inside {@code [lo, hi]} if the rounding stepped out. */
+    static BigDecimal roundInside(BigDecimal price, BigDecimal lo, BigDecimal hi) {
+        BigDecimal rounded = PricingMath.roundPricePoint(price);
+        if (hi != null && rounded.compareTo(hi) > 0) {
+            rounded = PricingMath.roundPricePoint(price, RoundingMode.FLOOR);
+        }
+        if (lo != null && rounded.compareTo(lo) < 0) {
+            rounded = PricingMath.roundPricePoint(price, RoundingMode.CEILING);
+        }
+        if ((hi != null && rounded.compareTo(hi) > 0) || (lo != null && rounded.compareTo(lo) < 0)) {
+            rounded = PricingMath.round2(PricingMath.clamp(price, lo, hi));
+        }
+        return rounded;
+    }
+
+    private static Map<String, Object> basis(Inputs in, PricingModel.Config cfg, Run r) {
         Map<String, Object> basis = new LinkedHashMap<>();
         Map<String, Object> cost = new LinkedHashMap<>();
-        cost.put("value", PricingMath.round2(c));
+        cost.put("value", PricingMath.round2(r.c));
         cost.put("source", in.cost().source());
         cost.put("asOf", in.cost().asOf() == null ? null : in.cost().asOf().toString());
         basis.put("cost", cost);
 
         Map<String, Object> bench = new LinkedHashMap<>();
-        bench.put("category", benchmark.category());
-        bench.put("subcategory", benchmark.subcategory());
-        bench.put("targetMarginPct", tm);
-        bench.put("lowMarginPct", benchmark.lowMarginPct());
-        bench.put("highMarginPct", benchmark.highMarginPct());
-        bench.put("price", PricingMath.round2(atMargin));
-        bench.put("note", benchmark.note());
-        bench.put("matched", benchmark.matched());
+        bench.put("category", r.benchmark.category());
+        bench.put("subcategory", r.benchmark.subcategory());
+        bench.put("targetMarginPct", r.tm);
+        bench.put("lowMarginPct", r.benchmark.lowMarginPct());
+        bench.put("highMarginPct", r.benchmark.highMarginPct());
+        bench.put("price", PricingMath.round2(r.atMargin));
+        bench.put("note", r.benchmark.note());
+        bench.put("matched", r.benchmark.matched());
         bench.put("overridden", in.targetMarginOverride() != null);
         basis.put("benchmark", bench);
 
@@ -183,7 +377,7 @@ final class SuggestionEngine {
             Map<String, Object> region = new LinkedHashMap<>();
             region.put("store", store.storeCode());
             region.put("rpp", store.rpp());
-            region.put("multiplier", ri.setScale(3, RoundingMode.HALF_UP));
+            region.put("multiplier", r.ri.setScale(3, RoundingMode.HALF_UP));
             basis.put("regionalIndex", region);
         } else {
             basis.put("regionalIndex", null);
@@ -193,87 +387,106 @@ final class SuggestionEngine {
         if (commodity != null && !"none".equals(commodity.key())) {
             Map<String, Object> com = new LinkedHashMap<>();
             com.put("key", commodity.key());
-            com.put("pct90", pct90);
+            com.put("pct90", r.pct90);
             com.put("asOf", commodity.asOf() == null ? null : commodity.asOf().toString());
-            com.put("multiplier", cd.setScale(3, RoundingMode.HALF_UP));
+            com.put("multiplier", r.cd.setScale(3, RoundingMode.HALF_UP));
             com.put("source", commodity.provenance());
             basis.put("commodity", com);
         } else {
             basis.put("commodity", null);
         }
 
-        if (competitor != null) {
+        // What the number used: an observed competitor the model ignored is on the row, not here.
+        if (r.competitor != null) {
             Map<String, Object> comp = new LinkedHashMap<>();
-            comp.put("median", competitor.median());
-            comp.put("low", competitor.low());
-            comp.put("high", competitor.high());
-            comp.put("observations", competitor.observations());
-            comp.put("regionMatched", competitor.regionMatched());
+            comp.put("median", r.competitor.median());
+            comp.put("low", r.competitor.low());
+            comp.put("high", r.competitor.high());
+            comp.put("observations", r.competitor.observations());
+            comp.put("regionMatched", r.competitor.regionMatched());
             basis.put("competitor", comp);
         } else {
             basis.put("competitor", null);
         }
-        if (peer != null) {
+        if (r.peer != null) {
             Map<String, Object> p = new LinkedHashMap<>();
-            p.put("median", peer.median());
-            p.put("observations", peer.observations());
+            p.put("median", r.peer.median());
+            p.put("observations", r.peer.observations());
             basis.put("peer", p);
         } else {
             basis.put("peer", null);
         }
 
         Map<String, Object> blend = new LinkedHashMap<>();
-        blend.put("benchmarkWeight", benchmarkWeight);
-        blend.put("anchorWeight", BigDecimal.ONE.subtract(benchmarkWeight));
-        blend.put("anchor", anchor);
+        blend.put("benchmarkWeight", r.benchmarkWeight);
+        blend.put("anchorWeight", BigDecimal.ONE.subtract(r.benchmarkWeight));
+        blend.put("anchor", r.anchor);
         basis.put("blend", blend);
-        basis.put("anchor", anchor);
-        basis.put("floor", PricingMath.round2(floor));
-        basis.put("ceiling", PricingMath.round2(ceiling));
-        basis.put("raw", PricingMath.round2(raw));
-        basis.put("suggested", suggested);
-        basis.put("suggestedMarginPct", marginPct);
-        basis.put("text", text(in, c, atMargin, tm, benchmark, ri, cd, pct90, competitor, peer, suggested, marginPct));
+        basis.put("anchor", r.anchor);
+        basis.put("floor", PricingMath.round2(r.floor));
+        basis.put("ceiling", PricingMath.round2(r.ceiling));
+        basis.put("raw", PricingMath.round2(r.raw));
+        basis.put("suggested", r.suggested);
+        basis.put("suggestedMarginPct", r.marginPct);
+
+        Map<String, Object> model = new LinkedHashMap<>();
+        int[] toggles = cfg.toggleCount();
+        model.put("on", toggles[0]);
+        model.put("total", toggles[1]);
+        model.put("steps", r.steps.ordered());
+        basis.put("model", model);
+
+        basis.put("text", text(in, r));
         return basis;
     }
 
-    private static String text(Inputs in, BigDecimal c, BigDecimal atMargin, BigDecimal tm,
-            Reference.Benchmark benchmark, BigDecimal ri, BigDecimal cd, BigDecimal pct90, CompetitorSummary competitor,
-            PeerSummary peer, BigDecimal suggested, BigDecimal marginPct) {
-        String sym = symbol(in.currency());
+    private static String text(Inputs in, Run r) {
+        String sym = r.sym;
         StringBuilder text = new StringBuilder();
-        text.append("Cost ").append(sym).append(PricingMath.round2(c)).append(" (").append(sourceLabel(in.cost().source()))
-                .append(") × ").append(benchmark.category());
-        if (benchmark.subcategory() != null && !benchmark.subcategory().isBlank()) {
-            text.append(" / ").append(benchmark.subcategory());
+        text.append("Cost ").append(sym).append(PricingMath.round2(r.c)).append(" (").append(sourceLabel(in.cost().source()))
+                .append(") × ").append(r.benchmark.category());
+        if (r.benchmark.subcategory() != null && !r.benchmark.subcategory().isBlank()) {
+            text.append(" / ").append(r.benchmark.subcategory());
         }
-        text.append(" benchmark margin ").append(tm.stripTrailingZeros().toPlainString()).append("% = ")
-                .append(sym).append(PricingMath.round2(atMargin));
-        if (in.store() != null && in.store().rpp() != null) {
+        text.append(" benchmark margin ").append(plain(r.tm)).append("% = ")
+                .append(sym).append(PricingMath.round2(r.atMargin));
+        if (r.regionApplied) {
             text.append("; ").append(in.store().label()).append(" index ×")
-                    .append(ri.setScale(2, RoundingMode.HALF_UP).toPlainString());
+                    .append(r.ri.setScale(2, RoundingMode.HALF_UP).toPlainString());
         }
         Reference.Commodity commodity = in.commodity();
-        if (commodity != null && !"none".equals(commodity.key()) && pct90.signum() != 0) {
-            text.append("; ").append(commodity.key()).append(' ').append(pct90.signum() > 0 ? "+" : "")
-                    .append(pct90.stripTrailingZeros().toPlainString()).append("% over 90 days (").append(commodity.provenance());
+        if (r.commodityApplied && r.pct90.signum() != 0) {
+            text.append("; ").append(commodity.key()).append(' ').append(signed(r.pct90))
+                    .append("% over 90 days (").append(commodity.provenance());
             if (commodity.asOf() != null) {
                 text.append(", ").append(LONG_DATE.format(commodity.asOf()));
             }
-            text.append(") ×").append(cd.setScale(2, RoundingMode.HALF_UP).toPlainString());
+            text.append(") ×").append(r.cd.setScale(2, RoundingMode.HALF_UP).toPlainString());
         }
-        if (competitor != null) {
-            text.append("; blended 50/50 with the competitor median ").append(sym).append(competitor.median())
-                    .append(" (").append(competitor.observations()).append(competitor.observations() == 1
-                            ? " observation" : " observations").append(competitor.regionMatched() ? ", region-matched" : "")
-                    .append(')');
-        } else if (peer != null) {
-            text.append("; blended 60/40 with your own median ").append(sym).append(peer.median())
-                    .append(" (").append(peer.observations()).append(" invoice lines, all branches)");
+        if (Anchor.COMPETITOR.equals(r.anchor)) {
+            text.append("; blended 50/50 with the competitor median ").append(sym).append(r.competitor.median())
+                    .append(" (").append(observations(r.competitor.observations()))
+                    .append(r.competitor.regionMatched() ? ", region-matched" : "").append(')');
+        } else if (Anchor.PEER.equals(r.anchor)) {
+            text.append("; blended 60/40 with your own median ").append(sym).append(r.peer.median())
+                    .append(" (").append(r.peer.observations()).append(" invoice lines, all branches)");
+        } else if (r.competitor != null || r.peer != null) {
+            text.append("; the benchmark price alone, the blend being off");
         }
-        text.append("; rounded to ").append(sym).append(suggested);
-        if (marginPct != null) {
-            text.append(" (").append(marginPct.toPlainString()).append("% margin)");
+        if (r.leaned != null) {
+            text.append("; leaning ").append(signed(BigDecimal.valueOf(r.leaned.movePct())))
+                    .append("% from your past decisions");
+        }
+        if (r.ceilingCap != null) {
+            text.append("; ceiling held to ").append(sym).append(PricingMath.round2(r.ceiling))
+                    .append(" by the cost multiple");
+        }
+        if (r.moveCapBound) {
+            text.append("; held within the move cap of today's ").append(sym).append(r.current);
+        }
+        text.append(r.rounded ? "; rounded to " : "; to the cent, ").append(sym).append(r.suggested);
+        if (r.marginPct != null) {
+            text.append(" (").append(r.marginPct.toPlainString()).append("% margin)");
         }
         text.append('.');
         return text.toString();
@@ -306,6 +519,83 @@ final class SuggestionEngine {
         };
     }
 
+    private static String plain(BigDecimal v) {
+        return v == null ? "" : v.stripTrailingZeros().toPlainString();
+    }
+
+    private static String signed(BigDecimal v) {
+        return (v.signum() > 0 ? "+" : "") + plain(v);
+    }
+
+    private static String observations(int n) {
+        return n + (n == 1 ? " observation" : " observations");
+    }
+
+    // ---- the chain as it ran -------------------------------------------------------------
+
+    /** Every figure the chain produced, so the basis and the sentence read one set. */
+    private static final class Run {
+        String sym;
+        BigDecimal c;
+        BigDecimal tm;
+        BigDecimal atMargin;
+        Reference.Benchmark benchmark;
+        BigDecimal ri = BigDecimal.ONE;
+        boolean regionApplied;
+        BigDecimal cd = BigDecimal.ONE;
+        BigDecimal pct90 = BigDecimal.ZERO;
+        boolean commodityApplied;
+        BigDecimal b;
+        /** What was on file, and what the anchor used (null when off, absent or implausible). */
+        CompetitorSummary observed;
+        CompetitorSummary competitor;
+        PeerSummary peer;
+        BigDecimal benchmarkWeight;
+        String anchor;
+        BigDecimal anchorPrice;
+        DecisionPatterns.Learning leaned;
+        BigDecimal floor;
+        BigDecimal ceiling;
+        /** The cost multiple, when it lowered the ceiling. */
+        BigDecimal ceilingCap;
+        BigDecimal raw;
+        BigDecimal current;
+        boolean moveCapBound;
+        boolean rounded;
+        BigDecimal suggested;
+        BigDecimal marginPct;
+        final Steps steps = new Steps();
+
+        String money(BigDecimal v) {
+            return v == null ? "—" : sym + PricingMath.round2(v).toPlainString();
+        }
+    }
+
+    /** The model steps as they ran, emitted in {@link #MODEL_STEPS} order. */
+    private static final class Steps {
+        private final Map<String, Map<String, Object>> byKey = new LinkedHashMap<>();
+
+        void add(String key, String label, String status, String note) {
+            Map<String, Object> step = new LinkedHashMap<>();
+            step.put("key", key);
+            step.put("label", label);
+            step.put("status", status);
+            step.put("note", note);
+            byKey.put(key, step);
+        }
+
+        List<Map<String, Object>> ordered() {
+            List<Map<String, Object>> out = new ArrayList<>(MODEL_STEPS.size());
+            for (String key : MODEL_STEPS) {
+                Map<String, Object> step = byKey.get(key);
+                if (step != null) {
+                    out.add(step);
+                }
+            }
+            return out;
+        }
+    }
+
     // ---- the row -------------------------------------------------------------------------
 
     record CompetitorSummary(BigDecimal median, BigDecimal low, BigDecimal high, int observations,
@@ -319,7 +609,17 @@ final class SuggestionEngine {
             BigDecimal regionalIndex, BigDecimal commodityDriftPct, BigDecimal price, String note, String matched) {
     }
 
-    /** One item's suggestion as the wizard renders it. {@code basis} is what is stored on apply. */
+    /**
+     * One item's suggestion as the wizard renders it. {@code basis} is what is stored on apply;
+     * its {@code model} entry says which model steps were applied, skipped or off.
+     *
+     * @param cost the cost the suggestion was priced from - the page recomputes an edited
+     *             price's margin from it
+     * @param competitor what was on file for the item; whether the anchor used it is
+     *                   {@code anchor} and {@code basis.model}
+     * @param suggestedMarginPct the margin of {@code suggestedPrice} alone; stale once the
+     *                           price is edited
+     */
     record SuggestionRow(String item, String description, String category, String subcategory, String unit,
             String commodity, BigDecimal cost, String costSource, BigDecimal currentPrice, String currentPriceSource,
             String anchor, BigDecimal anchorPrice, CompetitorSummary competitor, PeerSummary peer,

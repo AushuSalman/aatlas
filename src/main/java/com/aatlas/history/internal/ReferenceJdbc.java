@@ -1,10 +1,17 @@
 package com.aatlas.history.internal;
 
 import com.aatlas.common.cache.CacheNames;
+import com.aatlas.history.PricingModel;
 import com.aatlas.history.Reference;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -33,9 +40,13 @@ class ReferenceJdbc implements Reference {
 
     static final String NONE_COMMODITY = "none";
 
-    private final JdbcTemplate jdbc;
+    private static final Logger log = LoggerFactory.getLogger(ReferenceJdbc.class);
 
-    ReferenceJdbc(JdbcTemplate jdbc) {
+    private final JdbcTemplate jdbc;
+    private final ObjectMapper json;
+
+    ReferenceJdbc(JdbcTemplate jdbc, ObjectMapper json) {
+        this.json = json;
         this.jdbc = jdbc;
     }
 
@@ -47,6 +58,24 @@ class ReferenceJdbc implements Reference {
                 """, (rs, i) -> new Guardrails(rs.getBigDecimal("min_margin_pct"), rs.getBigDecimal("max_discount_pct"),
                 rs.getBigDecimal("max_speed_premium_pct"), rs.getBigDecimal("max_market_deviation_pct")), Sql.tenant());
         return rows.isEmpty() ? DEFAULT_GUARDRAILS : rows.get(0);
+    }
+
+    @Override
+    public PricingModel.Config pricingModel() {
+        List<String> rows = jdbc.query("SELECT settings::text FROM pricing_model_settings WHERE tenant_id = ?",
+                (rs, i) -> rs.getString(1), Sql.tenant());
+        if (rows.isEmpty() || rows.get(0) == null || rows.get(0).isBlank()) {
+            return PricingModel.Config.defaults();
+        }
+        try {
+            Map<String, PricingModel.Setting> raw = json.readValue(rows.get(0),
+                    new TypeReference<Map<String, PricingModel.Setting>>() { });
+            return PricingModel.Config.of(raw);
+        } catch (JsonProcessingException ex) {
+            log.warn("pricing_model_settings for tenant {} is not readable ({}); using the defaults",
+                    Sql.tenant(), ex.getOriginalMessage());
+            return PricingModel.Config.defaults();
+        }
     }
 
     @Override

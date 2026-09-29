@@ -29,6 +29,26 @@ Nothing here is random. Every figure comes from an FNV-1a hash of a stable key, 
 technique `common.seed.Seeded` uses, so re-running the generator reproduces the files
 exactly and a re-import compares cleanly against the last one.
 
+## Products file columns
+
+`products.csv`, `products-alt.csv` and `cold-start-products.csv` share these columns. The
+two money columns are the ones people ask about, so exactly what the engine does with them:
+
+| Column | What it is | What the tool does with it |
+| --- | --- | --- |
+| `Item No` | Your internal SKU | Required. New items are created, known ones updated. |
+| `Description` | Item description | Required for a new item. |
+| `Category` / `Subcategory` | Product grouping | Filters, insights, and the category's benchmark margin band. |
+| `UOM` | Unit of measure the prices are per (`each`, `spool`, `ft`) | Shown next to every price. |
+| `Commodity` | Underlying material (`copper`, `pvc`) | Links the item to the commodity trend. |
+| `List Price` | **What you sell one unit for today**, before customer discounts - your price book | Becomes the price list. The pricing wizard shows it as *Current price*; blank means "no price yet" and the wizard suggests one. |
+| `Unit Cost` | **What one unit costs you today** (landed or standard cost) - one figure, not a min or max | Every suggested price and margin is built from it: suggested = cost ÷ (1 − target margin), then blended with competitor or sales evidence. The wizard's floor and ceiling are *derived* from it using the category's margin band; they are never imported. |
+| `On Hand` | Units in stock today (optional) | Per branch when a `Branch` is given, else at your main branch. Fills in weeks of cover, overstock warnings and liquidation; without it the "add stock on hand" step stays open. |
+| `Branch` | The branch the price, cost and stock apply to | Blank means tenant-wide. Each distinct value becomes a branch. |
+
+The importer also recognises the usual ERP names for the two money columns (`Selling Price`,
+`Sales Price`, `Unit Price`; `Standard Cost`, `Average Cost`, `Landed Cost`, `Purchase Cost`).
+
 ## Loading it
 
 ```bash

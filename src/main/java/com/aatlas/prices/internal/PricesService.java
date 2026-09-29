@@ -3,15 +3,18 @@ package com.aatlas.prices.internal;
 import com.aatlas.common.error.ApiException;
 import com.aatlas.common.tenant.TenantContext;
 import com.aatlas.common.time.AatlasClock;
+import com.aatlas.decisions.DealSummaries;
 import com.aatlas.decisions.DecisionKind;
 import com.aatlas.decisions.DecisionRecorder;
 import com.aatlas.decisions.RecordDecisionRequest;
 import com.aatlas.history.Catalogue;
 import com.aatlas.history.CompetitorPrices;
+import com.aatlas.history.DecisionPatterns;
 import com.aatlas.history.HistoryCaches;
 import com.aatlas.history.PriceBook;
 import com.aatlas.history.PriceLadder;
 import com.aatlas.history.PriceList;
+import com.aatlas.history.PricingModel;
 import com.aatlas.history.Reference;
 import com.aatlas.history.Resolved;
 import com.aatlas.history.SalesHistory;
@@ -25,6 +28,7 @@ import java.sql.Array;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -69,6 +73,8 @@ class PricesService {
     private static final BigDecimal MAX_MARGIN_OVERRIDE = BigDecimal.valueOf(90);
     /** How many item numbers a decision's detail names before "and N more". */
     private static final int DETAIL_ITEMS = 5;
+    /** The most recent sell decisions the wizard learns a lean from, in one read. */
+    static final int LEARNING_ROWS = 500;
 
     private final Catalogue catalogue;
     private final PriceLadder ladder;
@@ -78,6 +84,7 @@ class PricesService {
     private final CompetitorPrices competitors;
     private final Reference reference;
     private final DecisionRecorder ledger;
+    private final DealSummaries deals;
     private final HistoryCaches caches;
     private final AatlasClock clock;
     private final JdbcTemplate jdbc;
@@ -86,7 +93,7 @@ class PricesService {
 
     PricesService(Catalogue catalogue, PriceLadder ladder, PriceList priceList, PriceBook priceBook,
             SalesHistory sales, CompetitorPrices competitors, Reference reference, DecisionRecorder ledger,
-            HistoryCaches caches, AatlasClock clock, JdbcTemplate jdbc, ObjectMapper json,
+            DealSummaries deals, HistoryCaches caches, AatlasClock clock, JdbcTemplate jdbc, ObjectMapper json,
             PlatformTransactionManager transactions) {
         this.catalogue = catalogue;
         this.ladder = ladder;
@@ -96,6 +103,7 @@ class PricesService {
         this.competitors = competitors;
         this.reference = reference;
         this.ledger = ledger;
+        this.deals = deals;
         this.caches = caches;
         this.clock = clock;
         this.jdbc = jdbc;
@@ -121,6 +129,8 @@ class PricesService {
         LocalDate today = clock.today();
         Window w12 = Window.trailingMonths(today, 12);
         String currency = currency();
+        PricingModel.Config cfg = reference.pricingModel();
+        LearningIndex learning = learningIndex(cfg, store == null ? null : store.storeCode(), today);
 
         Map<UUID, Resolved> costs = ladder.costs(storeId, today);
         Map<UUID, Resolved> currents = ladder.currentPrices(storeId, today);
@@ -130,6 +140,7 @@ class PricesService {
         List<SuggestionEngine.SuggestionRow> rows = new ArrayList<>();
         Map<String, CategorySummary> categories = new LinkedHashMap<>();
         boolean truncated = false;
+        boolean leaned = false;
         int priceable = 0;
         int missingCost = 0;
         for (Catalogue.ProductRef product : catalogue.products()) {
@@ -145,14 +156,18 @@ class PricesService {
             BigDecimal override = overrides.get(key(product.category()));
             List<CompetitorPrices.Observation> observations = medians.containsKey(product.id())
                     ? competitors.forItem(product.id(), region, storeId, today) : List.of();
+            DecisionPatterns.Learning lean = learning.forItem(product.itemNumber());
             SuggestionEngine.SuggestionRow row = SuggestionEngine.suggest(new SuggestionEngine.Inputs(
                     product, store, costs.get(product.id()), current, observations, bands.get(product.id()),
-                    benchmark, override, reference.commodity(product.commodity()), currency));
+                    benchmark, override, reference.commodity(product.commodity()), currency, cfg, lean));
             rows.add(row);
             if (row.unpriceable()) {
                 missingCost++;
             } else {
                 priceable++;
+                if (lean != null && lean.available()) {
+                    leaned = true;
+                }
             }
             categories.compute(product.category(), (category, existing) -> {
                 if (existing != null) {
@@ -165,14 +180,84 @@ class PricesService {
                         override != null);
             });
         }
-        BigDecimal regionalIndex = store == null || store.rpp() == null ? BigDecimal.ONE.setScale(3)
-                : BigDecimal.ONE.subtract(store.rpp().subtract(PricingMath.HUNDRED)
-                        .divide(PricingMath.HUNDRED, PricingMath.RATIO_SCALE, RoundingMode.HALF_UP)
-                        .multiply(SuggestionEngine.RPP_SENSITIVITY)).setScale(3, RoundingMode.HALF_UP);
+        // The same number every row used: the model's local-market step and weight.
+        BigDecimal regionalIndex = SuggestionEngine.regionalIndex(store, cfg).setScale(3, RoundingMode.HALF_UP);
+        int[] toggles = cfg.toggleCount();
         return new SuggestionsResponse(wanted, store == null ? null : store.storeCode(), currency, regionalIndex,
                 List.copyOf(categories.values()), rows,
                 new SuggestionsResponse.Summary(rows.size(), priceable, rows.size() - priceable, missingCost),
-                truncated);
+                truncated, new SuggestionsResponse.Model(toggles[0], toggles[1], leaned));
+    }
+
+    /**
+     * The tenant's sell decisions of the learning window, read once and reduced per item so
+     * every row's lean comes from one query rather than one per product. Empty (no lean for
+     * any row) with the learning step off, and when the ledger cannot be read: the wizard
+     * prices without it and says so in the log rather than failing.
+     */
+    private LearningIndex learningIndex(PricingModel.Config cfg, String storeCodeOrNull, LocalDate today) {
+        if (!cfg.on(PricingModel.LEARNING)) {
+            return LearningIndex.NONE;
+        }
+        LocalDate since = today.minusDays(cfg.value(PricingModel.LEARNING_WINDOW_DAYS).longValue());
+        List<DealSummaries.Acceptance> rows;
+        try {
+            // Its own transaction: a failed statement would abort the wizard's read-only one in
+            // PostgreSQL, and a failure inside a joined transaction marks it rollback-only
+            // however it is caught.
+            rows = requiresNew.execute(status -> deals.acceptance(null, null, since, LEARNING_ROWS));
+        } catch (RuntimeException ex) {
+            log.warn("Could not read the decision history for the pricing wizard; suggesting without it: {}",
+                    ex.toString());
+            return LearningIndex.NONE;
+        }
+        if (rows == null || rows.isEmpty()) {
+            return new LearningIndex(Map.of(), List.of(), DecisionPatterns.learn(List.of(), today, cfg), today, cfg);
+        }
+        String storeCode = storeCodeOrNull == null ? null : storeCodeOrNull.strip();
+        Map<String, List<DecisionPatterns.Acceptance>> byItem = new HashMap<>();
+        List<DecisionPatterns.Acceptance> tenant = new ArrayList<>(rows.size());
+        for (DealSummaries.Acceptance row : rows) {
+            tenant.add(new DecisionPatterns.Acceptance(row.date(), row.suggested(), row.actual(),
+                    DecisionPatterns.Acceptance.TENANT));
+            if (row.itemNumber() == null || row.itemNumber().isBlank()) {
+                continue;
+            }
+            String basis = storeCode != null && row.storeCode() != null && storeCode.equals(row.storeCode().strip())
+                    ? DecisionPatterns.Acceptance.ITEM_STORE : DecisionPatterns.Acceptance.ITEM;
+            byItem.computeIfAbsent(row.itemNumber().strip(), k -> new ArrayList<>())
+                    .add(new DecisionPatterns.Acceptance(row.date(), row.suggested(), row.actual(), basis));
+        }
+        List<DecisionPatterns.Acceptance> shared = List.copyOf(tenant);
+        return new LearningIndex(byItem, shared, DecisionPatterns.learn(shared, today, cfg), today, cfg);
+    }
+
+    /**
+     * The decision history per item: an item's own rows (at the requested branch, else
+     * anywhere) on top of the whole tenant's, so {@link DecisionPatterns#learn} falls back
+     * from the closest basis to the widest. The tenant-wide lean is derived once and shared
+     * by every item without rows of its own.
+     */
+    private record LearningIndex(Map<String, List<DecisionPatterns.Acceptance>> byItem,
+            List<DecisionPatterns.Acceptance> tenant, DecisionPatterns.Learning tenantLearning, LocalDate today,
+            PricingModel.Config cfg) {
+
+        /** No lean for any item: the step is off or the ledger could not be read. */
+        static final LearningIndex NONE = new LearningIndex(Map.of(), List.of(), null, null, null);
+
+        DecisionPatterns.Learning forItem(String itemNumber) {
+            if (cfg == null) {
+                return null;
+            }
+            List<DecisionPatterns.Acceptance> own = itemNumber == null ? null : byItem.get(itemNumber.strip());
+            if (own == null || own.isEmpty()) {
+                return tenantLearning;
+            }
+            List<DecisionPatterns.Acceptance> rows = new ArrayList<>(own.size() + tenant.size());
+            rows.addAll(own);
+            rows.addAll(tenant);
+            return DecisionPatterns.learn(rows, today, cfg);
+        }
     }
 
     /** {@code Plumbing:34,HVAC:28} → category → target margin, clamped to 1-90. */

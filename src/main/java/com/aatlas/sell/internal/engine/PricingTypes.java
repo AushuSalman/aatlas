@@ -47,6 +47,9 @@ public final class PricingTypes {
      * @param anchorValue the market anchor (competitor &gt; peer &gt; benchmark &gt; history), nullable
      * @param optimalPrice/aggressivePrice null when neither an anchor nor an own reference exists
      * @param beta own-price elasticity; never null (defaults to -1.2, basis {@code default})
+     * @param recommendation the chain as it ran, with its steps and flags; null when not priceable
+     * @param modelConfig the tenant's pricing model the chain was run with (the defaults for an
+     *                    unknown item)
      * @param locked section keys this pair is missing an input for
      */
     public record PricingModel(
@@ -81,6 +84,7 @@ public final class PricingTypes {
             BigDecimal onHandUnits, LocalDate inventoryAsOf, boolean inventoryStale,
 
             List<Bucket> buckets, PricingMath.Recommendation recommendation,
+            com.aatlas.history.PricingModel.Config modelConfig,
 
             List<String> locked) {
 

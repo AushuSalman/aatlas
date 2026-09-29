@@ -27,6 +27,14 @@ public interface PriceList {
     PriceCoverage coverage(LocalDate today);
 
     /**
+     * How many times the pricing wizard set a price for the product ({@code source}
+     * {@code wizard}) at the branch, or tenant-wide with no branch. The trust ramp's track
+     * record alongside the recorded deals: a Sell-screen apply is counted by its deal, not by
+     * its {@code applied} row, so the two never count one decision twice.
+     */
+    long appliedCount(UUID productId, UUID storeIdOrNull);
+
+    /**
      * The current price and cost, each with its own provenance because they may come from
      * different rows (a wizard row sets only the list price; an import row may set only cost).
      *

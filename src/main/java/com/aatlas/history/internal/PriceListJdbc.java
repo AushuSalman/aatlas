@@ -164,6 +164,22 @@ class PriceListJdbc implements PriceList {
     }
 
     @Override
+    public long appliedCount(UUID productId, UUID storeIdOrNull) {
+        String where = storeIdOrNull == null ? " AND pp.store_id IS NULL" : " AND pp.store_id = :s";
+        MapSqlParameterSource params = Sql.params().addValue("p", productId);
+        if (storeIdOrNull != null) {
+            params.addValue("s", storeIdOrNull);
+        }
+        // Only wizard writes: a Sell-screen apply writes an 'applied' row AND a deal, and the
+        // deal is what decisions counts, so counting the row too would double every apply.
+        Long n = jdbc.queryForObject("""
+                SELECT count(*) FROM product_prices pp
+                 WHERE pp.tenant_id = :t AND pp.product_id = :p AND pp.source = 'wizard'
+                """ + where, params, Long.class);
+        return n == null ? 0 : n;
+    }
+
+    @Override
     public PriceCoverage coverage(LocalDate today) {
         return jdbc.query("""
                 SELECT count(DISTINCT pp.product_id) FILTER (WHERE pp.list_price IS NOT NULL AND pp.list_price > 0) AS with_price,

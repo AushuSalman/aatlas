@@ -32,6 +32,7 @@ public final class CacheNames {
     public static final String PROCUREMENT_ANALYTICS = "procurementAnalytics";
     public static final String DEMOGRAPHICS = "demographics";
     public static final String GUARDRAILS = "guardrails";
+    public static final String PRICING_MODEL = "pricingModel";
     public static final String TENANT_SETTINGS = "tenantSettings";
 
     // The history read layer's heavy aggregates. Evicted by HistoryCaches after every write
@@ -48,7 +49,7 @@ public final class CacheNames {
             OVERVIEW, REGION_INTEL, STORE_INTEL, PRODUCT_SCORES,
             SELL_RECOMMENDATION, BUY_RECOMMENDATION, BUY_INTEL,
             SUPPLIER_PANEL, SUPPLIER_RATING, PROCUREMENT_ANALYTICS,
-            DEMOGRAPHICS, GUARDRAILS, TENANT_SETTINGS,
+            DEMOGRAPHICS, GUARDRAILS, PRICING_MODEL, TENANT_SETTINGS,
             BULK_MODEL, SALES_HISTORY, PURCHASE_HISTORY, READINESS);
 
     /** {@code t:{tenant}:{parts joined by ':'}} */

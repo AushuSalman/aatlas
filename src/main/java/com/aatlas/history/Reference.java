@@ -13,6 +13,13 @@ public interface Reference {
 
     Guardrails guardrails();
 
+    /**
+     * The tenant's pricing model: the registry's defaults with the tenant's saved overrides
+     * on top. The defaults for a tenant that never saved. Read per request, like the
+     * guardrails, so a change in Settings shows on the next recommendation.
+     */
+    PricingModel.Config pricingModel();
+
     /** Subcategory row, else category row, else the default ({@code *}). */
     Benchmark benchmark(String category, String subcategory);
 
