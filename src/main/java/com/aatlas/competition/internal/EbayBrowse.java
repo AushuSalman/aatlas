@@ -83,6 +83,9 @@ class EbayBrowse implements ShoppingProvider {
                     .header("X-EBAY-C-MARKETPLACE-ID", market.uk() ? "EBAY_GB" : "EBAY_US")
                     .retrieve()
                     .body(JsonNode.class);
+        } catch (org.springframework.web.client.RestClientResponseException ex) {
+            throw new ProviderFailed(label() + " search failed: " + ex.getStatusCode().value() + " "
+                    + reason(ex.getResponseBodyAsString(), ex.getStatusText()));
         } catch (RestClientException ex) {
             throw new ProviderFailed(label(), ex);
         }
@@ -113,13 +116,22 @@ class EbayBrowse implements ShoppingProvider {
             }
             String basic = Base64.getEncoder()
                     .encodeToString((clientId + ":" + clientSecret).getBytes(StandardCharsets.UTF_8));
-            JsonNode res = http.post()
-                    .uri("/identity/v1/oauth2/token")
-                    .header("Authorization", "Basic " + basic)
-                    .contentType(MediaType.APPLICATION_FORM_URLENCODED)
-                    .body("grant_type=client_credentials&scope=" + java.net.URLEncoder.encode(SCOPE, StandardCharsets.UTF_8))
-                    .retrieve()
-                    .body(JsonNode.class);
+            JsonNode res;
+            try {
+                res = http.post()
+                        .uri("/identity/v1/oauth2/token")
+                        .header("Authorization", "Basic " + basic)
+                        .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                        .body("grant_type=client_credentials&scope=" + java.net.URLEncoder.encode(SCOPE, StandardCharsets.UTF_8))
+                        .retrieve()
+                        .body(JsonNode.class);
+            } catch (org.springframework.web.client.RestClientResponseException ex) {
+                // The login, not the search: say so, with eBay's own reason. "unauthorized_client"
+                // is a keyset eBay has not enabled yet (e.g. the Marketplace Account Deletion
+                // exemption still pending); "invalid_client" is a wrong App ID or Cert ID.
+                throw new ProviderFailed(label() + " sign-in failed: " + ex.getStatusCode().value() + " "
+                        + reason(ex.getResponseBodyAsString(), ex.getStatusText()));
+            }
             if (res == null || !res.hasNonNull("access_token")) {
                 throw new ProviderFailed(label() + ": eBay returned no access token");
             }
@@ -127,5 +139,29 @@ class EbayBrowse implements ShoppingProvider {
             tokenExpires = clock.instant().plusSeconds(Math.max(60, res.path("expires_in").asLong(7200) - 60));
             return token;
         }
+    }
+
+    /**
+     * eBay's reason from an error body: OAuth's {@code error}/{@code error_description}, or the
+     * Browse API's {@code errors[0].message}; the status text when the body says nothing.
+     */
+    static String reason(String body, String fallback) {
+        if (body == null || body.isBlank()) {
+            return fallback;
+        }
+        try {
+            JsonNode n = new com.fasterxml.jackson.databind.ObjectMapper().readTree(body);
+            if (n.hasNonNull("error")) {
+                return n.path("error").asText()
+                        + (n.hasNonNull("error_description") ? " - " + n.get("error_description").asText() : "");
+            }
+            JsonNode first = n.path("errors").path(0);
+            if (first.hasNonNull("message")) {
+                return first.get("message").asText();
+            }
+        } catch (Exception ignored) {
+            // not JSON: fall through to the raw text
+        }
+        return body.length() > 300 ? body.substring(0, 300) : body;
     }
 }

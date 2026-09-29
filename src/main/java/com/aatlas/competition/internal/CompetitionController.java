@@ -94,7 +94,7 @@ class CompetitionController {
 
     @Operation(summary = "Buy-side benchmarks for one item: retail ceiling and bulk-lot price per unit",
             description = "Retail listings on every configured provider, and lots/cases (eBay by preference) divided "
-                    + "down to a unit price. Nothing is saved.")
+                    + "down to a unit price. The bulk per-unit price is kept as the item's buying benchmark.")
     @PostMapping("/items/{item}/buy-check")
     CompetitionDtos.BuyCheck buyCheck(@PathVariable String item,
             @RequestParam(required = false) List<String> providers,

@@ -267,7 +267,8 @@ class CompetitionService {
      * The buy side's benchmarks for one item: retail listings on every chosen provider (the
      * ceiling), and bulk lots - "lot of 50", "case of 25" - read down to a per-unit price (a rough
      * trade price). Bulk is searched on eBay, where trade sellers list lots, or on the first
-     * available provider when eBay is not configured. Nothing is written.
+     * available provider when eBay is not configured. The bulk result is kept as the item's buying
+     * benchmark ({@code buy_market_benchmarks}); retail listings are not written.
      */
     CompetitionDtos.BuyCheck buyCheck(String itemNumber, List<String> providerKeys, String query) {
         Catalogue.ProductRef product = product(itemNumber);
@@ -293,6 +294,9 @@ class CompetitionService {
         java.util.IdentityHashMap<Listing, Listing> perUnitToLot = new java.util.IdentityHashMap<>();
         List<Judged> bulkJudged = judgeBulk(q, market.currency(), bulk.listings(), perUnitToLot);
         List<Listing> bulkKept = bulkJudged.stream().filter(Judged::kept).map(Judged::listing).toList();
+        // Kept as a buying benchmark: the buy recommendation counts it as market evidence.
+        observations.saveBulkBenchmark(TenantContext.requireTenantId(), product.id(), clock.today(), bulkKept,
+                market.currency());
         CompetitionDtos.Side bulkSide = new CompetitionDtos.Side(bulkQuery, summary(bulk.listings().size(), bulkKept),
                 runs(bulkOn, bulk, bulkJudged, perUnitToLot),
                 "Per-unit prices of lots and cases (listing price ÷ quantity in the title). A rough trade price - "

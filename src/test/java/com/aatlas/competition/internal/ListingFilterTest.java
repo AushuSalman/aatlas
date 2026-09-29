@@ -33,8 +33,20 @@ class ListingFilterTest {
                 "Supplyhouse:false", "Ferguson:false");
         assertThat(judged.get(3).reason()).contains("Another listing from The Home Depot");
         assertThat(judged.get(4).reason()).startsWith("Title matches too little");
-        assertThat(judged.get(5).reason()).startsWith("Far from the other listings");
+        assertThat(judged.get(5).reason()).isEqualTo("Sold as a lot or pack, not a single unit");
         assertThat(judged.get(6).reason()).isEqualTo("No price on the listing");
+    }
+
+    @Test
+    void aLotIsNotASingleUnitPriceEvenWithoutAQuantity() {
+        List<Judged> judged = ListingFilter.judge("SharkBite 1/2 in. Push-to-Connect Brass Coupling", "USD", List.of(
+                l("SharkBite Brass Push-to-Connect Ball Valve Lot 1/2 in w/ Coupling", "45.00", "eBay"),
+                l("SharkBite 1/2 in. Push-to-Connect Brass Coupling", "9.98", "The Home Depot")));
+        assertThat(judged).extracting(Judged::kept).containsExactly(false, true);
+        assertThat(judged.get(0).reason()).isEqualTo("Sold as a lot or pack, not a single unit");
+        assertThat(ListingFilter.multiUnit("SHARK BITE 1/2 in Coupling *lot of 24*")).isTrue();
+        assertThat(ListingFilter.multiUnit("1/2 in PVC Ball Valve 10-Pack")).isTrue();
+        assertThat(ListingFilter.multiUnit("Charlotte 1/2 in. PVC Ball Valve")).isFalse();
     }
 
     @Test

@@ -59,5 +59,16 @@ public record BuyRecommendation(
         List<FactorWeight> weights,
         BigDecimal floorCost,
         Map<String, String> sources,
-        List<String> locked) {
+        List<String> locked,
+        /** Every comparable buying price the target rests on: panel quotes, bulk lots, retail-derived should-cost. */
+        List<MarketEvidence.Point> marketPoints,
+        /** {@code panel}, {@code market}, {@code panel+market}, or null when there is nothing to set a target from. */
+        String targetBasis,
+        /** Lowest competitor shop price on file - the ceiling a trade buyer should sit well under. */
+        BigDecimal retailLow,
+        /** Competitors' median shop price less the category's target margin; null without both. */
+        BigDecimal shouldCost,
+        List<MarketEvidence.Flag> flags,
+        /** How many to order and when; null never - a status says why when it cannot be sized. */
+        MarketEvidence.Reorder reorder) {
 }

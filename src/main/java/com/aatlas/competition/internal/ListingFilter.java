@@ -14,11 +14,12 @@ import java.util.Set;
  * Which listings a keyword search returned are this item's price, and why the rest are not.
  *
  * <p>A shopping search for "1/2 in PVC ball valve" also returns a 2-inch valve, a 10-pack,
- * a wrench, and the same valve from the same store three times. Four rules, in order, each
+ * a wrench, and the same valve from the same store three times. Five rules, in order, each
  * naming what it dropped so the screen can show it:
  * <ol>
  *   <li>no price, or a price in another currency;</li>
  *   <li>a title sharing too few of the query's words ({@link #MIN_MATCH});</li>
+ *   <li>a listing sold as a lot, case or pack - its price is not one unit's;</li>
  *   <li>a second listing from a seller already kept - one observation per competitor per day,
  *       which is what {@code competitor_prices} holds and what the median should count;</li>
  *   <li>with three or more left, a price under a third or over three times their median: a
@@ -46,10 +47,12 @@ final class ListingFilter {
     }
 
     /**
-     * @param onePerSeller apply rule 3. Off for bulk lots on the buy side: several lots from eBay
-     *                     are several data points for a per-unit price, and nothing is saved from them.
+     * @param singleUnits a single unit's price is wanted (competitor and retail prices): drop listings
+     *                    sold as a lot, case or pack, and keep one listing per seller. Off for bulk lots
+     *                    on the buy side, which are divided down to a unit price first and where several
+     *                    lots from eBay are several data points.
      */
-    static List<Judged> judge(String query, String currency, List<Listing> listings, boolean onePerSeller) {
+    static List<Judged> judge(String query, String currency, List<Listing> listings, boolean singleUnits) {
         Set<String> words = words(query);
         List<Judged> out = new ArrayList<>();
         List<Integer> candidates = new ArrayList<>();
@@ -63,7 +66,9 @@ final class ListingFilter {
             } else if (match.compareTo(MIN_MATCH) < 0) {
                 out.add(new Judged(l, false, "Title matches too little of the item (" + pct(match) + " of its words)",
                         match));
-            } else if (onePerSeller && !sellers.add(seller(l))) {
+            } else if (singleUnits && multiUnit(l.title())) {
+                out.add(new Judged(l, false, "Sold as a lot or pack, not a single unit", match));
+            } else if (singleUnits && !sellers.add(seller(l))) {
                 out.add(new Judged(l, false, "Another listing from " + l.merchant() + " was kept", match));
             } else {
                 candidates.add(out.size());
@@ -101,6 +106,17 @@ final class ListingFilter {
         s = s.replaceFirst("^the\\s+", "").replaceFirst("^www\\.", "")
                 .replaceFirst("\\.(com|co\\.uk|net|org|us|biz|store|shop)$", "");
         return s.replaceAll("[^a-z0-9]", "");
+    }
+
+    private static final java.util.regex.Pattern MULTI_WORDS = java.util.regex.Pattern.compile(
+            "\\b(lot|lots|bulk|wholesale|case of|pack of|box of|bundle)\\b", java.util.regex.Pattern.CASE_INSENSITIVE);
+
+    /**
+     * A title selling more than one unit: a readable quantity ("10-pack", "case of 25"), or the words
+     * a lot is sold under even without one ("Ball Valve Lot").
+     */
+    static boolean multiUnit(String title) {
+        return title != null && (LotQuantity.parse(title) != null || MULTI_WORDS.matcher(title).find());
     }
 
     /** The query's meaningful words: three letters or more, or anything with a digit ("1/2", "3x4"). */

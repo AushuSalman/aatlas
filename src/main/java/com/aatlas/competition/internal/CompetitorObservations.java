@@ -56,6 +56,29 @@ class CompetitorObservations {
         return rows.size();
     }
 
+    /**
+     * The bulk-lot benchmark for buying ({@code buy_market_benchmarks}): median and lowest per-unit
+     * price of the lots a buy check kept, replacing the item's last one. Nothing is written for none.
+     */
+    @Transactional
+    void saveBulkBenchmark(UUID tenantId, UUID productId, LocalDate today, List<Listing> perUnitKept, String currency) {
+        if (perUnitKept.isEmpty()) {
+            return;
+        }
+        List<java.math.BigDecimal> prices = perUnitKept.stream().map(Listing::price).sorted().toList();
+        java.math.BigDecimal median = ListingFilter.median(prices);
+        String sources = String.join(",", perUnitKept.stream().map(Listing::provider).distinct().toList());
+        jdbc.update("""
+                insert into buy_market_benchmarks (tenant_id, product_id, kind, median_per_unit, low_per_unit, listings,
+                                                   sources, currency, observed_at)
+                values (?, ?, 'bulk-lots', ?, ?, ?, ?, ?, ?)
+                on conflict (tenant_id, product_id, kind) do update
+                    set median_per_unit = excluded.median_per_unit, low_per_unit = excluded.low_per_unit,
+                        listings = excluded.listings, sources = excluded.sources, currency = excluded.currency,
+                        observed_at = excluded.observed_at, updated_at = now()
+                """, tenantId, productId, median, prices.get(0), prices.size(), sources, currency, today);
+    }
+
     /** The latest observation per competitor within the anchor window, with where it came from. */
     @Transactional(readOnly = true)
     List<Stored> forItem(UUID tenantId, UUID productId, LocalDate today) {

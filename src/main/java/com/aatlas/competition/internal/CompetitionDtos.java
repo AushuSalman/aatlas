@@ -130,7 +130,7 @@ final class CompetitionDtos {
     /**
      * The buy side's check: what the item sells for at retail (the ceiling a supplier's price
      * should sit well under) and what it goes for per unit in bulk lots (a rough trade price).
-     * Nothing is saved - these are benchmarks for a purchase, not competitor sell prices.
+     * Retail is not saved; the bulk per-unit price is kept as the buying benchmark the buy recommendation reads.
      */
     record BuyCheck(String item, String description, String currency, Side retail, Side bulk) {
     }

@@ -4,7 +4,6 @@ import java.math.BigDecimal;
 import java.time.Duration;
 import java.util.List;
 import org.springframework.http.client.ClientHttpRequestFactory;
-import org.springframework.http.client.SimpleClientHttpRequestFactory;
 
 /**
  * One source of live competitor prices: a keyword search that returns priced listings.
@@ -59,10 +58,15 @@ interface ShoppingProvider {
         }
     }
 
-    /** The same timeouts every provider uses: a slow provider must not hold a bulk refresh. */
+    /**
+     * The same timeouts every provider uses: a slow provider must not hold a bulk refresh.
+     *
+     * <p>The JDK's {@code java.net.http} client, not {@code HttpURLConnection}: the older client
+     * drops the body of a 401, and a provider's error body is where it says why ("unauthorized_client").
+     */
     static ClientHttpRequestFactory requestFactory() {
-        var factory = new SimpleClientHttpRequestFactory();
-        factory.setConnectTimeout(Duration.ofSeconds(10));
+        var client = java.net.http.HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
+        var factory = new org.springframework.http.client.JdkClientHttpRequestFactory(client);
         factory.setReadTimeout(Duration.ofSeconds(30));
         return factory;
     }
