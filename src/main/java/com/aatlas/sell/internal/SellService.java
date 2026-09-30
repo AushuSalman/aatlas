@@ -303,17 +303,30 @@ public class SellService {
             throw ApiException.notFound("priceable line", itemNumber + "@" + storeId);
         }
         SellIntelDto intel = a.intel();
+        if (priceOverride != null && priceOverride.signum() <= 0) {
+            throw ApiException.badRequest("invalid_price", "A price must be more than zero.");
+        }
         BigDecimal applied = priceOverride != null ? priceOverride
                 : (a.check() != null && a.check().finalPrice() != null ? a.check().finalPrice() : intel.recommended());
+        boolean own = priceOverride != null;
 
-        double upliftPct = intel.upliftPct() == null ? 0 : intel.upliftPct().doubleValue();
+        // A price the person chose is judged as that price: the expected impact is the move from
+        // today's price to it, not to the recommendation they did not take.
+        BigDecimal current = intel.currentPrice();
+        double upliftPct = own && current != null && current.signum() > 0
+                ? (applied.doubleValue() / current.doubleValue() - 1) * 100
+                : intel.upliftPct() == null ? 0 : intel.upliftPct().doubleValue();
         double impactMonthly = SellEngine.runScenario(intel, upliftPct).profitDelta().doubleValue() / 12;
         var decisionScore = sell2.sellDecisionScore(intel, storeId);
+        BigDecimal marginPct = own && intel.cost() != null
+                ? BigDecimal.valueOf(round2((applied.doubleValue() - intel.cost().doubleValue()) / applied.doubleValue() * 100))
+                : intel.expectedMarginPct();
 
         RecordRequest req = new RecordRequest("sell", itemNumber, storeId, intel.storeLabel(), intel.recommended(),
                 applied, intel.monthlyUnits(), intel.cost(), intel.currentPrice(),
                 intel.name() + " at " + intel.storeLabel(), intel.currentPrice() + " -> " + applied
-                        + " margin " + intel.expectedMarginPct() + "% score " + decisionScore.total() + "/100",
+                        + (own ? " (own price; recommended " + intel.recommended() + ")" : "")
+                        + " margin " + marginPct + "% score " + decisionScore.total() + "/100",
                 BigDecimal.valueOf(Math.round(impactMonthly)), "/month", null);
         Recorded recorded = decisions.record(req);
 
