@@ -16,10 +16,12 @@ import java.util.UUID;
  * @param overrides only what differs from the defaults - what is stored
  * @param updatedAt absent while a tenant is still on the defaults and has never saved
  */
-@Schema(name = "PricingModel", description = "The registry, the tenant's effective settings and their overrides.")
+@Schema(name = "PricingModel", description = "The registry, the presets, the tenant's effective settings and their overrides.")
 record PricingModelView(
         List<GroupView> groups,
         List<ParameterView> parameters,
+        List<PresetView> presets,
+        String activePreset,
         Map<String, PricingModel.Setting> settings,
         Map<String, PricingModel.Setting> overrides,
         Summary summary,
@@ -31,11 +33,22 @@ record PricingModelView(
     record Summary(int on, int total) {
     }
 
+    /** A one-click preset: the overrides it applies on top of the defaults. */
+    @Schema(name = "PricingModelPreset")
+    record PresetView(String key, String label, String blurb, Map<String, PricingModel.Setting> settings) {
+
+        static PresetView of(PricingModel.Preset p) {
+            return new PresetView(p.key(), p.label(), p.blurb(), p.settings());
+        }
+    }
+
     static PricingModelView of(PricingModel.Config config, Instant updatedAt, UUID updatedBy) {
         int[] count = config.toggleCount();
         return new PricingModelView(
                 Arrays.stream(PricingModel.Group.values()).map(GroupView::of).toList(),
                 PricingModel.registry().stream().map(ParameterView::of).toList(),
+                PricingModel.presets().stream().map(PresetView::of).toList(),
+                config.activePreset(),
                 config.effective(),
                 config.overrides(),
                 new Summary(count[0], count[1]),

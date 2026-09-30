@@ -20,6 +20,11 @@ import java.util.Optional;
  * keyed by {@link Parameter#key}, and an override for a key that no longer exists is
  * dropped on read rather than failing.
  *
+ * <p>Labels and descriptions are written for the customer, not the engineer: they are what
+ * the settings screen, the Sell derivation and the "How we price" page show. The section of
+ * the pricing walkthrough each comes from is kept in {@link Parameter#doc} for the reader who
+ * wants the maths.
+ *
  * <p>The two guardrails every price is bounded by - the minimum-margin floor and the market
  * ceiling - are the tenant's guardrails ({@link Reference.Guardrails}) and are never part of
  * this list: nothing here can switch them off.
@@ -30,11 +35,12 @@ public final class PricingModel {
 
     /** The settings screen's sections, in order. */
     public enum Group {
-        MEASURE("measure", "Measure", "What the history says about this item before a price is composed."),
-        COMPOSE("compose", "Anchor and compose", "Where the two prices start from and how the profit tier is found."),
-        ADJUST("adjust", "Adjust", "Bounded nudges for demand, commodity, the local market and the phase-in."),
-        LEARN("learn", "Learn from your decisions", "What your own decision history is allowed to change."),
-        GUARD("guard", "Final checks", "What happens to every price before it leaves the model.");
+        MEASURE("measure", "What we learn from your sales", "How each item sells, before a price is worked out."),
+        COMPOSE("compose", "Where the price starts", "The starting point, and how the higher-margin price is found."),
+        ADJUST("adjust", "Small adjustments",
+                "Bounded nudges for demand, commodity costs and the local market, and moving to new prices gradually."),
+        LEARN("learn", "Learning from your decisions", "What your own pricing decisions are allowed to change."),
+        GUARD("guard", "Safety limits", "Checks every price passes before you see it.");
 
         private final String key;
         private final String label;
@@ -64,7 +70,7 @@ public final class PricingModel {
      *
      * @param parent the toggle this number belongs to, or null for a top-level parameter
      * @param unit what the number is in ("%", "orders", "days", "× cost", or "" for a bare ratio)
-     * @param doc the section of the pricing walkthrough this comes from, for the settings screen
+     * @param doc the section of the pricing walkthrough this comes from, for the reader who wants the maths
      */
     public record Parameter(String key, Group group, Type type, String label, String description,
             boolean defaultOn, BigDecimal defaultValue, BigDecimal min, BigDecimal max, String unit,
@@ -88,6 +94,19 @@ public final class PricingModel {
         public static Setting value(BigDecimal value) {
             return new Setting(null, value);
         }
+    }
+
+    /**
+     * A one-click set of overrides for people who do not want to tune knobs.
+     *
+     * @param settings the overrides on top of the defaults; empty for the recommended preset
+     */
+    public record Preset(String key, String label, String blurb, Map<String, Setting> settings) {
+
+        public static final String BALANCED = "balanced";
+        public static final String CAREFUL = "careful";
+        public static final String DIRECT = "direct";
+        public static final String CUSTOM = "custom";
     }
 
     // ---- keys -------------------------------------------------------------------------
@@ -140,144 +159,129 @@ public final class PricingModel {
 
     private static final List<Parameter> REGISTRY;
     private static final Map<String, Parameter> BY_KEY;
+    private static final List<Preset> PRESETS;
 
     static {
         List<Parameter> r = new ArrayList<>();
 
-        // ---- measure -------------------------------------------------------------------
-        toggle(r, ELASTICITY, Group.MEASURE, "Measured price sensitivity",
-                "Fit how fast this item's sales fall when its price rises, from your own invoice lines "
-                        + "(this branch, then the item, then its category), and blend it with the prior below. "
-                        + "Off: the prior alone.", true, null, "§3 step 2 and 4");
-        number(r, ELASTICITY_PRIOR, Group.MEASURE, "Prior elasticity",
-                "The sensitivity assumed before any measurement: −1 means a 1% price rise costs 1% of units.",
+        // ---- what we learn from your sales ----------------------------------------------
+        toggle(r, ELASTICITY, Group.MEASURE, "Learn how price-sensitive each item is",
+                "Uses your sales history to see how much demand drops when a price goes up. Off: every item is "
+                        + "treated as moderately sensitive.", true, null, "§3 step 2 and 4");
+        number(r, ELASTICITY_PRIOR, Group.MEASURE, "Starting assumption",
+                "−1 means a 1% price rise loses about 1% of sales. Used until an item has enough history of its own.",
                 "-1.2", "-3", "-0.1", "", ELASTICITY, "§3 step 4");
-        number(r, ELASTICITY_PRIOR_WEIGHT, Group.MEASURE, "Weight of the prior",
-                "How many measured months it takes to outweigh the prior. Higher means the measurement needs "
-                        + "more history before it is trusted.", "8", "0", "50", "obs", ELASTICITY, "§3 step 4");
-        toggle(r, SEGMENT, Group.MEASURE, "Regular or occasional headline",
-                "An item this branch sells often leads with the optimal (win) price; one it sells rarely leads "
-                        + "with the aggressive (profit) price. Off: always lead with the optimal price.",
-                true, null, "§3 step 3");
-        number(r, SEGMENT_REGULAR_MIN_ORDERS, Group.MEASURE, "Orders that make an item regular",
-                "Invoice lines at this branch in the last twelve months.", "5", "1", "50", "orders", SEGMENT,
-                "§3 step 3");
+        number(r, ELASTICITY_PRIOR_WEIGHT, Group.MEASURE, "History needed before the measurement is trusted",
+                "Roughly how many months of sales it takes to outweigh the starting assumption.", "8", "0", "50",
+                "months", ELASTICITY, "§3 step 4");
+        toggle(r, SEGMENT, Group.MEASURE, "Lead with the right price for how often an item sells",
+                "Items you sell often lead with the competitive price; items you sell rarely lead with the "
+                        + "higher-margin price. Off: always lead with the competitive price.", true, null, "§3 step 3");
+        number(r, SEGMENT_REGULAR_MIN_ORDERS, Group.MEASURE, "Orders a year that make an item a frequent seller",
+                "Invoice lines at the branch in the last twelve months.", "5", "1", "50", "orders", SEGMENT, "§3 step 3");
 
-        // ---- compose -------------------------------------------------------------------
-        toggle(r, ANCHOR_INTERNAL, Group.COMPOSE, "Anchor on your own branches",
-                "The win price starts from the median of what your other branches actually charge, when that "
-                        + "median is credible. A competitor median only nudges it, by half the gap and never more "
-                        + "than the cap. Off: the ladder - competitor median, else peer median, else cost over the "
-                        + "benchmark margin, else the last price.", true, null, "§3 step 8b");
-        number(r, ANCHOR_EXTERNAL_ADJUST_CAP, Group.COMPOSE, "Most a competitor price can move the anchor",
-                "Even a competitor 30% below you moves the baseline by this much at most.", "10", "0", "30", "%",
+        // ---- where the price starts -----------------------------------------------------
+        toggle(r, ANCHOR_INTERNAL, Group.COMPOSE, "Start from what your other branches charge",
+                "The typical price across your other branches is the starting point, and competitor prices can "
+                        + "only nudge it a little. Off: start from competitor prices when there are any, then your "
+                        + "branches, then a margin on cost.", true, null, "§3 step 8b");
+        number(r, ANCHOR_EXTERNAL_ADJUST_CAP, Group.COMPOSE, "Most a competitor price can move the start",
+                "Even a competitor far below you moves the starting point by this much at most.", "10", "0", "30", "%",
                 ANCHOR_INTERNAL, "§3 step 8b");
-        number(r, ANCHOR_EXTERNAL_DIVERGENCE, Group.COMPOSE, "Ignore a competitor price further away than",
-                "A gap this wide against your own realised prices is more often a bad product match than a real "
-                        + "market.", "30", "5", "100", "%", ANCHOR_INTERNAL, "§3 step 8b");
+        number(r, ANCHOR_EXTERNAL_DIVERGENCE, Group.COMPOSE, "Ignore competitor prices further away than",
+                "A price this far from your own is more likely a different product than a real market price.", "30",
+                "5", "100", "%", ANCHOR_INTERNAL, "§3 step 8b");
         toggle(r, COMPETITORS, Group.COMPOSE, "Use competitor prices",
-                "Observed competitor prices - imported, entered or fetched live - take part in the anchor and the "
-                        + "ceiling. Off: priced from your own history and the benchmarks only.", true, null,
-                "§3 step 7");
-        toggle(r, COMPETITORS_PLAUSIBILITY, Group.COMPOSE, "Drop implausible competitor prices",
-                "A competitor median under half or over twice your minimum-margin price is ignored.", true,
+                "Prices you imported, entered or fetched live count toward the starting point and the ceiling. "
+                        + "Off: priced from your own history and the benchmarks only.", true, null, "§3 step 7");
+        toggle(r, COMPETITORS_PLAUSIBILITY, Group.COMPOSE, "Ignore competitor prices that look wrong",
+                "A competitor price under half or over twice your minimum-margin price is left out.", true,
                 COMPETITORS, "§3 step 7");
-        toggle(r, BLEND_OWN_PRICE, Group.COMPOSE, "Blend the anchor with your own last price",
-                "On the ladder, the anchor is weighted against the price this branch last sold at: competitor "
-                        + "60/40, peer 50/50, benchmark 35/65. Off: the anchor alone.", true, null, "single-item step 2");
-        toggle(r, AGGRESSIVE_PROFIT_MAX, Group.COMPOSE, "Profit-max aggressive tier",
-                "The aggressive price is the point on the item's demand curve that earns the most per order, "
-                        + "pulled back toward safety when the sensitivity is uncertain. Off: a 4-15% step above the "
-                        + "optimal price.", true, null, "§3 step 8a");
-        number(r, AGGRESSIVE_RISK_AVERSION, Group.COMPOSE, "Risk aversion",
-                "How much a shaky sensitivity pulls the profit price back from the theoretical peak. 0 takes the "
-                        + "peak; 1 subtracts one standard deviation of profit.", "1", "0", "3", "", AGGRESSIVE_PROFIT_MAX,
-                "§3 step 8a");
-        toggle(r, TIER_GAP, Group.COMPOSE, "Keep a gap between the two tiers",
-                "The aggressive price sits at least this far above the optimal price: a base gap plus more for a "
-                        + "contested item (many competitors, price-sensitive). Fitted inside the guardrails, never by "
-                        + "widening them.", true, null, "§3 step 8e and 10");
-        number(r, TIER_GAP_BASE, Group.COMPOSE, "Base gap", "", "3", "0", "15", "%", TIER_GAP, "§3 step 8e");
-        number(r, TIER_GAP_CONTESTED, Group.COMPOSE, "Extra gap for a fully contested item", "", "15", "0", "40",
-                "%", TIER_GAP, "§3 step 8e");
+        toggle(r, BLEND_OWN_PRICE, Group.COMPOSE, "Blend in your own last price",
+                "When the start comes from competitors or benchmarks, your branch's last selling price is mixed "
+                        + "in so prices do not jump. Off: use the market figure alone.", true, null, "single-item step 2");
+        toggle(r, AGGRESSIVE_PROFIT_MAX, Group.COMPOSE, "Find the most profitable higher price",
+                "Works out the price that earns the most per order from the item's demand curve, playing safe "
+                        + "when the sensitivity is uncertain. Off: the higher price is a fixed step above the "
+                        + "competitive one.", true, null, "§3 step 8a");
+        number(r, AGGRESSIVE_RISK_AVERSION, Group.COMPOSE, "How cautious to be when unsure",
+                "0 goes straight for the peak; 1 pulls back by one measure of uncertainty; higher pulls back more.",
+                "1", "0", "3", "", AGGRESSIVE_PROFIT_MAX, "§3 step 8a");
+        toggle(r, TIER_GAP, Group.COMPOSE, "Keep the two prices clearly apart",
+                "The higher price always sits a set distance above the competitive one, more so for hotly "
+                        + "contested items. Off: the two may come out the same.", true, null, "§3 step 8e and 10");
+        number(r, TIER_GAP_BASE, Group.COMPOSE, "Minimum gap", "", "3", "0", "15", "%", TIER_GAP, "§3 step 8e");
+        number(r, TIER_GAP_CONTESTED, Group.COMPOSE, "Extra gap for a hotly contested item",
+                "Added in full when an item has many competitors and price-sensitive buyers.", "15", "0", "40", "%",
+                TIER_GAP, "§3 step 8e");
 
-        // ---- adjust --------------------------------------------------------------------
-        toggle(r, DEMAND, Group.ADJUST, "Demand nudge",
-                "An item selling faster than its own normal pace moves up, slower moves down, scaled by how much "
-                        + "evidence there is. Held when the newest sale is older than the age limit.", true, null,
+        // ---- small adjustments ----------------------------------------------------------
+        toggle(r, DEMAND, Group.ADJUST, "Adjust for how fast it is selling",
+                "An item selling faster than usual moves up a little, slower moves down a little. Ignored when the "
+                        + "last sale is too old to trust.", true, null, "§3 step 9");
+        number(r, DEMAND_MAX_MOVE, Group.ADJUST, "Most this can change a price", "", "3", "0", "10", "%", DEMAND,
                 "§3 step 9");
-        number(r, DEMAND_MAX_MOVE, Group.ADJUST, "Most demand can move a price", "", "3", "0", "10", "%", DEMAND,
-                "§3 step 9");
-        number(r, DEMAND_MAX_AGE_DAYS, Group.ADJUST, "Hold when the last sale is older than", "", "45", "7", "365",
+        number(r, DEMAND_MAX_AGE_DAYS, Group.ADJUST, "Ignore when the last sale is older than", "", "45", "7", "365",
                 "days", DEMAND, "§3 step 9");
-        toggle(r, COMMODITY, Group.ADJUST, "Commodity pass-through",
-                "A share of the item's commodity index move over ninety days (copper, plastics pipe, steel) "
-                        + "reaches the price.", true, null, "single-item step 4");
-        number(r, COMMODITY_PASS_THROUGH, Group.ADJUST, "Share of the index move passed through", "", "25", "0",
-                "100", "%", COMMODITY, "single-item step 4");
-        toggle(r, LOCAL_MARKET, Group.ADJUST, "Local market",
-                "Regional price parity of the branch's metro, read as how contested the local market is: a dearer, "
-                        + "denser metro lowers the win price; a cheaper one supports a higher price.", true, null,
+        toggle(r, COMMODITY, Group.ADJUST, "Follow commodity costs",
+                "Part of a rise or fall in the item's raw material, such as copper or steel, is passed into the price.",
+                true, null, "single-item step 4");
+        number(r, COMMODITY_PASS_THROUGH, Group.ADJUST, "Share of the commodity move passed on", "", "25", "0", "100",
+                "%", COMMODITY, "single-item step 4");
+        toggle(r, LOCAL_MARKET, Group.ADJUST, "Adjust for the local market",
+                "A pricier, more crowded area gets a slightly lower competitive price; a cheaper area supports a "
+                        + "slightly higher one.", true, null, "§3 step 8c");
+        number(r, LOCAL_MARKET_WEIGHT, Group.ADJUST, "How strongly the local index counts",
+                "100 passes the whole difference through; 55 passes about half.", "55", "0", "100", "%", LOCAL_MARKET,
                 "§3 step 8c");
-        number(r, LOCAL_MARKET_WEIGHT, Group.ADJUST, "Weight on the regional index",
-                "100 passes the whole index gap through; 55 passes a little over half.", "55", "0", "100", "%",
-                LOCAL_MARKET, "§3 step 8c");
-        toggle(r, TRUST_RAMP, Group.ADJUST, "Phase prices in",
-                "Both prices start near today's price and move toward their targets as this item builds a track "
-                        + "record at this branch - the decisions you have already applied. Off: the targets are "
-                        + "quoted at once.", true, null, "§3 step 8d");
-        number(r, TRUST_RAMP_HALF_POINT, Group.ADJUST, "Decisions to reach halfway",
-                "With this many prior decisions for the item at the branch the price is halfway to its target.",
-                "12", "1", "60", "decisions", TRUST_RAMP, "§3 step 8d");
-        number(r, TRUST_RAMP_LAUNCH, Group.ADJUST, "Starting point with no track record",
-                "How far toward the target a brand-new item at a branch is quoted; the ramp never falls below it.",
-                "25", "0", "100", "%", TRUST_RAMP, "§3 step 8d");
-        number(r, TRUST_RAMP_WOBBLE, Group.ADJUST, "Wobble",
-                "A small, reproducible variation around the ramp so prices do not march up in lockstep. 0 turns "
-                        + "it off.", "15", "0", "30", "%", TRUST_RAMP, "§3 step 8d");
+        toggle(r, TRUST_RAMP, Group.ADJUST, "Move to new prices gradually",
+                "Prices start near today's and move toward the target as you apply decisions for that item at "
+                        + "that branch. Off: the full target is shown at once.", true, null, "§3 step 8d");
+        number(r, TRUST_RAMP_HALF_POINT, Group.ADJUST, "Decisions to get halfway to the target", "", "12", "1", "60",
+                "decisions", TRUST_RAMP, "§3 step 8d");
+        number(r, TRUST_RAMP_LAUNCH, Group.ADJUST, "Starting point for a new item",
+                "How far toward the target an item with no decisions yet is priced.", "25", "0", "100", "%",
+                TRUST_RAMP, "§3 step 8d");
+        number(r, TRUST_RAMP_WOBBLE, Group.ADJUST, "Variation",
+                "A small, repeatable variation so prices do not all step up in lockstep. 0 turns it off.", "15", "0",
+                "30", "%", TRUST_RAMP, "§3 step 8d");
 
-        // ---- learn ---------------------------------------------------------------------
-        toggle(r, LEARNING, Group.LEARN, "Learn from your decisions",
-                "When you keep applying prices above or below what was suggested - for this item at this branch, "
-                        + "else the item anywhere, else across the business - the next suggestion leans that way, "
-                        + "within the band below. The lean is re-derived from the raw decisions each time, so it "
-                        + "cannot ratchet.", true, null, "§3 step 9b");
-        number(r, LEARNING_MAX_MOVE, Group.LEARN, "Most your decisions can move a price", "", "2", "0", "10", "%",
-                LEARNING, "§3 step 9b");
+        // ---- learning from your decisions ----------------------------------------------
+        toggle(r, LEARNING, Group.LEARN, "Learn from the prices you actually apply",
+                "If you keep applying prices above or below what was suggested, the next suggestion leans that "
+                        + "way, within a small limit.", true, null, "§3 step 9b");
+        number(r, LEARNING_MAX_MOVE, Group.LEARN, "Most this can change a price", "", "2", "0", "10", "%", LEARNING,
+                "§3 step 9b");
         number(r, LEARNING_MIN_DECISIONS, Group.LEARN, "Decisions needed before it counts", "", "3", "1", "20",
                 "decisions", LEARNING, "§3 step 9b");
-        number(r, LEARNING_WINDOW_DAYS, Group.LEARN, "Look back", "", "180", "30", "730", "days", LEARNING,
+        number(r, LEARNING_WINDOW_DAYS, Group.LEARN, "Look back over", "", "180", "30", "730", "days", LEARNING,
                 "§3 step 9b");
-        number(r, LEARNING_HALF_LIFE_DAYS, Group.LEARN, "A decision's weight halves every", "", "60", "7", "365",
-                "days", LEARNING, "§3 step 9b");
-        number(r, LEARNING_DEADBAND, Group.LEARN, "Ignore a lean smaller than",
-                "A split verdict is not a verdict: the price holds while your deviation stays inside this.", "1",
-                "0", "10", "%", LEARNING, "§3 step 9b");
-        toggle(r, LEARNING_STRATEGY, Group.LEARN, "Follow your usual strategy",
-                "If the bulk basket strategy you pick most is max profit, lead with the aggressive tier; if it is "
-                        + "fast movement or balanced, lead with the optimal tier.", true, LEARNING, "§1");
+        number(r, LEARNING_HALF_LIFE_DAYS, Group.LEARN, "Older decisions count half as much after", "", "60", "7",
+                "365", "days", LEARNING, "§3 step 9b");
+        number(r, LEARNING_DEADBAND, Group.LEARN, "Ignore differences smaller than", "", "1", "0", "10", "%",
+                LEARNING, "§3 step 9b");
+        toggle(r, LEARNING_STRATEGY, Group.LEARN, "Lead with the price you usually choose",
+                "If you mostly pick max profit in the bulk basket, the higher price leads; otherwise the "
+                        + "competitive one does.", true, LEARNING, "§1");
 
-        // ---- guard ---------------------------------------------------------------------
-        toggle(r, CORRIDOR_HISTORY, Group.GUARD, "Corridor from the prices this item really carried",
-                "The target floor is the lower quartile of the prices this item sold at (never under the "
-                        + "minimum-margin floor), and its upper quartile joins the ceiling candidates. Shrunk toward "
-                        + "the hard floor with fewer observations than the minimum.", true, null, "§3 step 6");
-        number(r, CORRIDOR_MIN_OBSERVATIONS, Group.GUARD, "Observations to trust the corridor", "", "8", "1", "50",
-                "obs", CORRIDOR_HISTORY, "§3 step 6");
-        toggle(r, CEILING_PLAUSIBILITY, Group.GUARD, "Plausibility cap on the ceiling",
-                "No ceiling above a multiple of cost, whatever the peers or competitors say.", true, null,
-                "§3 step 6b");
+        // ---- safety limits --------------------------------------------------------------
+        toggle(r, CORRIDOR_HISTORY, Group.GUARD, "Stay within the prices this item has sold at",
+                "The target floor is the lower end of what the item has actually sold for, and its upper end "
+                        + "counts toward the ceiling. Trusted less with only a few sales.", true, null, "§3 step 6");
+        number(r, CORRIDOR_MIN_OBSERVATIONS, Group.GUARD, "Sales needed to trust this", "", "8", "1", "50", "sales",
+                CORRIDOR_HISTORY, "§3 step 6");
+        toggle(r, CEILING_PLAUSIBILITY, Group.GUARD, "Never price above a multiple of cost",
+                "Whatever competitors or branches charge, the ceiling stops here.", true, null, "§3 step 6b");
         number(r, CEILING_COST_MULTIPLE, Group.GUARD, "Ceiling at most", "", "4", "1.5", "10", "× cost",
                 CEILING_PLAUSIBILITY, "§3 step 6b");
-        toggle(r, MOVE_CAP, Group.GUARD, "Limit the move per run",
+        toggle(r, MOVE_CAP, Group.GUARD, "Limit how far a price moves at once",
                 "Neither price moves further than this from today's price in one go. The minimum-margin floor "
-                        + "and the market ceiling outrank it: an item that must fall further to get under the "
-                        + "ceiling is allowed to.", true, null, "§3 step 10");
-        number(r, MOVE_CAP_MAX_PCT, Group.GUARD, "Most a price moves per run", "", "25", "5", "100", "%",
-                MOVE_CAP, "§3 step 10");
-        toggle(r, ROUNDING, Group.GUARD, "Round to retail price points",
-                "0.01 under $10, 0.05 under $100, 0.50 under $1,000, else 1.00 - rounded back inside the band.",
-                true, null, "single-item step 8");
+                        + "and the market ceiling still come first.", true, null, "§3 step 10");
+        number(r, MOVE_CAP_MAX_PCT, Group.GUARD, "Most a price moves at once", "", "25", "5", "100", "%", MOVE_CAP,
+                "§3 step 10");
+        toggle(r, ROUNDING, Group.GUARD, "Round to tidy price points",
+                "Whole cents under $10, five cents under $100, fifty cents under $1,000, then whole dollars.", true,
+                null, "single-item step 8");
 
         REGISTRY = Collections.unmodifiableList(r);
         Map<String, Parameter> byKey = new LinkedHashMap<>();
@@ -299,6 +303,33 @@ public final class PricingModel {
             }
         }
         BY_KEY = Collections.unmodifiableMap(byKey);
+
+        // ---- presets ------------------------------------------------------------------------
+        List<Preset> presets = new ArrayList<>();
+        presets.add(new Preset(Preset.BALANCED, "Recommended",
+                "Every step on with the standard settings. Right for most businesses.", Map.of()));
+        Map<String, Setting> careful = new LinkedHashMap<>();
+        careful.put(MOVE_CAP_MAX_PCT, Setting.value(new BigDecimal("10")));
+        careful.put(DEMAND_MAX_MOVE, Setting.value(new BigDecimal("2")));
+        careful.put(LEARNING_MAX_MOVE, Setting.value(new BigDecimal("1")));
+        careful.put(ANCHOR_EXTERNAL_ADJUST_CAP, Setting.value(new BigDecimal("5")));
+        careful.put(TRUST_RAMP_LAUNCH, Setting.value(new BigDecimal("15")));
+        careful.put(TRUST_RAMP_HALF_POINT, Setting.value(new BigDecimal("20")));
+        presets.add(new Preset(Preset.CAREFUL, "Careful",
+                "Prices move in smaller steps and take longer to reach their targets. Good while you are getting "
+                        + "used to the recommendations.", Collections.unmodifiableMap(careful)));
+        Map<String, Setting> direct = new LinkedHashMap<>();
+        direct.put(TRUST_RAMP, Setting.on(false));
+        direct.put(LEARNING, Setting.on(false));
+        presets.add(new Preset(Preset.DIRECT, "Straight to target",
+                "Shows the full target price at once and does not lean on your past decisions. Good for a price "
+                        + "review where you want the model's own answer.", Collections.unmodifiableMap(direct)));
+        for (Preset p : presets) {
+            if (!Config.of(p.settings()).overrides().equals(normalisedOverrides(p.settings()))) {
+                throw new IllegalStateException("Preset " + p.key() + " names a parameter it cannot set");
+            }
+        }
+        PRESETS = Collections.unmodifiableList(presets);
     }
 
     private PricingModel() {
@@ -315,6 +346,15 @@ public final class PricingModel {
                 new BigDecimal(min), new BigDecimal(max), unit, parent, doc));
     }
 
+    /** A preset's settings as {@link Config#of} would keep them: every key it names must survive. */
+    private static Map<String, Setting> normalisedOverrides(Map<String, Setting> raw) {
+        Map<String, Setting> out = new LinkedHashMap<>();
+        for (Map.Entry<String, Setting> e : raw.entrySet()) {
+            out.put(e.getKey(), e.getValue());
+        }
+        return out;
+    }
+
     /** Every parameter, in display order. */
     public static List<Parameter> registry() {
         return REGISTRY;
@@ -322,6 +362,15 @@ public final class PricingModel {
 
     public static Optional<Parameter> parameter(String key) {
         return Optional.ofNullable(key == null ? null : BY_KEY.get(key.strip()));
+    }
+
+    /** The one-click presets, in display order; the first is the defaults. */
+    public static List<Preset> presets() {
+        return PRESETS;
+    }
+
+    public static Optional<Preset> preset(String key) {
+        return PRESETS.stream().filter(p -> p.key().equals(key)).findFirst();
     }
 
     // ---- config -----------------------------------------------------------------------
@@ -440,6 +489,36 @@ public final class PricingModel {
                 }
             }
             return new int[] {on, total};
+        }
+
+        /** The preset these overrides are exactly, or {@link Preset#CUSTOM}. */
+        public String activePreset() {
+            for (Preset p : PRESETS) {
+                if (sameSettings(Config.of(p.settings()).overrides(), overrides)) {
+                    return p.key();
+                }
+            }
+            return Preset.CUSTOM;
+        }
+
+        private static boolean sameSettings(Map<String, Setting> a, Map<String, Setting> b) {
+            if (a.size() != b.size()) {
+                return false;
+            }
+            for (Map.Entry<String, Setting> e : a.entrySet()) {
+                Setting other = b.get(e.getKey());
+                if (other == null) {
+                    return false;
+                }
+                Setting mine = e.getValue();
+                boolean onSame = mine.on() == null ? other.on() == null : mine.on().equals(other.on());
+                boolean valueSame = mine.value() == null ? other.value() == null
+                        : other.value() != null && mine.value().compareTo(other.value()) == 0;
+                if (!onSame || !valueSame) {
+                    return false;
+                }
+            }
+            return true;
         }
 
         @Override

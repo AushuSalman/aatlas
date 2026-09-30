@@ -186,4 +186,31 @@ class PricingModelTest {
         assertThat(PricingModel.Config.of(null)).isSameAs(PricingModel.Config.defaults());
         assertThat(PricingModel.Config.of(Map.of())).isSameAs(PricingModel.Config.defaults());
     }
+
+    @Test
+    @DisplayName("presets: three, the first is the defaults, every key they name is a real parameter")
+    void presets() {
+        assertThat(PricingModel.presets()).extracting(PricingModel.Preset::key)
+                .containsExactly(PricingModel.Preset.BALANCED, PricingModel.Preset.CAREFUL, PricingModel.Preset.DIRECT);
+        assertThat(PricingModel.presets().get(0).settings()).isEmpty();
+        for (PricingModel.Preset p : PricingModel.presets()) {
+            for (String key : p.settings().keySet()) {
+                assertThat(PricingModel.parameter(key)).as(p.key() + " names " + key).isPresent();
+            }
+            // Applying a preset and reading it back names that preset.
+            assertThat(PricingModel.Config.of(p.settings()).activePreset()).isEqualTo(p.key());
+        }
+    }
+
+    @Test
+    @DisplayName("activePreset is custom for any other mix, and balanced for the defaults")
+    void activePreset() {
+        assertThat(PricingModel.Config.defaults().activePreset()).isEqualTo(PricingModel.Preset.BALANCED);
+        Map<String, PricingModel.Setting> mix = new LinkedHashMap<>(PricingModel.preset(PricingModel.Preset.CAREFUL)
+                .orElseThrow().settings());
+        mix.put(PricingModel.ROUNDING, PricingModel.Setting.on(false));
+        assertThat(PricingModel.Config.of(mix).activePreset()).isEqualTo(PricingModel.Preset.CUSTOM);
+        assertThat(PricingModel.Config.of(Map.of(PricingModel.DEMAND, PricingModel.Setting.on(false))).activePreset())
+                .isEqualTo(PricingModel.Preset.CUSTOM);
+    }
 }
