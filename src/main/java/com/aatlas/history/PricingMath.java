@@ -213,6 +213,8 @@ public final class PricingMath {
      * @param ownRef the pair's own last sale price, nullable
      * @param ladderAnchor the ladder's own anchor, used only as the last rung of the legacy path
      * @param competitorMedian the competitor anchor, nullable; {@code competitorCount} rows behind it
+     * @param competitorLow/competitorHigh the lowest and highest of those rows, nullable: whether the
+     *     competitors agree with each other is what makes a far-away market believable
      * @param peerQ2 the median of the other branches' medians; {@code peerStores} of them
      * @param bandQ1/bandQ3 the item's own price quartiles over twelve months; {@code bandN} lines
      * @param demand nullable
@@ -225,7 +227,8 @@ public final class PricingMath {
      * @param rampSalt what the ramp's wobble hashes: item, branch and month
      */
     public record Inputs(BigDecimal cost, BigDecimal currentPrice, BigDecimal ownRef, Anchor ladderAnchor,
-            BigDecimal competitorMedian, int competitorCount, BigDecimal peerQ2, BigDecimal peerQ3, int peerStores,
+            BigDecimal competitorMedian, int competitorCount, BigDecimal competitorLow, BigDecimal competitorHigh,
+            BigDecimal peerQ2, BigDecimal peerQ3, int peerStores,
             BigDecimal bandQ1, BigDecimal bandQ3, long bandN, Demand demand, LocalDate lastSale, LocalDate today,
             BigDecimal commodityPct90, BigDecimal rpp, SalesHistory.Elasticity elasticity, long ordersAtStore,
             BigDecimal benchmarkTargetMarginPct, Reference.Guardrails guardrails, Track track, String rampSalt) {
@@ -275,6 +278,8 @@ public final class PricingMath {
         public static final String FLAG_CONSTRAINT_CONFLICT = "constraint_conflict";
         public static final String FLAG_TIER_GAP_INFEASIBLE = "tier_gap_infeasible";
         public static final String FLAG_COMPETITOR_IMPLAUSIBLE = "competitor_implausible";
+        /** Several competitors agree with each other far from this price: the recommendation follows them. */
+        public static final String FLAG_MARKET_GAP = "market_gap";
         public static final String FLAG_CEILING_AT_FLOOR = "ceiling_at_floor";
     }
 
@@ -369,6 +374,8 @@ public final class PricingMath {
         boolean competitorsOn = cfg.on(PricingModel.COMPETITORS);
         BigDecimal cm = competitorsOn ? positive(in.competitorMedian()) : null;
         int cc = cm == null ? 0 : Math.max(1, in.competitorCount());
+        BigDecimal cLow = cm == null ? null : positive(in.competitorLow());
+        BigDecimal cHigh = cm == null ? null : positive(in.competitorHigh());
         String competitorNote;
         // Plausible against what the item actually sells for: today's price, else the other branches'
         // median, and only with neither the minimum-margin price. Judging it against the margin floor
@@ -377,17 +384,64 @@ public final class PricingMath {
         BigDecimal plausibleRef = p0 != null ? p0 : positive(in.peerQ2()) != null ? positive(in.peerQ2()) : hardFloor;
         String plausibleWhat = p0 != null ? "your price today" : positive(in.peerQ2()) != null
                 ? "your other branches' median" : "your minimum-margin price";
-        if (cm != null && cfg.on(PricingModel.COMPETITORS_PLAUSIBILITY) && plausibleRef != null
+        // Several competitors that agree with each other are a market, however far from this price:
+        // an item on file at $3 whose live check finds three listings at $68-$72 is underpriced, not
+        // mismatched. A lone price, or prices that disagree among themselves, is judged for plausibility.
+        int minAgreeing = (int) cfg.number(PricingModel.COMPETITORS_MARKET_GAP_MIN_AGREEING);
+        double agreement = cfg.number(PricingModel.COMPETITORS_MARKET_GAP_AGREEMENT) / 100;
+        boolean competitorsAgree = cm != null && cc >= minAgreeing
+                && (cLow == null || cHigh == null || cHigh.doubleValue() <= cLow.doubleValue() * (1 + agreement));
+        boolean marketGapOn = cfg.on(PricingModel.COMPETITORS_MARKET_GAP);
+        boolean marketGap = false;
+        double gapPct = 0;
+        if (cm != null && plausibleRef != null) {
+            gapPct = (cm.doubleValue() / plausibleRef.doubleValue() - 1) * 100;
+        }
+        if (cm != null && marketGapOn && competitorsAgree && plausibleRef != null
+                && Math.abs(gapPct) > cfg.number(PricingModel.COMPETITORS_MARKET_GAP_THRESHOLD)) {
+            marketGap = true;
+        }
+        String spread = cLow != null && cHigh != null && cLow.compareTo(cHigh) != 0
+                ? " (from " + money2(cLow) + " to " + money2(cHigh) + ")" : "";
+        // Why the market does not lead, judged before a lone price is dropped below.
+        String noGapReason = cm == null ? "No usable competitor prices."
+                : !competitorsAgree && cc < minAgreeing ? "Only " + cc + " competitor price" + (cc == 1 ? "" : "s")
+                        + "; " + minAgreeing + " that agree are needed before the market can lead."
+                : !competitorsAgree ? "Competitor prices disagree with each other" + spread + ", so no single market leads."
+                : "Competitors agree with your price (" + fmt(Math.abs(gapPct), 0) + "% away); the usual chain applies.";
+        // Agreeing competitors are exempt from the plausibility gate only while the market-gap step is
+        // on; with it off, a far-away set is what the customer asked to treat as a wrong match.
+        if (cm != null && !(marketGapOn && competitorsAgree) && cfg.on(PricingModel.COMPETITORS_PLAUSIBILITY)
+                && plausibleRef != null
                 && (cm.compareTo(times(plausibleRef, 0.5)) < 0 || cm.compareTo(times(plausibleRef, 2)) > 0)) {
             r.flags.add(Recommendation.FLAG_COMPETITOR_IMPLAUSIBLE);
-            competitorNote = "Competitor median " + money2(cm) + " is outside half to twice " + plausibleWhat + " ("
-                    + money2(plausibleRef) + "), more likely a different product or pack than a market; ignored.";
+            competitorNote = (cc <= 1 ? "A lone competitor price " : "Competitor prices that disagree with each other"
+                    + spread + ", median ") + money2(cm) + ", outside half to twice " + plausibleWhat + " ("
+                    + money2(plausibleRef) + "): more likely a different product or pack than a market; ignored.";
             cm = null;
             cc = 0;
+            cLow = null;
+            cHigh = null;
+        } else if (cm != null && marketGap) {
+            competitorNote = cc + " competitors agree at around " + money2(cm) + spread + "; " + plausibleWhat + " "
+                    + money2(plausibleRef) + " is " + fmt(Math.abs(gapPct), 0) + "% " + (gapPct > 0 ? "under" : "over")
+                    + " them. That is a market, so the recommendation follows it.";
         } else if (cm != null) {
-            competitorNote = "Median " + money2(cm) + " over " + cc + " competitor" + (cc == 1 ? "" : "s") + ".";
+            competitorNote = "Median " + money2(cm) + " over " + cc + " competitor" + (cc == 1 ? "" : "s") + spread + ".";
         } else {
             competitorNote = competitorsOn ? "No competitor prices on file for this item." : "Competitor prices are off.";
+        }
+        String marketGapStatus;
+        String marketGapNote;
+        if (!marketGapOn) {
+            marketGapStatus = Step.OFF;
+            marketGapNote = "Off; competitors far from your price are treated as a wrong match.";
+        } else if (marketGap) {
+            marketGapStatus = Step.APPLIED;
+            marketGapNote = competitorNote;
+        } else {
+            marketGapStatus = Step.SKIPPED;
+            marketGapNote = noGapReason;
         }
 
         // ---- 5. anchor: the internal baseline, else the ladder ----------------------------
@@ -401,7 +455,23 @@ public final class PricingMath {
         String externalRole = "absent";
         String anchorNote;
         boolean ladderCompetitorAnchor = false;
-        if (cfg.on(PricingModel.ANCHOR_INTERNAL) && internalCredible) {
+        if (marketGap) {
+            // The market leads: the competitors' median, a touch under, and nothing of our own blended
+            // in - our own price is exactly what the market disagrees with.
+            double undercut = cfg.number(PricingModel.COMPETITORS_MARKET_GAP_UNDERCUT) / 100;
+            anchorSource = Anchor.COMPETITOR;
+            anchorValue = cm;
+            anchorWeight = WEIGHT_COMPETITOR;
+            r.win = times(cm, 1 - undercut);
+            ladderCompetitorAnchor = true;
+            externalRole = "market_gap";
+            r.flags.add(Recommendation.FLAG_MARKET_GAP);
+            anchorNote = "Priced to the market: " + cc + " competitors agree at around " + money2(cm) + "; "
+                    + fmt(undercut * 100, 0) + "% under their median = " + money2(r.win) + ". "
+                    + capitalize(plausibleWhat) + " " + money2(plausibleRef) + " is " + fmt(Math.abs(gapPct), 0) + "% "
+                    + (gapPct > 0 ? "under" : "over") + " them, so it is not blended in"
+                    + (internalCredible ? " and your other branches' median " + money2(peerQ2) + " is set aside" : "") + ".";
+        } else if (cfg.on(PricingModel.ANCHOR_INTERNAL) && internalCredible) {
             anchorSource = "internal-peer";
             anchorValue = peerQ2;
             anchorWeight = 1;
@@ -491,6 +561,7 @@ public final class PricingMath {
                         : "Off; the optimal price leads.");
         r.step(PricingModel.COMPETITORS, "Competitor prices", cm != null ? Step.APPLIED
                 : competitorsOn ? Step.SKIPPED : Step.OFF, competitorNote);
+        r.step(PricingModel.COMPETITORS_MARKET_GAP, "Market gap", marketGapStatus, marketGapNote);
         r.step(PricingModel.ANCHOR_INTERNAL, "Anchor", Step.APPLIED, anchorNote);
 
         // ---- 6. corridor -----------------------------------------------------------------
@@ -499,7 +570,11 @@ public final class PricingMath {
         boolean corridorOn = cfg.on(PricingModel.CORRIDOR_HISTORY);
         BigDecimal bandQ1 = positive(in.bandQ1());
         BigDecimal bandQ3 = positive(in.bandQ3());
-        if (corridorOn && hardFloor != null && bandQ1 != null) {
+        if (corridorOn && marketGap) {
+            corridorNote = "Market gap: the corridor from this item's own price history is set aside - it is what the "
+                    + "market disagrees with. The hard floor " + (hardFloor == null ? "is unknown" : money2(hardFloor))
+                    + " is the target floor.";
+        } else if (corridorOn && hardFloor != null && bandQ1 != null) {
             BigDecimal markupFloor = max(hardFloor, bandQ1);
             double minObs = cfg.number(PricingModel.CORRIDOR_MIN_OBSERVATIONS);
             if (in.bandN() < minObs) {
@@ -545,7 +620,7 @@ public final class PricingMath {
             ceiling = p0;
             ceilingSource = "today's price (no market evidence)";
         }
-        if (cost != null && cfg.on(PricingModel.CEILING_PLAUSIBILITY)) {
+        if (cost != null && cfg.on(PricingModel.CEILING_PLAUSIBILITY) && !marketGap) {
             BigDecimal cap = times(cost, cfg.number(PricingModel.CEILING_COST_MULTIPLE));
             if (ceiling.compareTo(cap) > 0) {
                 ceiling = cap;
@@ -587,10 +662,21 @@ public final class PricingMath {
             profitNote = (profitMaxOn ? "No cost on file; " : "Off; ") + "a step above the optimal price ("
                     + fmt(aggressiveStep(e) * 100, 0) + "%) capped at the ceiling.";
         }
+        if (marketGap && r.profit.compareTo(r.win) < 0) {
+            // The demand curve is anchored on a price the market has just contradicted, so its
+            // peak cannot cap the market-led win price; the aggressive tier starts at the win
+            // price and the tier gap lifts it from there.
+            profitNote += " Below the market-led price " + money2(r.win) + ", so the aggressive tier starts there.";
+            r.profit = r.win;
+        }
         r.step(PricingModel.AGGRESSIVE_PROFIT_MAX, "Profit-max target", profitStatus, profitNote);
 
         // ---- 8. clip the win target into the corridor ------------------------------------
-        r.win = clamp(r.win, targetFloor, max(r.profit, targetFloor));
+        if (!marketGap) {
+            r.win = clamp(r.win, targetFloor, max(r.profit, targetFloor));
+        } else {
+            r.win = max(r.win, targetFloor);
+        }
 
         // ---- 9. demand -------------------------------------------------------------------
         BigDecimal afterDemand = null;
@@ -701,6 +787,9 @@ public final class PricingMath {
         } else if (p0 == null) {
             r.step(PricingModel.TRUST_RAMP, "Phase-in", Step.SKIPPED,
                     "No price today to phase in from; the targets stand.");
+        } else if (marketGap) {
+            r.step(PricingModel.TRUST_RAMP, "Phase-in", Step.SKIPPED, "Market gap: the market-led price is shown at "
+                    + "once; phasing in from today's " + money2(p0) + " would hide it.");
         } else {
             double m = DecisionPatterns.maturity(track.priorApplied(), cfg.number(PricingModel.TRUST_RAMP_HALF_POINT),
                     cfg.number(PricingModel.TRUST_RAMP_LAUNCH) / 100);
@@ -720,7 +809,10 @@ public final class PricingMath {
         BigDecimal hi = ceiling;
         boolean moveCapOn = cfg.on(PricingModel.MOVE_CAP);
         String bandNote;
-        if (moveCapOn && p0 != null) {
+        if (moveCapOn && p0 != null && marketGap) {
+            bandNote = "Floor " + (lo == null ? "none" : money2(lo)) + " · ceiling " + money2(hi)
+                    + "; the move cap is lifted for the market gap so the price can reach the market.";
+        } else if (moveCapOn && p0 != null) {
             double cap = cfg.number(PricingModel.MOVE_CAP_MAX_PCT) / 100;
             BigDecimal capLo = times(p0, 1 - cap);
             BigDecimal capHi = times(p0, 1 + cap);
@@ -742,7 +834,7 @@ public final class PricingMath {
         }
         r.win = clamp(r.win, lo, hi);
         r.profit = clamp(r.profit, lo, hi);
-        r.step(PricingModel.MOVE_CAP, "Guardrails", moveCapOn && p0 != null ? Step.APPLIED
+        r.step(PricingModel.MOVE_CAP, "Guardrails", moveCapOn && p0 != null && !marketGap ? Step.APPLIED
                 : moveCapOn ? Step.SKIPPED : Step.OFF, bandNote);
 
         // ---- 16. tier gap fitted inside the band ------------------------------------------

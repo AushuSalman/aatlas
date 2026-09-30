@@ -62,20 +62,28 @@ class ReferenceJdbc implements Reference {
 
     @Override
     public PricingModel.Config pricingModel() {
-        List<String> rows = jdbc.query("SELECT settings::text FROM pricing_model_settings WHERE tenant_id = ?",
-                (rs, i) -> rs.getString(1), Sql.tenant());
-        if (rows.isEmpty() || rows.get(0) == null || rows.get(0).isBlank()) {
+        List<String[]> rows = jdbc.query(
+                "SELECT settings::text, learned::text FROM pricing_model_settings WHERE tenant_id = ?",
+                (rs, i) -> new String[] {rs.getString(1), rs.getString(2)}, Sql.tenant());
+        if (rows.isEmpty()) {
             return PricingModel.Config.defaults();
         }
         try {
-            Map<String, PricingModel.Setting> raw = json.readValue(rows.get(0),
-                    new TypeReference<Map<String, PricingModel.Setting>>() { });
-            return PricingModel.Config.of(raw);
+            Map<String, PricingModel.Setting> overrides = settingsOf(rows.get(0)[0]);
+            Map<String, PricingModel.Setting> learned = settingsOf(rows.get(0)[1]);
+            return PricingModel.Config.layered(learned, overrides);
         } catch (JsonProcessingException ex) {
             log.warn("pricing_model_settings for tenant {} is not readable ({}); using the defaults",
                     Sql.tenant(), ex.getOriginalMessage());
             return PricingModel.Config.defaults();
         }
+    }
+
+    private Map<String, PricingModel.Setting> settingsOf(String text) throws JsonProcessingException {
+        if (text == null || text.isBlank()) {
+            return Map.of();
+        }
+        return json.readValue(text, new TypeReference<Map<String, PricingModel.Setting>>() { });
     }
 
     @Override

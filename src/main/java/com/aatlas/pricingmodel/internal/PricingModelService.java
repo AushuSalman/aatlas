@@ -29,7 +29,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Reads and writes a tenant's pricing-model overrides, one side at a time.
+ * Reads and writes a tenant's pricing-model overrides, one side at a time, and fronts
+ * what the model learned for itself.
  *
  * <p>The sell model and the buying model are two sides of one registry and share one
  * stored row ({@code pricing_model_settings}), but every endpoint here serves one side:
@@ -37,6 +38,14 @@ import org.springframework.transaction.annotation.Transactional;
  * other's, and a reset clears that side alone. Which side is a query parameter,
  * {@code sell} unless said otherwise, so a caller from before the buying model existed
  * sees what it always did.
+ *
+ * <p>The row carries two maps. {@code settings} is what the tenant set by hand;
+ * {@code learned} is what the {@link ModelTuner} re-fitted from the tenant's own
+ * decisions and outcomes. The view's effective settings are the two layered
+ * ({@link PricingModel.Config#layered}: a hand-set value always wins, and a side's learned
+ * values count only while its auto-tune toggle is on), while {@code overrides} stays the
+ * hand-set map. A reset is about the hand-set map and keeps the learned one; forgetting
+ * the learned values is its own call.
  *
  * <p>Reads are cached under {@link CacheNames#PRICING_MODEL}, keyed by tenant and side;
  * a write evicts both sides' entries, because one row backs them both. The cache manager
@@ -48,7 +57,8 @@ import org.springframework.transaction.annotation.Transactional;
  * persona says {@code guardrails: true} - heads of either side, finance and the director -
  * because switching a step of the model off is the same kind of decision as moving the
  * margin floor. The check is here rather than in {@code @PreAuthorize} because the answer
- * is a row in {@code role_policy}, which a tenant may have overridden.
+ * is a row in {@code role_policy}, which a tenant may have overridden. Running the tuner
+ * by hand and forgetting what it learned are gated the same way.
  *
  * <p>What is stored is {@link PricingModel.Config#overrides()}: a setting equal to its
  * default is not written, so the row says only what the tenant changed. Validation runs on
@@ -74,6 +84,7 @@ class PricingModelService {
     private final PricingModelHistoryRepository history;
     private final PolicyReader policy;
     private final DealSummaries deals;
+    private final ModelTuner tuner;
     private final AatlasClock clock;
 
     PricingModelService(
@@ -81,11 +92,13 @@ class PricingModelService {
             PricingModelHistoryRepository history,
             PolicyReader policy,
             DealSummaries deals,
+            ModelTuner tuner,
             AatlasClock clock) {
         this.settings = settings;
         this.history = history;
         this.policy = policy;
         this.deals = deals;
+        this.tuner = tuner;
         this.clock = clock;
     }
 
@@ -128,7 +141,10 @@ class PricingModelService {
         return write(tenantId, actor, side, requested, "set");
     }
 
-    /** Clears one side's overrides; the other side is untouched. A tenant with no row gets one, on the defaults. */
+    /**
+     * Clears one side's hand-set overrides; the other side, and what the tuner learned on
+     * either, are untouched. A tenant with no row gets one, on the defaults.
+     */
     @Caching(evict = {
         @CacheEvict(cacheNames = CacheNames.PRICING_MODEL, key = "#tenantId + ':SELL'"),
         @CacheEvict(cacheNames = CacheNames.PRICING_MODEL, key = "#tenantId + ':BUY'")
@@ -137,6 +153,53 @@ class PricingModelService {
     PricingModelView reset(UUID tenantId, TenantContext.Actor actor, Side side) {
         requireMaySetModel(tenantId, actor);
         return write(tenantId, actor, side, Map.of(), "reset");
+    }
+
+    // ---- learned -------------------------------------------------------------------------
+
+    /**
+     * Runs the tuner for one side now, as the nightly job would, and answers the fresh
+     * view. The tuner writes and commits the row and drops the cached views itself, so
+     * this is deliberately not one transaction: the read-back sees what was committed.
+     */
+    PricingModelView tune(UUID tenantId, TenantContext.Actor actor, Side side) {
+        requireMaySetModel(tenantId, actor);
+        ModelTuner.TuneResult result = tuner.tune(tenantId, side);
+        log.info("Pricing model tuned on demand on the {} side for tenant {} by user {} ({}): {} learned",
+                side.key(), tenantId, actor.userId(), actor.role(), result.learned().keySet());
+        return settings.findById(tenantId)
+                .map(row -> PricingModelView.of(side, row))
+                .orElseGet(() -> PricingModelView.defaults(side));
+    }
+
+    /** What the tuner learned on one side, with a reason per key, in registry order. */
+    @Transactional(readOnly = true)
+    LearnedView learned(UUID tenantId, Side side) {
+        return LearnedView.of(side, settings.findById(tenantId).orElse(null));
+    }
+
+    /**
+     * Forgets one side's learned values and notes; the other side's, the hand-set map and
+     * the row's stamp stay. The next nightly run learns afresh. Nothing to do for a tenant
+     * without a row.
+     */
+    @Caching(evict = {
+        @CacheEvict(cacheNames = CacheNames.PRICING_MODEL, key = "#tenantId + ':SELL'"),
+        @CacheEvict(cacheNames = CacheNames.PRICING_MODEL, key = "#tenantId + ':BUY'")
+    })
+    @Transactional
+    PricingModelView clearLearned(UUID tenantId, TenantContext.Actor actor, Side side) {
+        requireMaySetModel(tenantId, actor);
+        PricingModelEntity row = settings.findById(tenantId).orElse(null);
+        if (row == null) {
+            return PricingModelView.defaults(side);
+        }
+        int had = PricingModelEntity.sideOf(row.getLearned(), side).size();
+        row.clearLearned(side);
+        row = settings.saveAndFlush(row);
+        log.info("Pricing model learned values cleared on the {} side for tenant {} by user {} ({}): {} dropped",
+                side.key(), tenantId, actor.userId(), actor.role(), had);
+        return PricingModelView.of(side, row);
     }
 
     @Transactional(readOnly = true)
@@ -252,7 +315,7 @@ class PricingModelService {
     /**
      * Merges {@code sideOverrides} into the stored map as the new state of {@code side},
      * stores the whole map, and records it in the history as stored - both sides - since
-     * the row is what changed.
+     * the row is what changed. The learned map rides along untouched.
      */
     private PricingModelView write(UUID tenantId, TenantContext.Actor actor, Side side,
             Map<String, PricingModel.Setting> sideOverrides, String action) {
@@ -263,9 +326,9 @@ class PricingModelService {
         Map<String, PricingModel.Setting> overrides = merged.overrides();
 
         if (row == null) {
-            row = new PricingModelEntity(tenantId, overrides, actor.userId());
+            row = new PricingModelEntity(tenantId, overrides, actor.userId(), now);
         } else {
-            row.apply(overrides, actor.userId());
+            row.apply(overrides, actor.userId(), now);
         }
         row = settings.saveAndFlush(row);
 
@@ -277,10 +340,13 @@ class PricingModelService {
         return PricingModelView.of(side, row);
     }
 
-    /** The whole stored model, both sides, normalised; the defaults for a tenant that never saved. */
+    /**
+     * The whole model the tenant runs, both sides, normalised: hand-set over learned over
+     * the defaults; the defaults for a tenant that never saved.
+     */
     private PricingModel.Config stored(UUID tenantId) {
         return settings.findById(tenantId)
-                .map(row -> PricingModel.Config.of(row.getSettings()))
+                .map(row -> PricingModel.Config.layered(row.getLearned(), row.getSettings()))
                 .orElseGet(PricingModel.Config::defaults);
     }
 

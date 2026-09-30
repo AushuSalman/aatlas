@@ -25,6 +25,22 @@ public interface DecisionOutcomes {
     Optional<Learned> learned(String itemNumber, LocalDate today);
 
     /**
+     * The median observed sensitivity across every measured decision of the tenant, and how
+     * many there are: what the model tuner re-fits the tenant's prior from. Empty with none.
+     */
+    Optional<Learned> learnedAcrossItems(LocalDate today);
+
+    /** How many measured decisions ended {@code worked}, {@code hurt} and {@code neutral} in the window. */
+    Verdicts verdicts(LocalDate today);
+
+    record Verdicts(int worked, int hurt, int neutral) {
+
+        public int measured() {
+            return worked + hurt + neutral;
+        }
+    }
+
+    /**
      * The sell chain's sensitivity with the item's measured outcomes blended in: on their own when
      * nothing else was measured, else weighted against the sales-history estimate (each outcome
      * counts as three months of history). {@code base} unchanged when the item has none.

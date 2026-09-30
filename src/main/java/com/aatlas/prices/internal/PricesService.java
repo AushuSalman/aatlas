@@ -143,6 +143,7 @@ class PricesService {
         boolean leaned = false;
         int priceable = 0;
         int missingCost = 0;
+        int marketGaps = 0;
         for (Catalogue.ProductRef product : catalogue.products()) {
             Resolved current = currents.get(product.id());
             if (SCOPE_MISSING.equals(wanted) && current != null) {
@@ -168,6 +169,9 @@ class PricesService {
                 if (lean != null && lean.available()) {
                     leaned = true;
                 }
+                if (row.basis().get("marketGap") != null) {
+                    marketGaps++;
+                }
             }
             categories.compute(product.category(), (category, existing) -> {
                 if (existing != null) {
@@ -185,7 +189,8 @@ class PricesService {
         int[] toggles = cfg.toggleCount();
         return new SuggestionsResponse(wanted, store == null ? null : store.storeCode(), currency, regionalIndex,
                 List.copyOf(categories.values()), rows,
-                new SuggestionsResponse.Summary(rows.size(), priceable, rows.size() - priceable, missingCost),
+                new SuggestionsResponse.Summary(rows.size(), priceable, rows.size() - priceable, missingCost,
+                        marketGaps),
                 truncated, new SuggestionsResponse.Model(toggles[0], toggles[1], leaned));
     }
 

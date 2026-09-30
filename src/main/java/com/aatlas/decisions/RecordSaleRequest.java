@@ -21,6 +21,11 @@ import java.util.UUID;
  *     it as one linked write instead.
  * @param destinationId the branch code the sale was priced at, so follow-rate can be read per
  *     store; {@code storeName} stays the display label
+ * @param customerCode the customer's code in the catalogue, when known
+ * @param book true when this is a sale that actually happened, to be booked into the sales
+ *     history ({@code sales_transactions}) as well as the deals ledger - a hand-recorded sale
+ *     then counts on the Overview, in demand and on Insights like an imported line. Null or
+ *     false for a decision that only projects a sale (an applied price, a bulk reprice).
  */
 public record RecordSaleRequest(
         @NotBlank String itemNumber,
@@ -35,5 +40,19 @@ public record RecordSaleRequest(
         BigDecimal marginFloor,
         LocalDate date,
         UUID decisionId,
-        String destinationId) {
+        String destinationId,
+        String customerCode,
+        Boolean book) {
+
+    /** The pre-existing shape: a projected deal, not booked into the sales history. */
+    public RecordSaleRequest(String itemNumber, String description, String storeName, String customerName, int qty,
+            BigDecimal cost, BigDecimal baselinePrice, BigDecimal suggestedPrice, BigDecimal actualPrice,
+            BigDecimal marginFloor, LocalDate date, UUID decisionId, String destinationId) {
+        this(itemNumber, description, storeName, customerName, qty, cost, baselinePrice, suggestedPrice, actualPrice,
+                marginFloor, date, decisionId, destinationId, null, null);
+    }
+
+    public boolean booked() {
+        return Boolean.TRUE.equals(book);
+    }
 }

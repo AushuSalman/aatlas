@@ -9,6 +9,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -47,6 +48,7 @@ class PricingModelServiceTest {
     private static final UUID USER = UUID.randomUUID();
     private static final TenantContext.Actor HEAD = new TenantContext.Actor(TENANT, USER, "sales-head");
     private static final TenantContext.Actor SELLER = new TenantContext.Actor(TENANT, USER, "seller");
+    private static final Instant NOW = Instant.parse("2026-09-01T12:00:00Z");
     private static final Side SELL = Side.SELL;
     private static final Side BUY = Side.BUY;
 
@@ -54,6 +56,7 @@ class PricingModelServiceTest {
     private PricingModelHistoryRepository history;
     private PolicyReader policy;
     private DealSummaries deals;
+    private ModelTuner tuner;
     private PricingModelService service;
 
     @BeforeEach
@@ -63,7 +66,8 @@ class PricingModelServiceTest {
         policy = mock(PolicyReader.class);
         deals = mock(DealSummaries.class);
         AatlasClock clock = AatlasClock.fixed(Instant.parse("2026-09-01T12:00:00Z"), ZoneOffset.UTC);
-        service = new PricingModelService(settings, history, policy, deals, clock);
+        tuner = mock(ModelTuner.class);
+        service = new PricingModelService(settings, history, policy, deals, tuner, clock);
 
         when(policy.personaFor(eq(TENANT), eq("sales-head"))).thenReturn(persona("sales-head", true));
         when(policy.personaFor(eq(TENANT), eq("seller"))).thenReturn(persona("seller", false));
@@ -267,7 +271,7 @@ class PricingModelServiceTest {
     @DisplayName("saving again updates the same row rather than inserting a second")
     void secondSaveUpdatesTheRow() {
         PricingModelEntity existing = new PricingModelEntity(TENANT,
-                Map.of(PricingModel.ROUNDING, PricingModel.Setting.on(false)), UUID.randomUUID());
+                Map.of(PricingModel.ROUNDING, PricingModel.Setting.on(false)), UUID.randomUUID(), NOW);
         when(settings.findById(TENANT)).thenReturn(Optional.of(existing));
 
         service.save(TENANT, HEAD, SELL, Map.of(PricingModel.COMMODITY, PricingModel.Setting.on(false)));
@@ -283,7 +287,7 @@ class PricingModelServiceTest {
     @DisplayName("saving the buy side keeps the sell overrides already stored; the view and history show each side its own")
     void savingBuyKeepsSellOverrides() {
         PricingModelEntity existing = new PricingModelEntity(TENANT,
-                Map.of(PricingModel.ROUNDING, PricingModel.Setting.on(false)), UUID.randomUUID());
+                Map.of(PricingModel.ROUNDING, PricingModel.Setting.on(false)), UUID.randomUUID(), NOW);
         when(settings.findById(TENANT)).thenReturn(Optional.of(existing));
         Map<String, PricingModel.Setting> requested = new LinkedHashMap<>();
         requested.put(PricingModel.BUY_LEARNING, PricingModel.Setting.on(true));                                 // default
@@ -331,7 +335,7 @@ class PricingModelServiceTest {
     void savingSellKeepsBuyOverrides() {
         PricingModelEntity existing = new PricingModelEntity(TENANT,
                 Map.of(PricingModel.BUY_LEARNING_WINDOW_DAYS, PricingModel.Setting.value(new BigDecimal("90"))),
-                UUID.randomUUID());
+                UUID.randomUUID(), NOW);
         when(settings.findById(TENANT)).thenReturn(Optional.of(existing));
 
         PricingModelView view = service.save(TENANT, HEAD, SELL,
@@ -352,7 +356,7 @@ class PricingModelServiceTest {
     @DisplayName("reset stores an empty map, writes a reset entry, and the view is back on the defaults")
     void resetStoresEmptyMap() {
         PricingModelEntity existing = new PricingModelEntity(TENANT,
-                Map.of(PricingModel.ROUNDING, PricingModel.Setting.on(false)), USER);
+                Map.of(PricingModel.ROUNDING, PricingModel.Setting.on(false)), USER, NOW);
         when(settings.findById(TENANT)).thenReturn(Optional.of(existing));
 
         PricingModelView view = service.reset(TENANT, HEAD, SELL);
@@ -372,7 +376,7 @@ class PricingModelServiceTest {
     void resetOfOneSideLeavesTheOther() {
         PricingModelEntity existing = new PricingModelEntity(TENANT, Map.of(
                 PricingModel.ROUNDING, PricingModel.Setting.on(false),
-                PricingModel.BUY_LEARNING_WINDOW_DAYS, PricingModel.Setting.value(new BigDecimal("90"))), USER);
+                PricingModel.BUY_LEARNING_WINDOW_DAYS, PricingModel.Setting.value(new BigDecimal("90"))), USER, NOW);
         when(settings.findById(TENANT)).thenReturn(Optional.of(existing));
 
         PricingModelView view = service.reset(TENANT, HEAD, BUY);
@@ -495,7 +499,7 @@ class PricingModelServiceTest {
     void learningWithNothing() {
         PricingModelEntity existing = new PricingModelEntity(TENANT, Map.of(
                 PricingModel.LEARNING, PricingModel.Setting.on(false),
-                PricingModel.LEARNING_WINDOW_DAYS, PricingModel.Setting.value(new BigDecimal("90"))), USER);
+                PricingModel.LEARNING_WINDOW_DAYS, PricingModel.Setting.value(new BigDecimal("90"))), USER, NOW);
         when(settings.findById(TENANT)).thenReturn(Optional.of(existing));
         LocalDate since = LocalDate.of(2026, 9, 1).minusDays(90);
         when(deals.acceptance(eq(DealSummaries.SELL), isNull(), isNull(), eq(since), anyInt())).thenReturn(List.of());
@@ -520,7 +524,7 @@ class PricingModelServiceTest {
         PricingModelEntity existing = new PricingModelEntity(TENANT, Map.of(
                 PricingModel.LEARNING, PricingModel.Setting.on(false),                                        // sell: off
                 PricingModel.LEARNING_WINDOW_DAYS, PricingModel.Setting.value(new BigDecimal("30")),           // sell: 30
-                PricingModel.BUY_LEARNING_WINDOW_DAYS, PricingModel.Setting.value(new BigDecimal("90"))), USER); // buy: 90
+                PricingModel.BUY_LEARNING_WINDOW_DAYS, PricingModel.Setting.value(new BigDecimal("90"))), USER, NOW); // buy: 90
         when(settings.findById(TENANT)).thenReturn(Optional.of(existing));
         LocalDate today = LocalDate.of(2026, 9, 1);
         LocalDate since = today.minusDays(90);
@@ -560,7 +564,7 @@ class PricingModelServiceTest {
     @DisplayName("the buy learning view is enabled by the buy toggle alone; the sell toggle does not reach it")
     void buyLearningIsEnabledByTheBuyToggle() {
         PricingModelEntity existing = new PricingModelEntity(TENANT, Map.of(
-                PricingModel.BUY_LEARNING, PricingModel.Setting.on(false)), USER);
+                PricingModel.BUY_LEARNING, PricingModel.Setting.on(false)), USER, NOW);
         when(settings.findById(TENANT)).thenReturn(Optional.of(existing));
         LocalDate since = LocalDate.of(2026, 9, 1).minusDays(180);
         when(deals.acceptance(anyString(), isNull(), isNull(), eq(since), anyInt())).thenReturn(List.of());
@@ -582,5 +586,217 @@ class PricingModelServiceTest {
         verify(deals).acceptance(eq(DealSummaries.SELL), isNull(), isNull(), eq(since), anyInt());
         verify(deals).strategyPicks(DealSummaries.BUY, since);
         verify(deals).strategyPicks(DealSummaries.SELL, since);
+    }
+
+    // ---- learned -----------------------------------------------------------------------
+
+    private static PricingModel.Setting value(String v) {
+        return PricingModel.Setting.value(new BigDecimal(v));
+    }
+
+    private static LearnedNote note(String reason, int evidence, String from, String to) {
+        return new LearnedNote(reason, evidence, new BigDecimal(from), new BigDecimal(to));
+    }
+
+    @Test
+    @DisplayName("current() layers learned under hand-set: settings are effective, overrides stay hand-set, learned is shown")
+    void currentLayersLearnedUnderHandSet() {
+        Map<String, PricingModel.Setting> hand = new LinkedHashMap<>();
+        hand.put(PricingModel.ROUNDING, PricingModel.Setting.on(false));
+        hand.put(PricingModel.DEMAND_MAX_MOVE, value("5"));
+        PricingModelEntity existing = new PricingModelEntity(TENANT, hand, USER, NOW);
+        Instant tuned = NOW.minusSeconds(3600);
+        existing.learn(SELL, Map.of(
+                PricingModel.TRUST_RAMP_LAUNCH, value("45"),
+                PricingModel.DEMAND_MAX_MOVE, value("2")),
+                Map.of(PricingModel.TRUST_RAMP_LAUNCH, note("You apply prices well above what is phased in.", 9, "25", "45")),
+                tuned);
+        existing.learn(BUY, Map.of(PricingModel.BUY_TARGET_GAP_SHARE, value("50")), Map.of(), tuned);
+        when(settings.findById(TENANT)).thenReturn(Optional.of(existing));
+
+        PricingModelView sell = service.current(TENANT, SELL);
+        assertThat(sell.settings().get(PricingModel.TRUST_RAMP_LAUNCH).value()).isEqualByComparingTo("45"); // learned applies
+        assertThat(sell.settings().get(PricingModel.DEMAND_MAX_MOVE).value()).isEqualByComparingTo("5");    // hand-set wins
+        assertThat(sell.settings().get(PricingModel.ROUNDING).on()).isFalse();
+        assertThat(sell.overrides()).containsOnlyKeys(PricingModel.ROUNDING, PricingModel.DEMAND_MAX_MOVE);
+        assertThat(sell.learned()).containsOnlyKeys(PricingModel.TRUST_RAMP_LAUNCH, PricingModel.DEMAND_MAX_MOVE);
+        assertThat(sell.learned().get(PricingModel.DEMAND_MAX_MOVE).value()).isEqualByComparingTo("2"); // shown though shadowed
+        assertThat(sell.learnedNotes()).containsOnlyKeys(PricingModel.TRUST_RAMP_LAUNCH);
+        assertThat(sell.learnedNotes().get(PricingModel.TRUST_RAMP_LAUNCH).evidence()).isEqualTo(9);
+        assertThat(sell.learnedAt()).isEqualTo(tuned);
+        assertThat(sell.autoTune()).isTrue();
+        assertThat(sell.activePreset()).isEqualTo(PricingModel.Preset.CUSTOM);
+        assertThat(sell.updatedAt()).isEqualTo(NOW);
+        assertThat(sell.updatedBy()).isEqualTo(USER);
+
+        PricingModelView buy = service.current(TENANT, BUY);
+        assertThat(buy.learned()).containsOnlyKeys(PricingModel.BUY_TARGET_GAP_SHARE);
+        assertThat(buy.learnedNotes()).isEmpty();
+        assertThat(buy.settings().get(PricingModel.BUY_TARGET_GAP_SHARE).value()).isEqualByComparingTo("50");
+        assertThat(buy.settings()).doesNotContainKey(PricingModel.TRUST_RAMP_LAUNCH);
+        assertThat(buy.overrides()).isEmpty();
+        assertThat(buy.activePreset()).isEqualTo(PricingModel.Preset.BALANCED); // learned values do not make it custom
+        assertThat(buy.autoTune()).isTrue();
+    }
+
+    @Test
+    @DisplayName("with one side's auto-tune off, its learned values are shown but not used; the other side is unaffected")
+    void autoTuneOffShowsButDoesNotUseLearned() {
+        PricingModelEntity existing = new PricingModelEntity(TENANT,
+                Map.of(PricingModel.LEARNING_AUTO_TUNE, PricingModel.Setting.on(false)), USER, NOW);
+        existing.learn(SELL, Map.of(PricingModel.TRUST_RAMP_LAUNCH, value("45")), Map.of(), NOW);
+        existing.learn(BUY, Map.of(PricingModel.BUY_TARGET_GAP_SHARE, value("50")), Map.of(), NOW);
+        when(settings.findById(TENANT)).thenReturn(Optional.of(existing));
+
+        PricingModelView sell = service.current(TENANT, SELL);
+        assertThat(sell.autoTune()).isFalse();
+        assertThat(sell.settings().get(PricingModel.TRUST_RAMP_LAUNCH).value()).isEqualByComparingTo("25");
+        assertThat(sell.learned()).containsOnlyKeys(PricingModel.TRUST_RAMP_LAUNCH);
+
+        PricingModelView buy = service.current(TENANT, BUY);
+        assertThat(buy.autoTune()).isTrue();
+        assertThat(buy.settings().get(PricingModel.BUY_TARGET_GAP_SHARE).value()).isEqualByComparingTo("50");
+    }
+
+    @Test
+    @DisplayName("a fresh save answers no learned values, no learnedAt, and auto-tune on")
+    void saveViewCarriesTheLearnedFields() {
+        PricingModelView view = service.save(TENANT, HEAD, SELL,
+                Map.of(PricingModel.ROUNDING, PricingModel.Setting.on(false)));
+
+        assertThat(view.learned()).isEmpty();
+        assertThat(view.learnedNotes()).isEmpty();
+        assertThat(view.learnedAt()).isNull();
+        assertThat(view.autoTune()).isTrue();
+        assertThat(view.updatedAt()).isEqualTo(NOW);
+    }
+
+    @Test
+    @DisplayName("tune checks the seat, runs the tuner for that side, and answers the view as the row now stands")
+    void tuneRunsTheTunerAndAnswersTheFreshView() {
+        PricingModelEntity existing = new PricingModelEntity(TENANT, Map.of(), USER, NOW.minusSeconds(86_400));
+        when(settings.findById(TENANT)).thenReturn(Optional.of(existing));
+        when(tuner.tune(TENANT, SELL)).thenAnswer(inv -> {
+            Map<String, PricingModel.Setting> learned = Map.of(PricingModel.ELASTICITY_PRIOR, value("-1.4"));
+            Map<String, LearnedNote> notes = Map.of(PricingModel.ELASTICITY_PRIOR,
+                    note("Measured across 12 applied prices: a 1% price rise cost about 1.4% of sales.", 12, "-1.2", "-1.4"));
+            existing.learn(SELL, learned, notes, NOW);
+            return new ModelTuner.TuneResult("sell", learned, notes, NOW);
+        });
+
+        PricingModelView view = service.tune(TENANT, HEAD, SELL);
+
+        verify(tuner).tune(TENANT, SELL);
+        assertThat(view.side()).isEqualTo("sell");
+        assertThat(view.learned()).containsOnlyKeys(PricingModel.ELASTICITY_PRIOR);
+        assertThat(view.settings().get(PricingModel.ELASTICITY_PRIOR).value()).isEqualByComparingTo("-1.4");
+        assertThat(view.learnedNotes().get(PricingModel.ELASTICITY_PRIOR).evidence()).isEqualTo(12);
+        assertThat(view.learnedAt()).isEqualTo(NOW);
+        assertThat(view.updatedAt()).isEqualTo(NOW.minusSeconds(86_400)); // a retune does not move the hand-set stamp
+        verify(history, never()).save(any());
+
+        assertThatThrownBy(() -> service.tune(TENANT, SELLER, BUY))
+                .isInstanceOfSatisfying(ApiException.class, ex -> assertThat(ex.code()).isEqualTo("not_allowed"));
+        verify(tuner, never()).tune(TENANT, BUY);
+    }
+
+    @Test
+    @DisplayName("the learned view lists one side in registry order, with label, unit, from, to, reason and evidence")
+    void learnedViewListsEntriesInRegistryOrder() {
+        PricingModelEntity existing = new PricingModelEntity(TENANT, Map.of(), USER, NOW);
+        Map<String, PricingModel.Setting> learned = new LinkedHashMap<>();
+        learned.put(PricingModel.LEARNING_MAX_MOVE, value("7"));   // stored first, listed second: registry order
+        learned.put(PricingModel.ELASTICITY_PRIOR, value("-1.4"));
+        existing.learn(SELL, learned, Map.of(PricingModel.ELASTICITY_PRIOR,
+                note("Measured across 12 applied prices: a 1% price rise cost about 1.4% of sales.", 12, "-1.2", "-1.4")), NOW);
+        existing.learn(BUY, Map.of(PricingModel.BUY_TARGET_GAP_SHARE, value("50")), Map.of(), NOW);
+        when(settings.findById(TENANT)).thenReturn(Optional.of(existing));
+
+        LearnedView sell = service.learned(TENANT, SELL);
+
+        assertThat(sell.side()).isEqualTo("sell");
+        assertThat(sell.learnedAt()).isEqualTo(NOW);
+        assertThat(sell.autoTune()).isTrue();
+        assertThat(sell.entries()).extracting(LearnedView.Entry::key)
+                .containsExactly(PricingModel.ELASTICITY_PRIOR, PricingModel.LEARNING_MAX_MOVE);
+        LearnedView.Entry prior = sell.entries().get(0);
+        assertThat(prior.label()).isEqualTo("Starting assumption");
+        assertThat(prior.unit()).isEmpty();
+        assertThat(prior.from()).isEqualByComparingTo("-1.2");
+        assertThat(prior.to()).isEqualByComparingTo("-1.4");
+        assertThat(prior.reason()).startsWith("Measured across 12 applied prices");
+        assertThat(prior.evidence()).isEqualTo(12);
+        LearnedView.Entry cap = sell.entries().get(1);
+        assertThat(cap.label()).isEqualTo("Most this can change a price");
+        assertThat(cap.unit()).isEqualTo("%");
+        assertThat(cap.from()).isEqualByComparingTo("2"); // no note: from is the default
+        assertThat(cap.to()).isEqualByComparingTo("7");
+        assertThat(cap.reason()).isNull();
+        assertThat(cap.evidence()).isNull();
+
+        LearnedView buy = service.learned(TENANT, BUY);
+        assertThat(buy.entries()).extracting(LearnedView.Entry::key).containsExactly(PricingModel.BUY_TARGET_GAP_SHARE);
+
+        when(settings.findById(TENANT)).thenReturn(Optional.empty());
+        LearnedView none = service.learned(TENANT, SELL);
+        assertThat(none.entries()).isEmpty();
+        assertThat(none.learnedAt()).isNull();
+        assertThat(none.autoTune()).isTrue();
+    }
+
+    @Test
+    @DisplayName("clearing learned values wipes one side only, keeps the hand-set map and the stamp, writes no history, and needs the seat")
+    void clearLearnedWipesOneSide() {
+        Instant saved = NOW.minusSeconds(86_400);
+        PricingModelEntity existing = new PricingModelEntity(TENANT,
+                Map.of(PricingModel.ROUNDING, PricingModel.Setting.on(false)), USER, saved);
+        existing.learn(SELL, Map.of(PricingModel.TRUST_RAMP_LAUNCH, value("45")),
+                Map.of(PricingModel.TRUST_RAMP_LAUNCH, note("above", 8, "25", "45")), saved);
+        existing.learn(BUY, Map.of(PricingModel.BUY_TARGET_GAP_SHARE, value("50")),
+                Map.of(PricingModel.BUY_TARGET_GAP_SHARE, note("over", 7, "35", "50")), saved);
+        when(settings.findById(TENANT)).thenReturn(Optional.of(existing));
+
+        PricingModelView view = service.clearLearned(TENANT, HEAD, SELL);
+
+        assertThat(existing.getLearned()).containsOnlyKeys(PricingModel.BUY_TARGET_GAP_SHARE);
+        assertThat(existing.getLearnedNotes()).containsOnlyKeys(PricingModel.BUY_TARGET_GAP_SHARE);
+        assertThat(existing.getSettings()).containsOnlyKeys(PricingModel.ROUNDING);
+        assertThat(existing.getLearnedAt()).isEqualTo(saved);
+        assertThat(existing.getUpdatedAt()).isEqualTo(saved);
+        verify(settings).saveAndFlush(existing);
+        verify(history, never()).save(any());
+        assertThat(view.side()).isEqualTo("sell");
+        assertThat(view.learned()).isEmpty();
+        assertThat(view.settings().get(PricingModel.TRUST_RAMP_LAUNCH).value()).isEqualByComparingTo("25");
+        assertThat(view.overrides()).containsOnlyKeys(PricingModel.ROUNDING);
+
+        assertThatThrownBy(() -> service.clearLearned(TENANT, SELLER, BUY))
+                .isInstanceOfSatisfying(ApiException.class, ex -> assertThat(ex.code()).isEqualTo("not_allowed"));
+        assertThat(existing.getLearned()).containsOnlyKeys(PricingModel.BUY_TARGET_GAP_SHARE);
+
+        // Nothing to clear for a tenant without a row: the defaults, no write.
+        when(settings.findById(TENANT)).thenReturn(Optional.empty());
+        assertThat(service.clearLearned(TENANT, HEAD, SELL).learned()).isEmpty();
+        verify(settings, times(1)).saveAndFlush(any());
+    }
+
+    @Test
+    @DisplayName("reset clears the hand-set map and keeps what was learned")
+    void resetKeepsLearned() {
+        PricingModelEntity existing = new PricingModelEntity(TENANT,
+                Map.of(PricingModel.ROUNDING, PricingModel.Setting.on(false)), USER, NOW.minusSeconds(86_400));
+        existing.learn(SELL, Map.of(PricingModel.TRUST_RAMP_LAUNCH, value("45")), Map.of(), NOW.minusSeconds(3600));
+        when(settings.findById(TENANT)).thenReturn(Optional.of(existing));
+
+        PricingModelView view = service.reset(TENANT, HEAD, SELL);
+
+        assertThat(existing.getSettings()).isEmpty();
+        assertThat(existing.getLearned()).containsOnlyKeys(PricingModel.TRUST_RAMP_LAUNCH);
+        assertThat(existing.getUpdatedAt()).isEqualTo(NOW);
+        assertThat(view.overrides()).isEmpty();
+        assertThat(view.activePreset()).isEqualTo(PricingModel.Preset.BALANCED);
+        assertThat(view.learned()).containsOnlyKeys(PricingModel.TRUST_RAMP_LAUNCH);
+        assertThat(view.settings().get(PricingModel.TRUST_RAMP_LAUNCH).value()).isEqualByComparingTo("45");
+        assertThat(view.learnedAt()).isEqualTo(NOW.minusSeconds(3600));
     }
 }

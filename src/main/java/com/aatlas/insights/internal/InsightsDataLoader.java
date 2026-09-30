@@ -147,7 +147,7 @@ class InsightsDataLoader {
                 + YearMonth.from(today);
 
         PricingMath.Inputs inputs = new PricingMath.Inputs(cost, currentPrice, ownRef, anchor,
-                competitorMedian, competitorCount,
+                competitorMedian, competitorCount, null, null,
                 peer == null ? null : peer.q2(), peer == null ? null : peer.q3(), peer == null ? 0 : peer.stores(),
                 band == null ? null : band.q1(), band == null ? null : band.q3(), band == null ? 0 : band.n(),
                 demand, null, today, commodityPct90, p.rpp(), SalesHistory.Elasticity.defaultValue(), ordersAtStore,

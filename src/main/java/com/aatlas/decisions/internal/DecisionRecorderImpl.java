@@ -14,6 +14,7 @@ import com.aatlas.decisions.QuoteBreakdown;
 import com.aatlas.decisions.RecordDecisionRequest;
 import com.aatlas.decisions.RecordPurchaseRequest;
 import com.aatlas.decisions.RecordSaleRequest;
+import com.aatlas.ingest.SalesLedger;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
@@ -40,14 +41,16 @@ class DecisionRecorderImpl implements DecisionRecorder {
     private final DealRepository deals;
     private final QuoteRepository quotes;
     private final ProcurementLedger ledger;
+    private final SalesLedger salesLedger;
     private final AatlasClock clock;
 
     DecisionRecorderImpl(DecisionRepository decisions, DealRepository deals, QuoteRepository quotes,
-            ProcurementLedger ledger, AatlasClock clock) {
+            ProcurementLedger ledger, SalesLedger salesLedger, AatlasClock clock) {
         this.decisions = decisions;
         this.deals = deals;
         this.quotes = quotes;
         this.ledger = ledger;
+        this.salesLedger = salesLedger;
         this.clock = clock;
     }
 
@@ -127,6 +130,13 @@ class DecisionRecorderImpl implements DecisionRecorder {
                 r.qty(), r.cost(), r.baselinePrice(), r.suggestedPrice(), r.actualPrice(), followed,
                 bd(gain), bd(lost), true, r.customerName(), now, belowFloor, r.destinationId(), date, r.decisionId());
         entity = deals.save(entity);
+        if (r.booked() && r.qty() > 0) {
+            // A sale that happened is also a sales-history line, so every screen that derives
+            // from sales_transactions counts it - not only Decision history and the follow rate.
+            salesLedger.record(new SalesLedger.RecordedSale(r.itemNumber(), r.description(), r.destinationId(),
+                    r.customerCode(), r.customerName(), date, BigDecimal.valueOf(r.qty()), r.actualPrice(), r.cost(),
+                    entity.getDealKey()));
+        }
         return Mappers.toDealRecord(entity);
     }
 

@@ -15,7 +15,11 @@ record SuggestionsResponse(String scope, String store, String currency, BigDecim
         List<CategorySummary> categories, List<SuggestionEngine.SuggestionRow> rows, Summary summary,
         boolean truncated, Model model) {
 
-    record Summary(int rows, int priceable, int unpriceable, int missingCost) {
+    /**
+     * @param marketGaps how many priceable rows were priced to a market gap: credible
+     *                   competitors far from the item's own price, which the suggestion followed
+     */
+    record Summary(int rows, int priceable, int unpriceable, int missingCost, int marketGaps) {
     }
 
     /**

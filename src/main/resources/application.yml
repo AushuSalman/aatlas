@@ -282,6 +282,14 @@ aatlas:
     window-days: 28
     # An outcome with too few sales is retried while the decision is younger than this.
     retry-days: 120
+  pricing-model:
+    # The model tuner: nightly, after the outcomes job, every ACTIVE tenant's sell and buy models re-fit a few
+    # of their own knobs from the tenant's decisions and measured outcomes - price sensitivity, where new items
+    # start on the phase-in, how far the lean may go. Stored as learned settings beside the hand-set ones and
+    # explained per key; a hand-set value always wins. Runs on one pod (ShedLock); on demand per tenant from
+    # POST /api/v1/pricing-model/tune.
+    tune-enabled: ${PRICING_MODEL_TUNE_ENABLED:true}
+    tune-cron: "0 0 5 * * *"
   market-data:
     # Live reference feeds (marketdata module): daily at 06:30 UTC and once at startup.
     enabled: ${MARKET_DATA_ENABLED:true}

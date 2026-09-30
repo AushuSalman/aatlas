@@ -171,11 +171,12 @@ class PricingModelTest {
 
         Map<String, PricingModel.Setting> raw = new HashMap<>();
         raw.put(PricingModel.ROUNDING, PricingModel.Setting.on(false));
-        // Switching competitors off silences competitors.plausibility too: two fewer.
+        // Switching competitors off silences competitors.plausibility and competitors.marketGap too:
+        // with rounding, four fewer.
         raw.put(PricingModel.COMPETITORS, PricingModel.Setting.on(false));
         int[] some = PricingModel.Config.of(raw).toggleCount();
         assertThat(some[1]).isEqualTo((int) toggles);
-        assertThat(some[0]).isEqualTo((int) toggles - 3);
+        assertThat(some[0]).isEqualTo((int) toggles - 4);
     }
 
     @Test
@@ -212,5 +213,84 @@ class PricingModelTest {
         assertThat(PricingModel.Config.of(mix).activePreset()).isEqualTo(PricingModel.Preset.CUSTOM);
         assertThat(PricingModel.Config.of(Map.of(PricingModel.DEMAND, PricingModel.Setting.on(false))).activePreset())
                 .isEqualTo(PricingModel.Preset.CUSTOM);
+    }
+
+    // ---- layered: defaults, then learned, then hand-set ---------------------------------
+
+    private static PricingModel.Setting value(String v) {
+        return PricingModel.Setting.value(new BigDecimal(v));
+    }
+
+    @Test
+    @DisplayName("layered: a learned value applies on top of the defaults, on either side")
+    void layeredAppliesLearned() {
+        Map<String, PricingModel.Setting> learned = new LinkedHashMap<>();
+        learned.put(PricingModel.TRUST_RAMP_LAUNCH, value("45"));
+        learned.put(PricingModel.BUY_TARGET_GAP_SHARE, value("50"));
+
+        PricingModel.Config config = PricingModel.Config.layered(learned, Map.of());
+
+        assertThat(config.value(PricingModel.TRUST_RAMP_LAUNCH)).isEqualByComparingTo("45");
+        assertThat(config.value(PricingModel.BUY_TARGET_GAP_SHARE)).isEqualByComparingTo("50");
+        assertThat(config.overrides()).containsOnlyKeys(PricingModel.TRUST_RAMP_LAUNCH, PricingModel.BUY_TARGET_GAP_SHARE);
+        // Nothing learned: the hand-set model itself.
+        assertThat(PricingModel.Config.layered(Map.of(), Map.of())).isSameAs(PricingModel.Config.defaults());
+        assertThat(PricingModel.Config.layered(null, Map.of(PricingModel.ROUNDING, PricingModel.Setting.on(false)))
+                .overrides()).containsOnlyKeys(PricingModel.ROUNDING);
+    }
+
+    @Test
+    @DisplayName("layered: a hand-set value wins over a learned one for the same key")
+    void layeredHandSetWins() {
+        Map<String, PricingModel.Setting> learned = Map.of(PricingModel.TRUST_RAMP_LAUNCH, value("45"));
+        Map<String, PricingModel.Setting> hand = new LinkedHashMap<>();
+        hand.put(PricingModel.TRUST_RAMP_LAUNCH, value("30"));
+        hand.put(PricingModel.ROUNDING, PricingModel.Setting.on(false));
+
+        PricingModel.Config config = PricingModel.Config.layered(learned, hand);
+
+        assertThat(config.value(PricingModel.TRUST_RAMP_LAUNCH)).isEqualByComparingTo("30");
+        assertThat(config.on(PricingModel.ROUNDING)).isFalse();
+        assertThat(config.overrides()).containsOnlyKeys(PricingModel.TRUST_RAMP_LAUNCH, PricingModel.ROUNDING);
+    }
+
+    @Test
+    @DisplayName("layered: with a side's auto-tune off, that side's learned values are dropped and the other side's stay")
+    void layeredDropsLearnedWhenAutoTuneIsOff() {
+        Map<String, PricingModel.Setting> learned = new LinkedHashMap<>();
+        learned.put(PricingModel.TRUST_RAMP_LAUNCH, value("45"));
+        learned.put(PricingModel.BUY_TARGET_GAP_SHARE, value("50"));
+
+        PricingModel.Config sellOff = PricingModel.Config.layered(learned,
+                Map.of(PricingModel.LEARNING_AUTO_TUNE, PricingModel.Setting.on(false)));
+        assertThat(sellOff.value(PricingModel.TRUST_RAMP_LAUNCH)).isEqualByComparingTo("25");
+        assertThat(sellOff.value(PricingModel.BUY_TARGET_GAP_SHARE)).isEqualByComparingTo("50");
+        assertThat(sellOff.overrides()).containsOnlyKeys(PricingModel.LEARNING_AUTO_TUNE, PricingModel.BUY_TARGET_GAP_SHARE);
+
+        PricingModel.Config buyOff = PricingModel.Config.layered(learned,
+                Map.of(PricingModel.BUY_LEARNING_AUTO_TUNE, PricingModel.Setting.on(false)));
+        assertThat(buyOff.value(PricingModel.TRUST_RAMP_LAUNCH)).isEqualByComparingTo("45");
+        assertThat(buyOff.value(PricingModel.BUY_TARGET_GAP_SHARE)).isEqualByComparingTo("35");
+
+        // The parent step off silences its auto-tune toggle too.
+        PricingModel.Config learningOff = PricingModel.Config.layered(learned,
+                Map.of(PricingModel.LEARNING, PricingModel.Setting.on(false)));
+        assertThat(learningOff.value(PricingModel.TRUST_RAMP_LAUNCH)).isEqualByComparingTo("25");
+        assertThat(learningOff.value(PricingModel.BUY_TARGET_GAP_SHARE)).isEqualByComparingTo("50");
+    }
+
+    @Test
+    @DisplayName("layered: learned values are normalised like hand-set ones - unknown keys dropped, numbers clamped, defaults stripped")
+    void layeredNormalisesLearned() {
+        Map<String, PricingModel.Setting> learned = new LinkedHashMap<>();
+        learned.put("retired.parameter", value("1"));
+        learned.put(PricingModel.DEMAND_MAX_MOVE, value("99"));
+        learned.put(PricingModel.TRUST_RAMP_LAUNCH, value("25")); // the default
+
+        PricingModel.Config config = PricingModel.Config.layered(learned, Map.of());
+
+        assertThat(config.value(PricingModel.DEMAND_MAX_MOVE))
+                .isEqualByComparingTo(PricingModel.parameter(PricingModel.DEMAND_MAX_MOVE).orElseThrow().max());
+        assertThat(config.overrides()).containsOnlyKeys(PricingModel.DEMAND_MAX_MOVE);
     }
 }

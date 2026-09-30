@@ -68,6 +68,21 @@ class SuggestionEngineTest {
                 null, null, null, false));
     }
 
+    /** One unmatched observation per price, each from a different competitor. */
+    private static List<CompetitorPrices.Observation> many(String... prices) {
+        List<CompetitorPrices.Observation> out = new java.util.ArrayList<>();
+        for (int i = 0; i < prices.length; i++) {
+            out.add(new CompetitorPrices.Observation("Competitor " + (i + 1), new BigDecimal(prices[i]),
+                    TODAY.minusDays(i + 1), null, null, null, false));
+        }
+        return List.copyOf(out);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> marketGap(SuggestionEngine.SuggestionRow row) {
+        return (Map<String, Object>) row.basis().get("marketGap");
+    }
+
     /** The registry's defaults with the named toggles switched off. */
     private static PricingModel.Config off(String... keys) {
         Map<String, PricingModel.Setting> overrides = new LinkedHashMap<>();
@@ -501,11 +516,11 @@ class SuggestionEngineTest {
         assertThat(model.get("on")).isEqualTo(model.get("total"));
         assertThat((int) model.get("total")).isGreaterThan(0);
         assertThat(steps(row)).extracting(s -> s.get("key")).containsExactly(
-                PricingModel.COMPETITORS, PricingModel.BLEND_OWN_PRICE, PricingModel.LOCAL_MARKET,
-                PricingModel.COMMODITY, PricingModel.LEARNING, PricingModel.CEILING_PLAUSIBILITY,
-                PricingModel.MOVE_CAP, PricingModel.ROUNDING);
+                PricingModel.COMPETITORS, PricingModel.COMPETITORS_MARKET_GAP, PricingModel.BLEND_OWN_PRICE,
+                PricingModel.LOCAL_MARKET, PricingModel.COMMODITY, PricingModel.LEARNING,
+                PricingModel.CEILING_PLAUSIBILITY, PricingModel.MOVE_CAP, PricingModel.ROUNDING);
         assertThat(steps(row)).extracting(s -> s.get("status")).containsExactly(
-                "skipped", "skipped", "skipped", "skipped", "skipped", "applied", "skipped", "applied");
+                "skipped", "skipped", "skipped", "skipped", "skipped", "skipped", "applied", "skipped", "applied");
         assertThat(steps(row)).allSatisfy(s -> {
             assertThat(s).containsOnlyKeys("key", "label", "status", "note");
             assertThat(s.get("label").toString()).isNotBlank();
@@ -515,8 +530,12 @@ class SuggestionEngineTest {
         SuggestionEngine.SuggestionRow everything = SuggestionEngine.suggest(inputs(
                 store(new BigDecimal("104")), cost("10"), current("15"), TWO_COMPETITORS, OWN_BAND, null, COPPER,
                 DEFAULTS, lean(-1.4)));
+        // The two competitors agree with each other (15.50-16.50) and with today's 15.00: no market gap.
         assertThat(steps(everything)).extracting(s -> s.get("status")).containsExactly(
-                "applied", "applied", "applied", "applied", "applied", "applied", "applied", "applied");
+                "applied", "skipped", "applied", "applied", "applied", "applied", "applied", "applied", "applied");
+        assertThat(step(everything, PricingModel.COMPETITORS_MARKET_GAP).get("note").toString())
+                .startsWith("Competitors agree with your price").contains("$16.00").contains("7% from today's $15.00");
+        assertThat(everything.basis().get("marketGap")).isNull();
 
         SuggestionEngine.SuggestionRow nothing = SuggestionEngine.suggest(inputs(
                 store(new BigDecimal("104")), cost("10"), current("15"), TWO_COMPETITORS, OWN_BAND, null, COPPER,
@@ -530,5 +549,174 @@ class SuggestionEngineTest {
         // Every toggle off is the bare benchmark price to the cent: 15.625 -> 15.63.
         assertThat(nothing.anchor()).isEqualTo("benchmark");
         assertThat(nothing.suggestedPrice()).isEqualByComparingTo("15.63");
+    }
+
+    // ---- the market gap: agreeing competitors far from the item's own price ----------------
+
+    @Test
+    @DisplayName("three competitors agreeing at $70 against a $3 price: the suggestion follows the market, past the band and the move cap")
+    void marketGapFollowsAgreeingCompetitors() {
+        // Cost 2: B = 3.125, floor 2.78, ceiling 3.57. Median 70 is 2,233% over today's 3.00.
+        SuggestionEngine.SuggestionRow row = SuggestionEngine.suggest(inputs(
+                null, cost("2"), current("3"), many("68", "70", "72"), null, null, NONE, DEFAULTS, null));
+
+        // raw = 70 x (1 - 0.03) = 67.90, on the 0.05 step already; ceiling lifted to 70 x 1.10 = 77.00.
+        assertThat(row.status()).isEqualTo(SuggestionEngine.STATUS_OK);
+        assertThat(row.anchor()).isEqualTo("competitor");
+        assertThat(row.anchorPrice()).isEqualByComparingTo("70.00");
+        assertThat(row.suggestedPrice()).isEqualByComparingTo("67.90");
+        assertThat(row.suggestedMarginPct()).isEqualByComparingTo("97.1");
+        assertThat(row.floorPrice()).isEqualByComparingTo("2.78");
+        assertThat(row.ceilingPrice()).isEqualByComparingTo("77.00");
+        assertThat(row.basis().get("raw")).isEqualTo(new BigDecimal("67.90"));
+        assertThat(row.basis().get("competitor")).isNotNull();
+
+        Map<String, Object> gap = marketGap(row);
+        assertThat(gap).containsOnlyKeys("median", "low", "high", "observations", "gapPct", "direction");
+        assertThat(gap.get("median")).isEqualTo(new BigDecimal("70.00"));
+        assertThat(gap.get("low")).isEqualTo(new BigDecimal("68.00"));
+        assertThat(gap.get("high")).isEqualTo(new BigDecimal("72.00"));
+        assertThat(gap.get("observations")).isEqualTo(3);
+        assertThat(gap.get("gapPct")).isEqualTo(new BigDecimal("2233.3"));
+        assertThat(gap.get("direction")).isEqualTo("above");
+
+        assertThat(status(row, PricingModel.COMPETITORS)).isEqualTo("applied");
+        assertThat(step(row, PricingModel.COMPETITORS).get("note").toString()).contains("count as a market");
+        assertThat(status(row, PricingModel.COMPETITORS_MARKET_GAP)).isEqualTo("applied");
+        assertThat(step(row, PricingModel.COMPETITORS_MARKET_GAP).get("label")).isEqualTo("Market gap");
+        assertThat(step(row, PricingModel.COMPETITORS_MARKET_GAP).get("note").toString())
+                .isEqualTo("3 competitors agree at around $70.00 (from $68.00 to $72.00); your price today is $3.00, "
+                        + "2,233% under. The suggestion follows the market, 3% under its median.");
+        assertThat(status(row, PricingModel.BLEND_OWN_PRICE)).isEqualTo("skipped");
+        assertThat(step(row, PricingModel.BLEND_OWN_PRICE).get("note").toString()).contains("not a market");
+        assertThat(status(row, PricingModel.CEILING_PLAUSIBILITY)).isEqualTo("skipped");
+        assertThat(step(row, PricingModel.CEILING_PLAUSIBILITY).get("note").toString())
+                .contains("cost multiple is not applied").contains("ceiling lifted to $77.00");
+        assertThat(status(row, PricingModel.MOVE_CAP)).isEqualTo("skipped");
+        assertThat(step(row, PricingModel.MOVE_CAP).get("note").toString())
+                .isEqualTo("Market gap: the cap is lifted so the price can reach the market.");
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> blend = (Map<String, Object>) row.basis().get("blend");
+        assertThat(blend.get("benchmarkWeight")).isEqualTo(BigDecimal.ZERO);
+        assertThat(blend.get("anchor")).isEqualTo("competitor");
+        assertThat(row.basis().get("text").toString())
+                .contains("; market gap: 3 competitors agree at $70.00, far above your $3.00 — priced to the market, 3% under")
+                .doesNotContain("blended").doesNotContain("move cap").contains("rounded to $67.90");
+    }
+
+    @Test
+    @DisplayName("a lone competitor at $70 against a $3 price is still a wrong match: dropped, the suggestion stays near today's")
+    void loneFarCompetitorIsStillDropped() {
+        SuggestionEngine.SuggestionRow row = SuggestionEngine.suggest(inputs(
+                null, cost("2"), current("3"), one("70.00"), null, null, NONE, DEFAULTS, null));
+
+        // The benchmark alone: 3.125 -> 3.13, inside the band and within +/-25% of 3.00.
+        assertThat(row.anchor()).isEqualTo("benchmark");
+        assertThat(row.suggestedPrice()).isEqualByComparingTo("3.13");
+        assertThat(row.suggestedPrice()).isBetween(new BigDecimal("2.25"), new BigDecimal("3.75"));
+        assertThat(row.ceilingPrice()).isEqualByComparingTo("3.57");
+        assertThat(row.basis().get("competitor")).isNull();
+        assertThat(row.basis().get("marketGap")).isNull();
+        assertThat(status(row, PricingModel.COMPETITORS)).isEqualTo("skipped");
+        assertThat(step(row, PricingModel.COMPETITORS).get("note").toString()).contains("$70.00")
+                .contains("today's price $3.00").contains("ignored");
+        assertThat(status(row, PricingModel.COMPETITORS_MARKET_GAP)).isEqualTo("skipped");
+        assertThat(step(row, PricingModel.COMPETITORS_MARKET_GAP).get("note")).isEqualTo("Only one competitor price.");
+        assertThat(status(row, PricingModel.MOVE_CAP)).isEqualTo("applied");
+        assertThat(row.basis().get("text").toString()).doesNotContain("market gap");
+    }
+
+    @Test
+    @DisplayName("competitors at $20 and $70 disagree with each other: not a market, so the median faces the old plausibility gate")
+    void disagreeingCompetitorsAreNotAMarket() {
+        SuggestionEngine.SuggestionRow row = SuggestionEngine.suggest(inputs(
+                null, cost("2"), current("3"), many("20", "70"), null, null, NONE, DEFAULTS, null));
+
+        // Median 45 is over twice today's 3.00: ignored, the benchmark alone.
+        assertThat(row.anchor()).isEqualTo("benchmark");
+        assertThat(row.suggestedPrice()).isEqualByComparingTo("3.13");
+        assertThat(row.competitor().median()).isEqualByComparingTo("45.00");
+        assertThat(row.basis().get("competitor")).isNull();
+        assertThat(row.basis().get("marketGap")).isNull();
+        assertThat(status(row, PricingModel.COMPETITORS)).isEqualTo("skipped");
+        assertThat(status(row, PricingModel.COMPETITORS_MARKET_GAP)).isEqualTo("skipped");
+        assertThat(step(row, PricingModel.COMPETITORS_MARKET_GAP).get("note"))
+                .isEqualTo("Competitor prices disagree with each other, from $20.00 to $70.00.");
+
+        // Two that agree but sit within the threshold of today's price: kept and blended as before, no gap.
+        SuggestionEngine.SuggestionRow near = SuggestionEngine.suggest(inputs(
+                null, cost("2"), current("3"), many("3.40", "3.60"), null, null, NONE, DEFAULTS, null));
+        assertThat(near.anchor()).isEqualTo("competitor");
+        assertThat(near.basis().get("marketGap")).isNull();
+        assertThat(status(near, PricingModel.COMPETITORS_MARKET_GAP)).isEqualTo("skipped");
+        assertThat(step(near, PricingModel.COMPETITORS_MARKET_GAP).get("note").toString())
+                .isEqualTo("Competitors agree with your price: median $3.50, 17% from today's $3.00.");
+        assertThat(status(near, PricingModel.BLEND_OWN_PRICE)).isEqualTo("applied");
+        assertThat(status(near, PricingModel.MOVE_CAP)).isEqualTo("applied");
+    }
+
+    @Test
+    @DisplayName("market gap off: agreeing competitors far away are a wrong match again, and the old maths runs")
+    void marketGapOffKeepsOldBehaviour() {
+        SuggestionEngine.SuggestionRow row = SuggestionEngine.suggest(inputs(
+                null, cost("2"), current("3"), many("68", "70", "72"), null, null, NONE,
+                off(PricingModel.COMPETITORS_MARKET_GAP), null));
+
+        assertThat(row.anchor()).isEqualTo("benchmark");
+        assertThat(row.suggestedPrice()).isEqualByComparingTo("3.13");
+        assertThat(row.ceilingPrice()).isEqualByComparingTo("3.57");
+        assertThat(row.basis().get("competitor")).isNull();
+        assertThat(row.basis().get("marketGap")).isNull();
+        assertThat(status(row, PricingModel.COMPETITORS)).isEqualTo("skipped");
+        assertThat(step(row, PricingModel.COMPETITORS).get("note").toString()).contains("ignored");
+        assertThat(status(row, PricingModel.COMPETITORS_MARKET_GAP)).isEqualTo("off");
+        assertThat(status(row, PricingModel.CEILING_PLAUSIBILITY)).isEqualTo("applied");
+        assertThat(status(row, PricingModel.MOVE_CAP)).isEqualTo("applied");
+
+        // With the plausibility check off as well, the old blend-and-clamp maths: clamped to the 3.57 ceiling.
+        SuggestionEngine.SuggestionRow kept = SuggestionEngine.suggest(inputs(
+                null, cost("2"), current("3"), many("68", "70", "72"), null, null, NONE,
+                off(PricingModel.COMPETITORS_MARKET_GAP, PricingModel.COMPETITORS_PLAUSIBILITY), null));
+        assertThat(kept.anchor()).isEqualTo("competitor");
+        assertThat(kept.suggestedPrice()).isEqualByComparingTo("3.57");
+        assertThat(status(kept, PricingModel.BLEND_OWN_PRICE)).isEqualTo("applied");
+    }
+
+    @Test
+    @DisplayName("a market far below today's price comes down to it, but never under the minimum-margin floor")
+    void marketGapBelowHoldsAtTheFloor() {
+        // Cost 2.20: floor 3.06 (28%), ceiling 3.93. Competitors agree at 3.00, 96% under today's 70.00;
+        // raw = 3.00 x 0.97 = 2.91 is under the floor, so the floor holds.
+        SuggestionEngine.SuggestionRow row = SuggestionEngine.suggest(inputs(
+                null, cost("2.20"), current("70"), many("3", "3.1", "2.9"), null, null, NONE, DEFAULTS, null));
+
+        assertThat(row.anchor()).isEqualTo("competitor");
+        assertThat(row.anchorPrice()).isEqualByComparingTo("3.00");
+        assertThat(row.basis().get("raw")).isEqualTo(new BigDecimal("2.91"));
+        assertThat(row.floorPrice()).isEqualByComparingTo("3.06");
+        assertThat(row.suggestedPrice()).isEqualByComparingTo("3.06");
+        assertThat(row.suggestedPrice()).isGreaterThanOrEqualTo(row.floorPrice());
+        assertThat(row.ceilingPrice()).isEqualByComparingTo("3.93");
+
+        Map<String, Object> gap = marketGap(row);
+        assertThat(gap.get("median")).isEqualTo(new BigDecimal("3.00"));
+        assertThat(gap.get("low")).isEqualTo(new BigDecimal("2.90"));
+        assertThat(gap.get("high")).isEqualTo(new BigDecimal("3.10"));
+        assertThat(gap.get("observations")).isEqualTo(3);
+        assertThat(gap.get("gapPct")).isEqualTo(new BigDecimal("95.7"));
+        assertThat(gap.get("direction")).isEqualTo("below");
+
+        assertThat(status(row, PricingModel.COMPETITORS_MARKET_GAP)).isEqualTo("applied");
+        assertThat(step(row, PricingModel.COMPETITORS_MARKET_GAP).get("note").toString())
+                .isEqualTo("3 competitors agree at around $3.00 (from $2.90 to $3.10); your price today is $70.00, "
+                        + "and the market is 96% under it. The suggestion follows the market, 3% under its median, "
+                        + "held at the floor $3.06 (your minimum margin).");
+        assertThat(status(row, PricingModel.MOVE_CAP)).isEqualTo("skipped");
+        assertThat(status(row, PricingModel.CEILING_PLAUSIBILITY)).isEqualTo("skipped");
+        assertThat(step(row, PricingModel.CEILING_PLAUSIBILITY).get("note").toString()).doesNotContain("lifted");
+        assertThat(row.basis().get("text").toString())
+                .contains("; market gap: 3 competitors agree at $3.00, far below your $70.00 — priced to the market, "
+                        + "3% under, held at the floor $3.06");
     }
 }

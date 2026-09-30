@@ -26,8 +26,12 @@ import java.util.Map;
  *
  * <p>The tenant's pricing model ({@link PricingModel.Config}) says which steps run. With
  * every toggle on and every number at its default the maths is the wizard's original chain
- * exactly; each step the wizard consults is reported under {@code basis.model} as
- * {@code applied}, {@code skipped} (on, but nothing to work with) or {@code off}.
+ * exactly, with one exception: when several competitors agree with each other but sit far
+ * from the item's own price (the <b>market gap</b>, {@link PricingModel#COMPETITORS_MARKET_GAP}),
+ * the row is priced to that market rather than blended, banded and move-capped toward a cost
+ * formula that never knew the market was there. Each step the wizard consults is reported
+ * under {@code basis.model} as {@code applied}, {@code skipped} (on, but nothing to work
+ * with) or {@code off}.
  *
  * <p><b>The live margin recompute.</b> {@code cost} is the cost the suggestion was priced
  * from and {@code suggestedMarginPct} describes the suggestion alone. When the user edits a
@@ -55,9 +59,16 @@ final class SuggestionEngine {
     static final String OFF = "off";
 
     /** The model steps the wizard consults, in the order {@code basis.model.steps} lists them. */
-    static final List<String> MODEL_STEPS = List.of(PricingModel.COMPETITORS, PricingModel.BLEND_OWN_PRICE,
-            PricingModel.LOCAL_MARKET, PricingModel.COMMODITY, PricingModel.LEARNING,
+    static final List<String> MODEL_STEPS = List.of(PricingModel.COMPETITORS, PricingModel.COMPETITORS_MARKET_GAP,
+            PricingModel.BLEND_OWN_PRICE, PricingModel.LOCAL_MARKET, PricingModel.COMMODITY, PricingModel.LEARNING,
             PricingModel.CEILING_PLAUSIBILITY, PricingModel.MOVE_CAP, PricingModel.ROUNDING);
+
+    /**
+     * How far over the competitor median the ceiling is lifted on a market-gap row, so the
+     * market can be reached: the category band and the cost multiple describe the tenant's
+     * own margins, not a market three floors up.
+     */
+    static final BigDecimal MARKET_REACH = new BigDecimal("1.10");
 
     private static final BigDecimal TEN_THOUSAND = BigDecimal.valueOf(10_000);
     private static final BigDecimal TWO = BigDecimal.valueOf(2);
@@ -146,15 +157,20 @@ final class SuggestionEngine {
         r.atMargin = PricingMath.priceAtMargin(r.c, r.tm);
         r.b = PricingMath.money(r.atMargin.multiply(r.ri).multiply(r.cd));
 
-        // 4. anchors
+        // 4. anchors. Several competitors that agree with each other are a market and are never
+        // dropped for being far away; only a lone price, or a set that disagrees with itself, faces
+        // the plausibility gate.
         r.observed = competitor(in.competitorObservations());
+        int minAgreeing = cfg.value(PricingModel.COMPETITORS_MARKET_GAP_MIN_AGREEING).intValue();
+        r.credible = cfg.on(PricingModel.COMPETITORS_MARKET_GAP) && r.observed != null
+                && credible(r.observed, minAgreeing, cfg.value(PricingModel.COMPETITORS_MARKET_GAP_AGREEMENT));
         if (!cfg.on(PricingModel.COMPETITORS)) {
             r.steps.add(PricingModel.COMPETITORS, "Competitor prices", OFF, r.observed == null ? "Off."
                     : "Off; " + observations(r.observed.observations()) + " on file not used.");
         } else if (r.observed == null) {
             r.steps.add(PricingModel.COMPETITORS, "Competitor prices", SKIPPED,
                     "No competitor price on file for this item.");
-        } else if (cfg.on(PricingModel.COMPETITORS_PLAUSIBILITY)
+        } else if (!r.credible && cfg.on(PricingModel.COMPETITORS_PLAUSIBILITY)
                 && implausible(r.observed.median(), current != null ? current : r.floor)) {
             // Against today's price when the item has one (what it really sells for); only an item with
             // no price yet is judged against the minimum-margin price.
@@ -166,15 +182,41 @@ final class SuggestionEngine {
             r.competitor = r.observed;
             r.steps.add(PricingModel.COMPETITORS, "Competitor prices", APPLIED, "Median " + r.money(r.competitor.median())
                     + " over " + observations(r.competitor.observations())
-                    + (r.competitor.regionMatched() ? ", region-matched" : "") + ".");
+                    + (r.competitor.regionMatched() ? ", region-matched" : "")
+                    + (r.credible && r.competitor.observations() > 1 ? "; they agree with each other (from "
+                            + r.money(r.competitor.low()) + " to " + r.money(r.competitor.high())
+                            + "), so they count as a market" : "") + ".");
         }
         r.peer = in.band() == null || in.band().median() == null ? null
                 : new PeerSummary(PricingMath.round2(in.band().median()), in.band().n());
 
+        // 4b. the market gap: a credible set far from the price it is judged against (today's price,
+        // else the benchmark) is a market the item is mispriced against, and leads on its own.
+        if (r.competitor != null && r.credible) {
+            r.gapRef = current != null && current.signum() > 0 ? current : r.b;
+            BigDecimal ratio = r.competitor.median().divide(r.gapRef, PricingMath.RATIO_SCALE, RoundingMode.HALF_UP)
+                    .subtract(BigDecimal.ONE);
+            r.gapAbove = ratio.signum() > 0;
+            r.gapPct = ratio.abs().multiply(PricingMath.HUNDRED);
+            r.marketGap = r.gapPct.compareTo(cfg.value(PricingModel.COMPETITORS_MARKET_GAP_THRESHOLD)) > 0;
+        }
+
         // 5. blend
         boolean blendOn = cfg.on(PricingModel.BLEND_OWN_PRICE);
         BigDecimal raw;
-        if (blendOn && r.competitor != null) {
+        if (r.marketGap) {
+            // The benchmark is a cost formula, not a market: nothing to average it with.
+            r.undercut = cfg.value(PricingModel.COMPETITORS_MARKET_GAP_UNDERCUT);
+            r.benchmarkWeight = BigDecimal.ZERO;
+            raw = r.competitor.median().multiply(BigDecimal.ONE.subtract(
+                    r.undercut.divide(PricingMath.HUNDRED, PricingMath.RATIO_SCALE, RoundingMode.HALF_UP)));
+            r.anchor = Anchor.COMPETITOR;
+            r.anchorPrice = r.competitor.median();
+            r.steps.add(PricingModel.BLEND_OWN_PRICE, "Blend", blendOn ? SKIPPED : OFF, (blendOn ? "Market gap: "
+                    : "Off; market gap: ") + "the competitor median " + r.money(r.competitor.median())
+                    + " leads on its own, " + undercut(r.undercut) + "; the benchmark " + r.money(r.b)
+                    + " is a cost formula, not a market, so it is not blended in.");
+        } else if (blendOn && r.competitor != null) {
             r.benchmarkWeight = BENCHMARK_WEIGHT_WITH_COMPETITOR;
             raw = r.b.multiply(r.benchmarkWeight)
                     .add(r.competitor.median().multiply(BigDecimal.ONE.subtract(r.benchmarkWeight)));
@@ -215,8 +257,21 @@ final class SuggestionEngine {
             r.steps.add(PricingModel.LEARNING, "Your decisions", APPLIED, learning.note());
         }
 
-        // 7. plausibility cap on the ceiling
-        if (!cfg.on(PricingModel.CEILING_PLAUSIBILITY)) {
+        // 7. plausibility cap on the ceiling. On a market-gap row the ceiling is lifted to reach the
+        // market instead: the cost multiple, like the band, describes the tenant's margins, not a
+        // market that sits far above them.
+        if (r.marketGap) {
+            BigDecimal reach = PricingMath.money(r.competitor.median().multiply(MARKET_REACH));
+            if (r.ceiling == null || reach.compareTo(r.ceiling) > 0) {
+                r.ceilingLifted = true;
+                r.ceiling = reach;
+            }
+            boolean on = cfg.on(PricingModel.CEILING_PLAUSIBILITY);
+            r.steps.add(PricingModel.CEILING_PLAUSIBILITY, "Ceiling plausibility", on ? SKIPPED : OFF, on
+                    ? "Market gap: the cost multiple is not applied, so the price can reach the market"
+                            + (r.ceilingLifted ? "; ceiling lifted to " + r.money(r.ceiling) : "") + "."
+                    : "Off." + (r.ceilingLifted ? " Market gap: ceiling lifted to " + r.money(r.ceiling) + "." : ""));
+        } else if (!cfg.on(PricingModel.CEILING_PLAUSIBILITY)) {
             r.steps.add(PricingModel.CEILING_PLAUSIBILITY, "Ceiling plausibility", OFF, "Off.");
         } else {
             BigDecimal multiple = cfg.value(PricingModel.CEILING_COST_MULTIPLE);
@@ -233,12 +288,22 @@ final class SuggestionEngine {
             }
         }
 
-        // 8. the band, then the move cap - never under the floor or over the ceiling
+        // 8. the band, then the move cap - never under the floor or over the ceiling. A market-gap
+        // row still holds at the floor (the minimum margin is the tenant's guardrail, whatever the
+        // market does) but is not held to today's price: the whole point is to reach the market.
         BigDecimal clamped = PricingMath.clamp(r.raw, r.floor, r.ceiling);
+        if (r.marketGap) {
+            r.floorHeld = r.floor != null && r.raw.compareTo(r.floor) < 0;
+            r.ceilingHeld = !r.floorHeld && r.ceiling != null && r.raw.compareTo(r.ceiling) > 0;
+        }
         BigDecimal roundLo = r.floor;
         BigDecimal roundHi = r.ceiling;
         r.current = current;
-        if (!cfg.on(PricingModel.MOVE_CAP)) {
+        if (r.marketGap) {
+            boolean on = cfg.on(PricingModel.MOVE_CAP);
+            r.steps.add(PricingModel.MOVE_CAP, "Move cap", on ? SKIPPED : OFF, on
+                    ? "Market gap: the cap is lifted so the price can reach the market." : "Off.");
+        } else if (!cfg.on(PricingModel.MOVE_CAP)) {
             r.steps.add(PricingModel.MOVE_CAP, "Move cap", OFF, "Off.");
         } else if (current == null || current.signum() <= 0) {
             r.steps.add(PricingModel.MOVE_CAP, "Move cap", SKIPPED, "No price today, so nothing to hold to.");
@@ -284,6 +349,7 @@ final class SuggestionEngine {
         }
         BigDecimal marginPct = PricingMath.marginPct(r.suggested, r.c);
         r.marginPct = marginPct == null ? null : marginPct.setScale(1, RoundingMode.HALF_UP);
+        marketGapStep(cfg, r, current, minAgreeing);
 
         BenchmarkSummary benchmarkSummary = new BenchmarkSummary(r.tm, r.benchmark.lowMarginPct(),
                 r.benchmark.highMarginPct(), r.ri.setScale(3, RoundingMode.HALF_UP), r.pct90, PricingMath.round2(r.b),
@@ -339,6 +405,82 @@ final class SuggestionEngine {
             return false;
         }
         return median.multiply(TWO).compareTo(floor) < 0 || median.compareTo(floor.multiply(TWO)) > 0;
+    }
+
+    /**
+     * A competitor set is credible - a market rather than a wrong match - when at least
+     * {@code minAgreeing} prices agree with each other: the highest no more than
+     * {@code agreementPct} above the lowest. A credible set is never dropped for being far from
+     * the item's own price; that distance is the market gap.
+     */
+    static boolean credible(CompetitorSummary summary, int minAgreeing, BigDecimal agreementPct) {
+        if (summary == null || summary.observations() < minAgreeing || summary.low() == null
+                || summary.high() == null || summary.low().signum() <= 0) {
+            return false;
+        }
+        BigDecimal span = BigDecimal.ONE.add(agreementPct.divide(PricingMath.HUNDRED, PricingMath.RATIO_SCALE,
+                RoundingMode.HALF_UP));
+        return summary.high().compareTo(summary.low().multiply(span)) <= 0;
+    }
+
+    /** The market-gap step as it ran, written once the floor and ceiling have had their say. */
+    private static void marketGapStep(PricingModel.Config cfg, Run r, BigDecimal current, int minAgreeing) {
+        String key = PricingModel.COMPETITORS_MARKET_GAP;
+        String label = "Market gap";
+        if (!cfg.on(key)) {
+            r.steps.add(key, label, OFF, "Off.");
+            return;
+        }
+        CompetitorSummary c = r.observed;
+        if (c == null) {
+            r.steps.add(key, label, SKIPPED, "No competitor price on file.");
+        } else if (c.observations() < minAgreeing) {
+            r.steps.add(key, label, SKIPPED, c.observations() == 1 ? "Only one competitor price."
+                    : "Only " + c.observations() + " competitor prices; " + minAgreeing + " must agree.");
+        } else if (!r.credible) {
+            r.steps.add(key, label, SKIPPED, "Competitor prices disagree with each other, from " + r.money(c.low())
+                    + " to " + r.money(c.high()) + ".");
+        } else if (r.competitor == null) {
+            r.steps.add(key, label, SKIPPED, "Competitor prices not used.");
+        } else if (!r.marketGap) {
+            r.steps.add(key, label, SKIPPED, "Competitors agree with your price: median " + r.money(c.median()) + ", "
+                    + pct(r.gapPct) + " from " + (current != null && current.signum() > 0 ? "today's "
+                    : "the benchmark price ") + r.money(r.gapRef) + ".");
+        } else {
+            StringBuilder note = new StringBuilder(agreeing(r, c)).append(" (from ").append(r.money(c.low()))
+                    .append(" to ").append(r.money(c.high())).append("); ")
+                    .append(current != null && current.signum() > 0 ? "your price today is " : "the benchmark price is ")
+                    .append(r.money(r.gapRef));
+            if (r.gapAbove) {
+                note.append(", ").append(pct(r.gapPct)).append(" under.");
+            } else {
+                note.append(", and the market is ").append(pct(r.gapPct)).append(" under it.");
+            }
+            note.append(" The suggestion follows the market, ").append(undercut(r.undercut));
+            if (r.floorHeld) {
+                note.append(", held at the floor ").append(r.money(r.floor)).append(" (your minimum margin)");
+            } else if (r.ceilingHeld) {
+                note.append(", held under the ceiling ").append(r.money(r.ceiling));
+            }
+            r.steps.add(key, label, APPLIED, note.append('.').toString());
+        }
+    }
+
+    /** "3 competitors agree at around $70.00", or "1 competitor at $70.00" when the tenant asks for one. */
+    private static String agreeing(Run r, CompetitorSummary c) {
+        return c.observations() == 1 ? "1 competitor at " + r.money(c.median())
+                : c.observations() + " competitors agree at around " + r.money(c.median());
+    }
+
+    /** "3% under its median", or "at its median" with no undercut. */
+    private static String undercut(BigDecimal undercutPct) {
+        return undercutPct == null || undercutPct.signum() == 0 ? "at its median"
+                : plain(undercutPct) + "% under its median";
+    }
+
+    /** A whole-number percentage with a thousands separator: 2,233%. */
+    private static String pct(BigDecimal pct) {
+        return String.format(Locale.ENGLISH, "%,d", pct.setScale(0, RoundingMode.HALF_UP).longValue()) + "%";
     }
 
     /** Rounds to the price step, then back inside {@code [lo, hi]} if the rounding stepped out. */
@@ -412,6 +554,19 @@ final class SuggestionEngine {
         } else {
             basis.put("competitor", null);
         }
+        // The market the row was priced to, when credible competitors sat far from its own price.
+        if (r.marketGap) {
+            Map<String, Object> gap = new LinkedHashMap<>();
+            gap.put("median", r.competitor.median());
+            gap.put("low", r.competitor.low());
+            gap.put("high", r.competitor.high());
+            gap.put("observations", r.competitor.observations());
+            gap.put("gapPct", r.gapPct.setScale(1, RoundingMode.HALF_UP));
+            gap.put("direction", r.gapAbove ? "above" : "below");
+            basis.put("marketGap", gap);
+        } else {
+            basis.put("marketGap", null);
+        }
         if (r.peer != null) {
             Map<String, Object> p = new LinkedHashMap<>();
             p.put("median", r.peer.median());
@@ -467,7 +622,18 @@ final class SuggestionEngine {
             }
             text.append(") ×").append(r.cd.setScale(2, RoundingMode.HALF_UP).toPlainString());
         }
-        if (Anchor.COMPETITOR.equals(r.anchor)) {
+        if (r.marketGap) {
+            text.append("; market gap: ").append(agreeingMoney(r)).append(r.gapAbove ? ", far above " : ", far below ")
+                    .append(r.current != null && r.current.signum() > 0 ? "your " : "the benchmark ")
+                    .append(r.money(r.gapRef)).append(" — priced to the market, ")
+                    .append(r.undercut == null || r.undercut.signum() == 0 ? "at its median"
+                            : plain(r.undercut) + "% under");
+            if (r.floorHeld) {
+                text.append(", held at the floor ").append(r.money(r.floor));
+            } else if (r.ceilingHeld) {
+                text.append(", held under the ceiling ").append(r.money(r.ceiling));
+            }
+        } else if (Anchor.COMPETITOR.equals(r.anchor)) {
             text.append("; blended 50/50 with the competitor median ").append(sym).append(r.competitor.median())
                     .append(" (").append(observations(r.competitor.observations()))
                     .append(r.competitor.regionMatched() ? ", region-matched" : "").append(')');
@@ -535,6 +701,13 @@ final class SuggestionEngine {
         return n + (n == 1 ? " observation" : " observations");
     }
 
+    /** "3 competitors agree at $70.00" with the currency symbol, for the sentence. */
+    private static String agreeingMoney(Run r) {
+        int n = r.competitor.observations();
+        return n == 1 ? "1 competitor at " + r.money(r.competitor.median())
+                : n + " competitors agree at " + r.money(r.competitor.median());
+    }
+
     // ---- the chain as it ran -------------------------------------------------------------
 
     /** Every figure the chain produced, so the basis and the sentence read one set. */
@@ -553,6 +726,20 @@ final class SuggestionEngine {
         /** What was on file, and what the anchor used (null when off, absent or implausible). */
         CompetitorSummary observed;
         CompetitorSummary competitor;
+        /** Enough competitors agreeing with each other to be a market, whatever the distance. */
+        boolean credible;
+        /** A credible set far from {@link #gapRef}: the row is priced to the market. */
+        boolean marketGap;
+        /** What the competitor median was judged against: today's price, else the benchmark price. */
+        BigDecimal gapRef;
+        /** {@code |median / gapRef − 1| × 100}, unrounded; set whenever the set is credible. */
+        BigDecimal gapPct;
+        boolean gapAbove;
+        /** The market-gap undercut, %, when the gap held. */
+        BigDecimal undercut;
+        boolean ceilingLifted;
+        boolean floorHeld;
+        boolean ceilingHeld;
         PeerSummary peer;
         BigDecimal benchmarkWeight;
         String anchor;

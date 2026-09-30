@@ -188,6 +188,11 @@ public final class PricingModel {
     public static final String ANCHOR_EXTERNAL_DIVERGENCE = "anchor.externalDivergence";
     public static final String COMPETITORS = "competitors";
     public static final String COMPETITORS_PLAUSIBILITY = "competitors.plausibility";
+    public static final String COMPETITORS_MARKET_GAP = "competitors.marketGap";
+    public static final String COMPETITORS_MARKET_GAP_MIN_AGREEING = "competitors.marketGap.minAgreeing";
+    public static final String COMPETITORS_MARKET_GAP_AGREEMENT = "competitors.marketGap.agreement";
+    public static final String COMPETITORS_MARKET_GAP_THRESHOLD = "competitors.marketGap.threshold";
+    public static final String COMPETITORS_MARKET_GAP_UNDERCUT = "competitors.marketGap.undercut";
     public static final String BLEND_OWN_PRICE = "blend.ownPrice";
     public static final String AGGRESSIVE_PROFIT_MAX = "aggressive.profitMax";
     public static final String AGGRESSIVE_RISK_AVERSION = "aggressive.riskAversion";
@@ -214,6 +219,7 @@ public final class PricingModel {
     public static final String LEARNING_HALF_LIFE_DAYS = "learning.halfLifeDays";
     public static final String LEARNING_DEADBAND = "learning.deadband";
     public static final String LEARNING_STRATEGY = "learning.strategy";
+    public static final String LEARNING_AUTO_TUNE = "learning.autoTune";
 
     public static final String CORRIDOR_HISTORY = "corridor.history";
     public static final String CORRIDOR_MIN_OBSERVATIONS = "corridor.minObservations";
@@ -233,6 +239,10 @@ public final class PricingModel {
     public static final String BUY_MARKET_BULK_LOTS = "buy.market.bulkLots";
     public static final String BUY_MARKET_RETAIL_DERIVED = "buy.market.retailDerived";
     public static final String BUY_MARKET_PLAUSIBILITY = "buy.market.plausibility";
+    public static final String BUY_MARKET_GAP = "buy.market.marketGap";
+    public static final String BUY_MARKET_GAP_MIN_AGREEING = "buy.market.marketGap.minAgreeing";
+    public static final String BUY_MARKET_GAP_AGREEMENT = "buy.market.marketGap.agreement";
+    public static final String BUY_MARKET_GAP_THRESHOLD = "buy.market.marketGap.threshold";
     public static final String BUY_TARGET = "buy.target";
     public static final String BUY_TARGET_GAP_SHARE = "buy.target.gapShare";
     public static final String BUY_NEVER_ABOVE_CURRENT = "buy.neverAboveCurrent";
@@ -258,6 +268,7 @@ public final class PricingModel {
     public static final String BUY_LEARNING_HALF_LIFE_DAYS = "buy.learning.halfLifeDays";
     public static final String BUY_LEARNING_DEADBAND = "buy.learning.deadband";
     public static final String BUY_LEARNING_STRATEGY = "buy.learning.strategy";
+    public static final String BUY_LEARNING_AUTO_TUNE = "buy.learning.autoTune";
 
     public static final String BUY_MOVE_CAP = "buy.moveCap";
     public static final String BUY_MOVE_CAP_MAX_PCT = "buy.moveCap.maxPct";
@@ -309,9 +320,25 @@ public final class PricingModel {
         toggle(r, COMPETITORS, Group.COMPOSE, "Use competitor prices",
                 "Prices you imported, entered or fetched live count toward the starting point and the ceiling. "
                         + "Off: priced from your own history and the benchmarks only.", true, null, "§3 step 7");
-        toggle(r, COMPETITORS_PLAUSIBILITY, Group.COMPOSE, "Ignore competitor prices that look wrong",
-                "A competitor price under half or over twice your minimum-margin price is left out.", true,
-                COMPETITORS, "§3 step 7");
+        toggle(r, COMPETITORS_PLAUSIBILITY, Group.COMPOSE, "Ignore a lone competitor price that looks wrong",
+                "A single competitor price under half or over twice what the item sells for today is left out. "
+                        + "Several competitors that agree with each other are never dropped for being far away.",
+                true, COMPETITORS, "§3 step 7");
+        toggle(r, COMPETITORS_MARKET_GAP, Group.COMPOSE, "Follow the market when competitors clearly disagree with your price",
+                "When several competitor prices agree with each other but sit far from your price, the "
+                        + "recommendation follows the market instead of your own history, past the usual phase-in "
+                        + "and move limits, and says so. Off: such prices are treated as a wrong match and ignored.",
+                true, COMPETITORS, "§3 step 7 and 8b");
+        number(r, COMPETITORS_MARKET_GAP_MIN_AGREEING, Group.COMPOSE, "Competitors that must agree", "", "2", "1",
+                "10", "competitors", COMPETITORS_MARKET_GAP, "§3 step 7");
+        number(r, COMPETITORS_MARKET_GAP_AGREEMENT, Group.COMPOSE, "How close their prices must be",
+                "The highest of them no more than this above the lowest.", "50", "5", "300", "%",
+                COMPETITORS_MARKET_GAP, "§3 step 7");
+        number(r, COMPETITORS_MARKET_GAP_THRESHOLD, Group.COMPOSE, "How far from your price counts as a clear disagreement",
+                "", "50", "10", "1000", "%", COMPETITORS_MARKET_GAP, "§3 step 8b");
+        number(r, COMPETITORS_MARKET_GAP_UNDERCUT, Group.COMPOSE, "Price this much under the competitor median",
+                "The competitive price when the market leads.", "3", "0", "20", "%", COMPETITORS_MARKET_GAP,
+                "§3 step 8b");
         toggle(r, BLEND_OWN_PRICE, Group.COMPOSE, "Blend in your own last price",
                 "When the start comes from competitors or benchmarks, your branch's last selling price is mixed "
                         + "in so prices do not jump. Off: use the market figure alone.", true, null, "single-item step 2");
@@ -378,6 +405,12 @@ public final class PricingModel {
         toggle(r, LEARNING_STRATEGY, Group.LEARN, "Lead with the price you usually choose",
                 "If you mostly pick max profit in the bulk basket, the higher price leads; otherwise the "
                         + "competitive one does.", true, LEARNING, "§1");
+        toggle(r, LEARNING_AUTO_TUNE, Group.LEARN, "Retune the model from your results",
+                "Every night the model re-fits its own settings from what you decided and what happened after "
+                        + "- price sensitivity from measured outcomes, how fast prices phase in, how far your "
+                        + "decisions may lean - within safe bounds, and tells you what changed. A setting you set "
+                        + "yourself always wins. Off: learned settings are still worked out and shown, but not used.",
+                true, LEARNING, "§3 step 4 and 9b");
 
         // ---- safety limits --------------------------------------------------------------
         toggle(r, CORRIDOR_HISTORY, Group.GUARD, "Stay within the prices this item has sold at",
@@ -421,9 +454,22 @@ public final class PricingModel {
         toggle(r, BUY_MARKET_RETAIL_DERIVED, Group.BUY_COMPOSE, "Work back from shop prices",
                 "Competitors' median shop price less your category's target margin: what a seller at that price "
                         + "could afford to pay.", true, BUY_MARKET, "§3 step 7");
-        toggle(r, BUY_MARKET_PLAUSIBILITY, Group.BUY_COMPOSE, "Ignore market prices that look wrong",
-                "A market price under a third or over three times your suppliers' median is left out.", true,
-                BUY_MARKET, "§3 step 7");
+        toggle(r, BUY_MARKET_PLAUSIBILITY, Group.BUY_COMPOSE, "Ignore a lone market price that looks wrong",
+                "A single market price under a third or over three times your suppliers' median is left out. "
+                        + "Several market prices that agree with each other are never dropped for being far away.",
+                true, BUY_MARKET, "§3 step 7");
+        toggle(r, BUY_MARKET_GAP, Group.BUY_COMPOSE, "Follow the market when it clearly disagrees with what you pay",
+                "When open-market prices agree with each other but sit far below your suppliers' quotes, the "
+                        + "target follows the market instead of being dropped as a wrong match, past the usual "
+                        + "phase-in and move limits, and says so. Off: such prices are ignored.", true, BUY_MARKET,
+                "§3 step 7 and 8b");
+        number(r, BUY_MARKET_GAP_MIN_AGREEING, Group.BUY_COMPOSE, "Market prices that must agree", "", "2", "1", "10",
+                "prices", BUY_MARKET_GAP, "§3 step 7");
+        number(r, BUY_MARKET_GAP_AGREEMENT, Group.BUY_COMPOSE, "How close they must be",
+                "The highest of them no more than this above the lowest.", "50", "5", "300", "%", BUY_MARKET_GAP,
+                "§3 step 7");
+        number(r, BUY_MARKET_GAP_THRESHOLD, Group.BUY_COMPOSE, "How far from your suppliers counts as a clear disagreement",
+                "", "50", "10", "1000", "%", BUY_MARKET_GAP, "§3 step 8b");
         toggle(r, BUY_TARGET, Group.BUY_COMPOSE, "Aim between the best price and the market median",
                 "The target sits part of the way from the lowest evidence toward the median, so it is achievable "
                         + "rather than the single best listing. Off: the target is the lowest evidence.", true, null,
@@ -492,6 +538,12 @@ public final class PricingModel {
         toggle(r, BUY_LEARNING_STRATEGY, Group.BUY_LEARN, "Follow your usual buying strategy",
                 "If you mostly pick one strategy in the bulk buy basket, the plan recommends it.", true,
                 BUY_LEARNING, "§1");
+        toggle(r, BUY_LEARNING_AUTO_TUNE, Group.BUY_LEARN, "Retune the model from your results",
+                "Every night the model re-fits its own settings from the costs you actually agreed - where between "
+                        + "the best price and the median the target should sit, how fast it phases in, how far your "
+                        + "decisions may lean - within safe bounds, and tells you what changed. A setting you set "
+                        + "yourself always wins. Off: learned settings are still worked out and shown, but not used.",
+                true, BUY_LEARNING, "§3 step 8b and 9b");
 
         // ---- safety limits and reordering -----------------------------------------------
         toggle(r, BUY_MOVE_CAP, Group.BUY_GUARD, "Limit how far the target moves at once",
@@ -677,6 +729,32 @@ public final class PricingModel {
 
         public static Config defaults() {
             return DEFAULTS;
+        }
+
+        /**
+         * The model a tenant actually runs: the registry's defaults, then what the model learned
+         * from the tenant's results, then what the tenant set by hand - a hand-set value always
+         * wins. Learned settings for a side count only while that side's auto-tune toggle is on
+         * (judged from the hand-set layer, so switching it off cannot be undone by a learned value).
+         */
+        public static Config layered(Map<String, Setting> learned, Map<String, Setting> overrides) {
+            Config hand = of(overrides);
+            if (learned == null || learned.isEmpty()) {
+                return hand;
+            }
+            Map<String, Setting> merged = new LinkedHashMap<>();
+            for (Map.Entry<String, Setting> e : of(learned).overrides().entrySet()) {
+                Parameter p = BY_KEY.get(e.getKey());
+                if (p == null) {
+                    continue;
+                }
+                boolean autoTune = hand.on(p.side() == Side.BUY ? BUY_LEARNING_AUTO_TUNE : LEARNING_AUTO_TUNE);
+                if (autoTune && !hand.overrides().containsKey(e.getKey())) {
+                    merged.put(e.getKey(), e.getValue());
+                }
+            }
+            merged.putAll(hand.overrides());
+            return merged.isEmpty() ? DEFAULTS : new Config(merged);
         }
 
         /** Normalises a raw map: unknown keys dropped, numbers clamped, the wrong field for a type ignored. */

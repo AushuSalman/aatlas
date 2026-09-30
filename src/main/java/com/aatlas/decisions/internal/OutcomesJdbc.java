@@ -94,6 +94,35 @@ class OutcomesJdbc implements DecisionOutcomes {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public Optional<Learned> learnedAcrossItems(LocalDate today) {
+        return jdbc.query("""
+                select percentile_cont(0.5) within group (order by implied_elasticity), count(*)
+                  from decision_outcomes
+                 where tenant_id = ? and status = 'measured'
+                   and implied_elasticity is not null and decision_date >= ?
+                """, (rs, i) -> {
+                    long n = rs.getLong(2);
+                    BigDecimal median = rs.getBigDecimal(1);
+                    return n == 0 || median == null ? null
+                            : new Learned(median.setScale(4, RoundingMode.HALF_UP), (int) n);
+                }, TenantContext.requireTenantId(), today.minusDays(LEARN_DAYS))
+                .stream().filter(java.util.Objects::nonNull).findFirst();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Verdicts verdicts(LocalDate today) {
+        return jdbc.query("""
+                select count(*) filter (where verdict = 'worked'), count(*) filter (where verdict = 'hurt'),
+                       count(*) filter (where verdict = 'neutral')
+                  from decision_outcomes
+                 where tenant_id = ? and status = 'measured' and decision_date >= ?
+                """, rs -> rs.next() ? new Verdicts(rs.getInt(1), rs.getInt(2), rs.getInt(3)) : new Verdicts(0, 0, 0),
+                TenantContext.requireTenantId(), today.minusDays(LEARN_DAYS));
+    }
+
+    @Override
     public SalesHistory.Elasticity blend(SalesHistory.Elasticity base, String itemNumber, LocalDate today) {
         Optional<Learned> learned = learned(itemNumber, today);
         if (learned.isEmpty()) {

@@ -229,8 +229,13 @@ public class PricingEngine {
         Track track = track(item, storeCode, productId, storeUuid, today, cfg);
         String rampSalt = item + "|" + (hasStoreId ? storeId : "") + "|" + YearMonth.from(today);
 
+        BigDecimal competitorLow = observations.stream().map(Observation::price).filter(p -> p != null && p.signum() > 0)
+                .min(BigDecimal::compareTo).orElse(null);
+        BigDecimal competitorHigh = observations.stream().map(Observation::price).filter(p -> p != null && p.signum() > 0)
+                .max(BigDecimal::compareTo).orElse(null);
         PricingMath.Inputs inputs = new PricingMath.Inputs(costR.map(Resolved::value).orElse(null),
                 currentPriceValue, ownRef, anchorR.orElse(null), competitorMedian, observations.size(),
+                competitorLow, competitorHigh,
                 peerQ2, peerQ3, peerStores, bandQ1, band.map(PriceBand::q3).orElse(null),
                 band.map(PriceBand::n).orElse(0L), demand, lastSale, today, commodityPct90, rpp, elasticity,
                 itemStoreStats.txns(), benchmarkTargetMarginPct, guardrails, track, rampSalt);

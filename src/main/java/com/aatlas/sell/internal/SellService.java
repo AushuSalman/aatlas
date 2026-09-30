@@ -380,7 +380,10 @@ public class SellService {
                         + q.speedTier().label().toLowerCase(java.util.Locale.ROOT) + " fulfilment",
                 BigDecimal.valueOf(Math.round(dealPrice.subtract(
                         intel.currentPrice() == null ? dealPrice : intel.currentPrice()).doubleValue() * qty)),
-                "this deal", customerName);
+                "this deal", customerName,
+                // A recorded quote is a sale that happened: booked into the sales history too, so
+                // the Overview, demand and Insights count it like an imported invoice line.
+                customer != null ? customer.code() : null, true);
         Recorded recorded = decisions.record(req);
         return new ApplyResponseDto(recorded);
     }

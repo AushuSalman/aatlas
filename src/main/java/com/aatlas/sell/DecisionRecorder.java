@@ -38,7 +38,17 @@ public interface DecisionRecorder {
             String detail,
             BigDecimal expectedImpact,
             String impactLabel,
-            String customerName) {
+            String customerName,
+            String customerCode,
+            boolean sale) {
+
+        /** The pre-existing shape: a projected decision, not a sale that happened. */
+        public RecordRequest(String kind, String itemNumber, String storeCode, String scope, BigDecimal recommended,
+                BigDecimal applied, int qty, BigDecimal cost, BigDecimal baselinePrice, String title, String detail,
+                BigDecimal expectedImpact, String impactLabel, String customerName) {
+            this(kind, itemNumber, storeCode, scope, recommended, applied, qty, cost, baselinePrice, title, detail,
+                    expectedImpact, impactLabel, customerName, null, false);
+        }
     }
 
     /** The frontend's {@code Decision} (decisions.ts) merged with the outcome {@code getHistory} computes. */

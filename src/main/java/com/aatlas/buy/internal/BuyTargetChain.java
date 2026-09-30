@@ -18,11 +18,18 @@ import java.util.List;
  * a database, and every step records whether it {@code applied}, was {@code skipped} for
  * want of its input, or is {@code off} in the model.
  *
- * <p>Order, which is also the order of {@link Result#steps()}: open-market evidence (and
- * which of it is plausible), the evidence range and median, the aim between the best price
- * and the median, never above today's cost, the lean from past decisions, the phase-in from
- * today's cost, the move cap, the floor at the lowest real price, the result. The floor is
- * the one guardrail nothing here can switch off.
+ * <p>Order, which is also the order of {@link Result#steps()}: open-market evidence (which of
+ * it is plausible, and whether it clearly disagrees with what the suppliers quote), the
+ * evidence range and median, the aim between the best price and the median, never above
+ * today's cost, the lean from past decisions, the phase-in from today's cost, the move cap,
+ * the floor at the lowest real price, the result. The floor is the one guardrail nothing here
+ * can switch off.
+ *
+ * <p>A <b>market gap</b> is the case the plausibility filter must not swallow: several
+ * open-market prices that agree with each other but sit far from the suppliers' quotes (or,
+ * without quotes, from today's cost). Then the market is the going rate and the suppliers are
+ * the outlier: the target is composed over the market set alone and shown at once, past the
+ * phase-in and the move cap.
  */
 final class BuyTargetChain {
 
@@ -31,6 +38,7 @@ final class BuyTargetChain {
     static final String OFF = "off";
 
     private static final BigDecimal THREE = BigDecimal.valueOf(3);
+    private static final BigDecimal HUNDRED = BigDecimal.valueOf(100);
     private static final int WORK_SCALE = 6;
 
     private BuyTargetChain() {
@@ -56,20 +64,47 @@ final class BuyTargetChain {
     }
 
     /**
+     * A credible open market that clearly disagrees with the reference price: the suppliers'
+     * quote median when there are quotes, else what the tenant pays today.
+     *
+     * @param median the market set's median, which the target is composed toward
+     * @param low the lowest market price in the set
+     * @param high the highest market price in the set
+     * @param count how many market prices agree
+     * @param gapPct how far the market median sits from the reference, as a percentage of the
+     *               reference, 2 dp: {@code |median / reference - 1| * 100}
+     * @param direction {@link #BELOW} or {@link #ABOVE}: where the market sits relative to the reference
+     */
+    record MarketGap(BigDecimal median, BigDecimal low, BigDecimal high, int count, BigDecimal gapPct,
+            String direction) {
+
+        static final String BELOW = "below";
+        static final String ABOVE = "above";
+    }
+
+    /** Whether the counted market prices read as one market, and if not, why. */
+    private record Agreement(boolean credible, String reason) {
+    }
+
+    /**
      * What the chain produced.
      *
      * @param points the comparable prices that counted, in the order they were given
      * @param dropped market points left out as implausible
+     * @param marketLow the lowest evidence the target was composed over (the market set alone under a market gap)
+     * @param marketMedian the median of that evidence
+     * @param marketHigh the highest of that evidence
      * @param target the target shown, rounded to 4 dp; null with no evidence
      * @param fullTarget the target before the phase-in, rounded to 4 dp; equals {@code target} when nothing is phased in
      * @param maturity 0-1 when the phase-in acted, else null
      * @param steps the derivation from the evidence to the result
      * @param flags {@link BuyModelSummary#FLAG_TARGET_AT_FLOOR}, {@link BuyModelSummary#FLAG_MOVE_CAPPED},
-     *              {@link BuyModelSummary#FLAG_COMPETITOR_IMPLAUSIBLE}
+     *              {@link BuyModelSummary#FLAG_COMPETITOR_IMPLAUSIBLE}, {@link BuyModelSummary#FLAG_MARKET_GAP}
+     * @param marketGap the market gap the target followed, or null when there was none
      */
     record Result(List<MarketEvidence.Point> points, List<MarketEvidence.Point> dropped, BigDecimal marketLow,
             BigDecimal marketMedian, BigDecimal marketHigh, BigDecimal target, BigDecimal fullTarget,
-            BigDecimal maturity, List<CalcStep> steps, List<String> flags) {
+            BigDecimal maturity, List<CalcStep> steps, List<String> flags, MarketGap marketGap) {
 
         boolean fromMarket() {
             return points.stream().anyMatch(p -> !MarketEvidence.SUPPLIER.equals(p.source()));
@@ -79,8 +114,15 @@ final class BuyTargetChain {
             return points.stream().anyMatch(p -> MarketEvidence.SUPPLIER.equals(p.source()));
         }
 
-        /** {@code panel}, {@code market}, {@code panel+market}, or null with nothing to target from. */
+        /**
+         * {@code panel}, {@code market}, {@code panel+market}, or null with nothing to target
+         * from. Under a market gap the target is composed over the market alone, so
+         * {@code market} even when supplier quotes are listed.
+         */
         String targetBasis() {
+            if (marketGap != null) {
+                return "market";
+            }
             boolean panel = fromPanel();
             boolean market = fromMarket();
             return panel && market ? "panel+market" : panel ? "panel" : market ? "market" : null;
@@ -114,7 +156,9 @@ final class BuyTargetChain {
         }
         List<MarketEvidence.Point> kept = new ArrayList<>(supplier);
         List<MarketEvidence.Point> dropped = new ArrayList<>();
+        List<MarketEvidence.Point> counted = new ArrayList<>();
         BigDecimal supplierMedian = median(supplier.stream().map(MarketEvidence.Point::value).sorted().toList());
+        MarketGap gap = null;
 
         if (!cfg.on(PricingModel.BUY_MARKET)) {
             steps.add(new CalcStep("Open-market evidence", market.isEmpty() ? "—" : market.size() + " left out",
@@ -123,7 +167,6 @@ final class BuyTargetChain {
         } else {
             boolean bulkOn = cfg.on(PricingModel.BUY_MARKET_BULK_LOTS);
             boolean retailOn = cfg.on(PricingModel.BUY_MARKET_RETAIL_DERIVED);
-            List<MarketEvidence.Point> counted = new ArrayList<>();
             List<String> leftOut = new ArrayList<>();
             for (MarketEvidence.Point p : market) {
                 if (MarketEvidence.BULK_LOTS.equals(p.source()) && !bulkOn) {
@@ -149,7 +192,12 @@ final class BuyTargetChain {
                 steps.add(new CalcStep(p.label(), Js.fmtMoney(p.value().doubleValue()), p.detail(), "step"));
             }
 
-            // ---- 1b. plausibility: a market price far from what suppliers quote is a different product
+            // ---- 1b. do the market prices read as one market? Enough of them, close to each other.
+            List<BigDecimal> marketValues = counted.stream().map(MarketEvidence.Point::value).sorted().toList();
+            Agreement agreement = agreement(marketValues, cfg);
+
+            // ---- 1c. plausibility: a lone market price far from what suppliers quote is a different
+            // product. Prices that agree with each other are never dropped for being far away.
             if (!cfg.on(PricingModel.BUY_MARKET_PLAUSIBILITY)) {
                 kept.addAll(counted);
                 steps.add(new CalcStep("Market prices that look wrong", "—",
@@ -160,6 +208,14 @@ final class BuyTargetChain {
                         "No supplier quotes to check the market prices against.", SKIPPED));
             } else if (counted.isEmpty()) {
                 steps.add(new CalcStep("Market prices that look wrong", "—", "No market prices to check.", SKIPPED));
+            } else if (agreement.credible()) {
+                kept.addAll(counted);
+                steps.add(new CalcStep("Market prices that look wrong", "none",
+                        "All " + counted.size() + " market prices agree with each other (from "
+                                + Js.fmtMoney(marketValues.get(0).doubleValue()) + " to "
+                                + Js.fmtMoney(marketValues.get(marketValues.size() - 1).doubleValue())
+                                + "), so none is left out for being far from your suppliers' median "
+                                + Js.fmtMoney(supplierMedian.doubleValue()) + ".", APPLIED));
             } else {
                 BigDecimal lo = supplierMedian.divide(THREE, WORK_SCALE, RoundingMode.HALF_UP);
                 BigDecimal hi = supplierMedian.multiply(THREE);
@@ -191,10 +247,62 @@ final class BuyTargetChain {
                             APPLIED));
                 }
             }
+
+            // ---- 1d. market gap: a credible market that clearly disagrees with what you pay ----
+            if (!cfg.on(PricingModel.BUY_MARKET_GAP)) {
+                steps.add(new CalcStep("Market gap", "—",
+                        "Open-market prices that clearly disagree with your suppliers are not followed by your buying model.",
+                        OFF));
+            } else if (counted.isEmpty()) {
+                steps.add(new CalcStep("Market gap", "—",
+                        "No open-market prices on file to compare with what you pay.", SKIPPED));
+            } else if (!agreement.credible()) {
+                steps.add(new CalcStep("Market gap", "—", agreement.reason(), SKIPPED));
+            } else {
+                int count = marketValues.size();
+                BigDecimal mLow = marketValues.get(0);
+                BigDecimal mHigh = marketValues.get(count - 1);
+                BigDecimal mMedian = median(marketValues);
+                BigDecimal ref = supplierMedian != null ? supplierMedian : currentCost;
+                String agree = count == 1 ? "1 open-market price at " + Js.fmtMoney(mMedian.doubleValue())
+                        : count + " open-market prices agree at around " + Js.fmtMoney(mMedian.doubleValue()) + " (from "
+                                + Js.fmtMoney(mLow.doubleValue()) + " to " + Js.fmtMoney(mHigh.doubleValue()) + ")";
+                if (ref == null || ref.signum() <= 0) {
+                    steps.add(new CalcStep("Market gap", "—", capitalize(agree)
+                            + ", but there are no supplier quotes and no cost on file to compare the market with.", SKIPPED));
+                } else {
+                    String refText = supplierMedian != null ? "your suppliers quote " + Js.fmtMoney(ref.doubleValue())
+                            : "you pay " + Js.fmtMoney(ref.doubleValue()) + " today";
+                    BigDecimal threshold = cfg.value(PricingModel.BUY_MARKET_GAP_THRESHOLD);
+                    BigDecimal gapPct = mMedian.divide(ref, WORK_SCALE, RoundingMode.HALF_UP).subtract(BigDecimal.ONE)
+                            .abs().multiply(HUNDRED).setScale(2, RoundingMode.HALF_UP);
+                    String direction = mMedian.compareTo(ref) < 0 ? MarketGap.BELOW : MarketGap.ABOVE;
+                    if (gapPct.compareTo(threshold) <= 0) {
+                        steps.add(new CalcStep("Market gap", "—", capitalize(agree) + "; " + refText + ", within "
+                                + plain(threshold) + "% of it, so the market and your suppliers agree.", SKIPPED));
+                    } else {
+                        gap = new MarketGap(mMedian, mLow, mHigh, count, gapPct, direction);
+                        flags.add(BuyModelSummary.FLAG_MARKET_GAP);
+                        boolean goodNews = MarketGap.ABOVE.equals(direction) && currentCost != null
+                                && cfg.on(PricingModel.BUY_NEVER_ABOVE_CURRENT) && currentCost.compareTo(mLow) <= 0;
+                        String outcome = goodNews
+                                ? "Good news: you already buy under the market, so the target stays at what you pay."
+                                : "The target follows the market.";
+                        steps.add(new CalcStep("Market gap", Js.fmtMoney(mMedian.doubleValue()),
+                                capitalize(agree) + "; " + refText + ", and the market sits "
+                                        + Js.toFixed(gapPct.doubleValue(), 0) + "% " + direction + " that. " + outcome,
+                                APPLIED));
+                    }
+                }
+            }
         }
 
         // ---- 2. the evidence range and median ---------------------------------------------
-        List<BigDecimal> evidence = kept.stream().map(MarketEvidence.Point::value).sorted().toList();
+        // Under a market gap the target is composed over the market set alone; the suppliers'
+        // quotes are still listed, and still count toward the floor at the lowest real price.
+        List<BigDecimal> all = kept.stream().map(MarketEvidence.Point::value).sorted().toList();
+        BigDecimal floor = all.isEmpty() ? null : all.get(0);
+        List<BigDecimal> evidence = gap != null ? counted.stream().map(MarketEvidence.Point::value).sorted().toList() : all;
         int n = evidence.size();
         BigDecimal low = n == 0 ? null : evidence.get(0);
         BigDecimal high = n == 0 ? null : evidence.get(n - 1);
@@ -205,36 +313,47 @@ final class BuyTargetChain {
                     "No comparable prices on file yet, so there is no target. Add supplier prices or check the "
                             + "retail and bulk market.", cfg.on(PricingModel.BUY_TARGET) ? SKIPPED : OFF));
             return new Result(List.copyOf(kept), List.copyOf(dropped), null, null, null, null, null, null,
-                    List.copyOf(steps), List.copyOf(flags));
+                    List.copyOf(steps), List.copyOf(flags), null);
+        }
+        String rangeNote;
+        if (gap != null) {
+            rangeNote = n + " open-market price" + (n == 1 ? "" : "s") + " that agree with each other"
+                    + (supplierMedian == null ? ", far from what you pay today"
+                            : "; your suppliers' quotes, median " + Js.fmtMoney(supplierMedian.doubleValue())
+                                    + ", are listed but the target no longer starts from them");
+        } else if (withMarket) {
+            rangeNote = n + " comparable prices: your suppliers' quotes and the open market";
+        } else {
+            rangeNote = "Suppliers able to serve this item, each on its own lane into the " + regionLabel;
         }
         steps.add(new CalcStep(withMarket ? "Market evidence, per unit" : "Panel quotes, landed here",
-                Js.fmtMoney(low.doubleValue()) + " - " + Js.fmtMoney(high.doubleValue()),
-                withMarket ? n + " comparable prices: your suppliers' quotes and the open market"
-                        : "Suppliers able to serve this item, each on its own lane into the " + regionLabel,
-                "step"));
+                Js.fmtMoney(low.doubleValue()) + " - " + Js.fmtMoney(high.doubleValue()), rangeNote, "step"));
         steps.add(new CalcStep("Market median", Js.fmtMoney(median.doubleValue()),
-                withMarket ? "Middle of the evidence" : "Middle of the panel", "step"));
+                gap != null ? "Middle of the open market" : withMarket ? "Middle of the evidence" : "Middle of the panel",
+                "step"));
 
         // ---- 3. where the target starts ---------------------------------------------------
         BigDecimal running;
         String startNote;
+        String lowestWhat = gap != null ? "the lowest open-market price" : "the lowest comparable price";
         if (!cfg.on(PricingModel.BUY_TARGET)) {
             running = low;
-            startNote = "the lowest comparable price";
+            startNote = lowestWhat;
             steps.add(new CalcStep("Between the best price and the median", Js.fmtMoney(running.doubleValue()),
-                    "The target starts at the lowest comparable price, " + Js.fmtMoney(low.doubleValue()) + ".", OFF));
+                    "The target starts at " + lowestWhat + ", " + Js.fmtMoney(low.doubleValue()) + ".", OFF));
         } else if (n < 2) {
             running = low;
-            startNote = "the one comparable price on file";
+            startNote = gap != null ? "the one open-market price on file" : "the one comparable price on file";
             steps.add(new CalcStep("Between the best price and the median", Js.fmtMoney(running.doubleValue()),
-                    "Only one comparable price on file, so the target starts there.", SKIPPED));
+                    "Only one " + (gap != null ? "open-market" : "comparable") + " price on file, so the target starts there.",
+                    SKIPPED));
         } else {
             BigDecimal share = cfg.value(PricingModel.BUY_TARGET_GAP_SHARE);
-            running = low.add(median.subtract(low).multiply(share).divide(BigDecimal.valueOf(100), WORK_SCALE,
-                    RoundingMode.HALF_UP));
-            startNote = "the lowest comparable price plus " + plain(share) + "% of the gap to the median";
+            running = low.add(median.subtract(low).multiply(share).divide(HUNDRED, WORK_SCALE, RoundingMode.HALF_UP));
+            startNote = lowestWhat + " plus " + plain(share) + "% of the gap to the " + (gap != null ? "market median" : "median");
             steps.add(new CalcStep("Between the best price and the median", Js.fmtMoney(running.doubleValue()),
-                    "Lowest " + Js.fmtMoney(low.doubleValue()) + " plus " + plain(share) + "% of the gap to the median "
+                    (gap != null ? "Lowest open-market price " : "Lowest ") + Js.fmtMoney(low.doubleValue()) + " plus "
+                            + plain(share) + "% of the gap to the " + (gap != null ? "market median " : "median ")
                             + Js.fmtMoney(median.doubleValue()) + ": achievable, not the single best listing.", APPLIED));
         }
 
@@ -250,8 +369,11 @@ final class BuyTargetChain {
             running = currentCost;
             heldAtCurrent = true;
             steps.add(new CalcStep("Never above what you pay today", Js.fmtMoney(running.doubleValue()),
-                    "The evidence sits above what you pay today, " + Js.fmtMoney(currentCost.doubleValue())
-                            + ", so the target is held there.", APPLIED));
+                    gap != null && MarketGap.ABOVE.equals(gap.direction())
+                            ? "The open market sits above what you pay today, " + Js.fmtMoney(currentCost.doubleValue())
+                                    + ": good news, you already buy under the market, so the target is held there."
+                            : "The evidence sits above what you pay today, " + Js.fmtMoney(currentCost.doubleValue())
+                                    + ", so the target is held there.", APPLIED));
         } else {
             steps.add(new CalcStep("Never above what you pay today", Js.fmtMoney(running.doubleValue()),
                     "Already under what you pay today, " + Js.fmtMoney(currentCost.doubleValue()) + ".", APPLIED));
@@ -276,8 +398,8 @@ final class BuyTargetChain {
 
         // The full target: what the model aims at before it is phased in. It never goes under the
         // lowest real price either.
-        boolean fullAtFloor = running.compareTo(low) < 0;
-        BigDecimal full = fullAtFloor ? low : running;
+        boolean fullAtFloor = running.compareTo(floor) < 0;
+        BigDecimal full = fullAtFloor ? floor : running;
 
         // ---- 6. phase-in from today's cost ------------------------------------------------
         BigDecimal maturity = null;
@@ -285,6 +407,10 @@ final class BuyTargetChain {
             running = full;
             steps.add(new CalcStep("Phase-in", Js.fmtMoney(running.doubleValue()),
                     "The full target is shown at once.", OFF));
+        } else if (gap != null) {
+            running = full;
+            steps.add(new CalcStep("Phase-in", Js.fmtMoney(running.doubleValue()),
+                    "Market gap: the target follows the market at once, without phasing in from today's cost.", SKIPPED));
         } else if (currentCost == null) {
             running = full;
             steps.add(new CalcStep("Phase-in", Js.fmtMoney(running.doubleValue()),
@@ -308,12 +434,15 @@ final class BuyTargetChain {
         if (!cfg.on(PricingModel.BUY_MOVE_CAP)) {
             steps.add(new CalcStep("Move cap", Js.fmtMoney(running.doubleValue()),
                     "No limit on how far the target moves from what you pay today.", OFF));
+        } else if (gap != null) {
+            steps.add(new CalcStep("Move cap", Js.fmtMoney(running.doubleValue()),
+                    "Market gap: the target follows the market at once, past the usual move limit.", SKIPPED));
         } else if (currentCost == null) {
             steps.add(new CalcStep("Move cap", Js.fmtMoney(running.doubleValue()),
                     "No cost on file to measure the move from.", SKIPPED));
         } else {
             BigDecimal capPct = cfg.value(PricingModel.BUY_MOVE_CAP_MAX_PCT);
-            BigDecimal cap = capPct.divide(BigDecimal.valueOf(100), WORK_SCALE, RoundingMode.HALF_UP);
+            BigDecimal cap = capPct.divide(HUNDRED, WORK_SCALE, RoundingMode.HALF_UP);
             BigDecimal capLo = currentCost.multiply(BigDecimal.ONE.subtract(cap)).setScale(WORK_SCALE, RoundingMode.HALF_UP);
             BigDecimal capHi = currentCost.multiply(BigDecimal.ONE.add(cap)).setScale(WORK_SCALE, RoundingMode.HALF_UP);
             if (running.compareTo(capLo) < 0) {
@@ -335,12 +464,12 @@ final class BuyTargetChain {
 
         // ---- 8. the floor nothing switches off --------------------------------------------
         boolean atFloor = fullAtFloor;
-        if (running.compareTo(low) < 0) {
-            running = low;
+        if (running.compareTo(floor) < 0) {
+            running = floor;
             atFloor = true;
         }
         if (atFloor) {
-            steps.add(new CalcStep("Lowest real price", Js.fmtMoney(low.doubleValue()),
+            steps.add(new CalcStep("Lowest real price", Js.fmtMoney(floor.doubleValue()),
                     "The target never goes under the lowest real price on file.", "step"));
             flags.add(BuyModelSummary.FLAG_TARGET_AT_FLOOR);
         }
@@ -352,6 +481,9 @@ final class BuyTargetChain {
         StringBuilder note = new StringBuilder(capitalize(startNote));
         if (heldAtCurrent) {
             note.append(", held at what you pay today");
+        }
+        if (gap != null) {
+            note.append("; a market gap, so it follows the open market at once");
         }
         if (maturity != null && fullTarget.compareTo(target) != 0) {
             note.append("; shown ").append(Js.toFixed(maturity.doubleValue() * 100, 0))
@@ -368,7 +500,34 @@ final class BuyTargetChain {
         steps.add(new CalcStep("Target set at", Js.fmtMoney(target.doubleValue()), note.toString(), "result"));
 
         return new Result(List.copyOf(kept), List.copyOf(dropped), low, median, high, target, fullTarget, maturity,
-                List.copyOf(steps), List.copyOf(flags));
+                List.copyOf(steps), List.copyOf(flags), gap);
+    }
+
+    /**
+     * Whether the counted market prices read as one market: at least the model's number of
+     * them, and the highest no more than the model's agreement above the lowest. Only judged
+     * when the market-gap step is on; off, each price is judged on its own as before.
+     */
+    private static Agreement agreement(List<BigDecimal> sortedMarket, PricingModel.Config cfg) {
+        if (!cfg.on(PricingModel.BUY_MARKET_GAP) || sortedMarket.isEmpty()) {
+            return new Agreement(false, null);
+        }
+        int count = sortedMarket.size();
+        int minAgreeing = cfg.value(PricingModel.BUY_MARKET_GAP_MIN_AGREEING).intValue();
+        if (count < minAgreeing) {
+            return new Agreement(false, "Only " + count + " open-market price" + (count == 1 ? "" : "s") + " on file; "
+                    + minAgreeing + " must agree with each other before the target follows the market.");
+        }
+        BigDecimal low = sortedMarket.get(0);
+        BigDecimal high = sortedMarket.get(count - 1);
+        BigDecimal agreementPct = cfg.value(PricingModel.BUY_MARKET_GAP_AGREEMENT);
+        BigDecimal limit = low.multiply(BigDecimal.ONE.add(agreementPct.divide(HUNDRED, WORK_SCALE, RoundingMode.HALF_UP)));
+        if (high.compareTo(limit) > 0) {
+            return new Agreement(false, "The " + count + " open-market prices disagree with each other ("
+                    + Js.fmtMoney(low.doubleValue()) + " to " + Js.fmtMoney(high.doubleValue()) + ", more than "
+                    + plain(agreementPct) + "% apart), so they are not read as one market and each is judged on its own.");
+        }
+        return new Agreement(true, null);
     }
 
     static BigDecimal median(List<BigDecimal> sorted) {

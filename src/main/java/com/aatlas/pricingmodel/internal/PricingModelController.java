@@ -72,8 +72,9 @@ class PricingModelController {
         return service.save(actor.tenantId(), actor, PricingModelService.sideOf(side), request.settings());
     }
 
-    @Operation(summary = "One side back to the registry defaults",
-            description = "Clears that side's overrides only; the other side is kept as stored.")
+    @Operation(summary = "One side's hand-set settings back to the registry defaults",
+            description = "Clears that side's hand-set overrides only; the other side, and what the model learned on "
+                    + "either, are kept as stored. To forget learned settings, post to /learned/clear.")
     @PostMapping("/reset")
     PricingModelView reset(
             @Parameter(description = SIDE_DOC, schema = @Schema(allowableValues = {"sell", "buy"}, defaultValue = "sell"))
@@ -103,6 +104,50 @@ class PricingModelController {
             @Parameter(description = SIDE_DOC, schema = @Schema(allowableValues = {"sell", "buy"}, defaultValue = "sell"))
                     @RequestParam(required = false) String side) {
         return service.learning(TenantContext.requireTenantId(), PricingModelService.sideOf(side));
+    }
+
+    @Operation(summary = "What the model learned for itself on one side, with a reason per setting",
+            description = "The settings the nightly tuner re-fitted from this tenant's decisions and measured outcomes: "
+                    + "each with what it was before, what it is now, why in plain words and the evidence behind it, in "
+                    + "registry order. autoTune says whether the side's 'retune from your results' toggle is on, which "
+                    + "is what decides whether these values are in use; a hand-set value always wins over a learned one.")
+    @GetMapping("/learned")
+    LearnedView learned(
+            @Parameter(description = SIDE_DOC, schema = @Schema(allowableValues = {"sell", "buy"}, defaultValue = "sell"))
+                    @RequestParam(required = false) String side) {
+        return service.learned(TenantContext.requireTenantId(), PricingModelService.sideOf(side));
+    }
+
+    @Operation(summary = "Retune one side of the model from this tenant's results now",
+            description = "Runs the nightly tuner for this tenant's side at once - the same rules and evidence gates - "
+                    + "and answers the model as it now stands. Only seats whose persona has guardrails=true. Learned "
+                    + "settings that no longer pass their gate are dropped; hand-set settings are untouched.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Retuned."),
+        @ApiResponse(responseCode = "403", description = "This seat may not change the pricing model (code not_allowed).")
+    })
+    @PostMapping("/tune")
+    PricingModelView tune(
+            @Parameter(description = SIDE_DOC, schema = @Schema(allowableValues = {"sell", "buy"}, defaultValue = "sell"))
+                    @RequestParam(required = false) String side) {
+        TenantContext.Actor actor = actor();
+        return service.tune(actor.tenantId(), actor, PricingModelService.sideOf(side));
+    }
+
+    @Operation(summary = "Forget what the model learned on one side",
+            description = "Wipes that side's learned settings and their notes; hand-set settings, the other side and the "
+                    + "change history are untouched, and the next nightly run learns afresh. Only seats whose persona has "
+                    + "guardrails=true. Reset, by contrast, clears the hand-set settings and keeps the learned ones.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Cleared."),
+        @ApiResponse(responseCode = "403", description = "This seat may not change the pricing model (code not_allowed).")
+    })
+    @PostMapping("/learned/clear")
+    PricingModelView clearLearned(
+            @Parameter(description = SIDE_DOC, schema = @Schema(allowableValues = {"sell", "buy"}, defaultValue = "sell"))
+                    @RequestParam(required = false) String side) {
+        TenantContext.Actor actor = actor();
+        return service.clearLearned(actor.tenantId(), actor, PricingModelService.sideOf(side));
     }
 
     private static TenantContext.Actor actor() {

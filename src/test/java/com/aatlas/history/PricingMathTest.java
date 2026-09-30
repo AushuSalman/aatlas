@@ -44,6 +44,8 @@ class PricingMathTest {
         Anchor ladderAnchor = null;
         BigDecimal competitorMedian = bd("11");
         int competitorCount = 3;
+        BigDecimal competitorLow = null;
+        BigDecimal competitorHigh = null;
         BigDecimal peerQ2 = bd("11.75");
         BigDecimal peerQ3 = bd("13.95");
         int peerStores = 6;
@@ -62,6 +64,7 @@ class PricingMathTest {
 
         PricingMath.Inputs build() {
             return new PricingMath.Inputs(cost, current, ownRef, ladderAnchor, competitorMedian, competitorCount,
+                    competitorLow, competitorHigh,
                     peerQ2, peerQ3, peerStores, bandQ1, bandQ3, bandN, demand, lastSale, TODAY, commodityPct90, rpp,
                     elasticity, ordersAtStore, benchmarkTargetMarginPct, GUARDRAILS, track, rampSalt);
         }
@@ -402,5 +405,104 @@ class PricingMathTest {
 
         assertThat(rec.flags()).contains(Recommendation.FLAG_COMPETITOR_IMPLAUSIBLE);
         assertThat(step(rec, PricingModel.COMPETITORS).note()).contains("your price today");
+    }
+
+    // ---- the market gap: an item on file at $3 whose competitors sell at $70 ------------
+
+    /** The customer's case: cost $2, on file at $3, three live listings at $68-$72. */
+    private static Case underpriced() {
+        Case c = new Case();
+        c.cost = bd("2");
+        c.current = bd("3");
+        c.ownRef = bd("3");
+        c.competitorMedian = bd("70");
+        c.competitorCount = 3;
+        c.competitorLow = bd("68");
+        c.competitorHigh = bd("72");
+        c.peerQ2 = bd("3.10");
+        c.peerQ3 = bd("3.30");
+        c.bandQ1 = bd("2.90");
+        c.bandQ3 = bd("3.20");
+        c.elasticity = SalesHistory.Elasticity.defaultValue();
+        return c;
+    }
+
+    @Test
+    @DisplayName("three competitors agreeing at $70 lead the price of an item on file at $3")
+    void marketGapFollowsAgreeingCompetitors() {
+        Recommendation rec = underpriced().run();
+        assertThat(rec.flags()).contains(Recommendation.FLAG_MARKET_GAP)
+                .doesNotContain(Recommendation.FLAG_COMPETITOR_IMPLAUSIBLE);
+        assertThat(rec.externalRole()).isEqualTo("market_gap");
+        assertThat(rec.anchorSource()).isEqualTo(Anchor.COMPETITOR);
+        // 3% under the $70 median, reached at once: no phase-in, no move cap, no cost-multiple ceiling.
+        assertThat(rec.optimal()).isBetween(bd("66"), bd("70"));
+        assertThat(rec.aggressive()).isGreaterThanOrEqualTo(rec.optimal());
+        assertThat(rec.ceiling()).isGreaterThanOrEqualTo(bd("70"));
+        assertThat(step(rec, PricingModel.COMPETITORS_MARKET_GAP).status()).isEqualTo(Step.APPLIED);
+        assertThat(step(rec, PricingModel.COMPETITORS_MARKET_GAP).note()).contains("3 competitors agree").contains("$70.00");
+        assertThat(step(rec, PricingModel.TRUST_RAMP).status()).isEqualTo(Step.SKIPPED);
+        assertThat(step(rec, PricingModel.TRUST_RAMP).note()).contains("Market gap");
+        assertThat(step(rec, PricingModel.MOVE_CAP).status()).isEqualTo(Step.SKIPPED);
+        assertThat(step(rec, PricingModel.MOVE_CAP).note()).contains("lifted");
+    }
+
+    @Test
+    @DisplayName("a lone $70 listing against a $3 item is still a wrong match")
+    void loneFarCompetitorIsStillDropped() {
+        Case c = underpriced();
+        c.competitorCount = 1;
+        c.competitorLow = bd("70");
+        c.competitorHigh = bd("70");
+        Recommendation rec = c.run();
+        assertThat(rec.flags()).contains(Recommendation.FLAG_COMPETITOR_IMPLAUSIBLE)
+                .doesNotContain(Recommendation.FLAG_MARKET_GAP);
+        assertThat(rec.optimal()).isLessThan(bd("5"));
+        assertThat(step(rec, PricingModel.COMPETITORS_MARKET_GAP).status()).isEqualTo(Step.SKIPPED);
+        assertThat(step(rec, PricingModel.COMPETITORS_MARKET_GAP).note()).contains("Only 1 competitor price");
+    }
+
+    @Test
+    @DisplayName("competitors that disagree with each other are not a market")
+    void disagreeingCompetitorsDoNotLead() {
+        Case c = underpriced();
+        c.competitorCount = 2;
+        c.competitorMedian = bd("45");
+        c.competitorLow = bd("20");
+        c.competitorHigh = bd("70");
+        Recommendation rec = c.run();
+        assertThat(rec.flags()).doesNotContain(Recommendation.FLAG_MARKET_GAP);
+        assertThat(rec.optimal()).isLessThan(bd("5"));
+        assertThat(step(rec, PricingModel.COMPETITORS_MARKET_GAP).note()).contains("disagree");
+    }
+
+    @Test
+    @DisplayName("with the market-gap step off, far-away competitors are a wrong match again")
+    void marketGapOffKeepsTheOldBehaviour() {
+        Recommendation rec = underpriced().run(off(PricingModel.COMPETITORS_MARKET_GAP));
+        assertThat(rec.flags()).contains(Recommendation.FLAG_COMPETITOR_IMPLAUSIBLE)
+                .doesNotContain(Recommendation.FLAG_MARKET_GAP);
+        assertThat(rec.optimal()).isLessThan(bd("5"));
+        assertThat(step(rec, PricingModel.COMPETITORS_MARKET_GAP).status()).isEqualTo(Step.OFF);
+    }
+
+    @Test
+    @DisplayName("the market can also pull an overpriced item down, as far as the margin floor")
+    void marketGapBelowFallsTowardTheFloor() {
+        Case c = underpriced();
+        c.current = bd("70");
+        c.ownRef = bd("70");
+        c.peerQ2 = bd("69");
+        c.peerQ3 = bd("72");
+        c.bandQ1 = bd("65");
+        c.bandQ3 = bd("72");
+        c.competitorMedian = bd("3");
+        c.competitorLow = bd("2.90");
+        c.competitorHigh = bd("3.10");
+        Recommendation rec = c.run();
+        assertThat(rec.flags()).contains(Recommendation.FLAG_MARKET_GAP);
+        // 3% under $3 is $2.91, above the 25%-margin floor of $2.67; the ±25% move cap is lifted.
+        assertThat(rec.optimal()).isBetween(bd("2.67"), bd("4"));
+        assertThat(step(rec, PricingModel.MOVE_CAP).status()).isEqualTo(Step.SKIPPED);
     }
 }
