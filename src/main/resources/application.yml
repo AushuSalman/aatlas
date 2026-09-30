@@ -261,6 +261,11 @@ aatlas:
       password: ${OXYLABS_PASSWORD:}
       base-url: https://realtime.oxylabs.io
       # The same account also prices tracked competitors' own product pages (CompetitorSites).
+    daily-refresh:
+      # Every product's competitor prices re-checked once a day, per tenant, with the sources the
+      # tenant switched on (each tenant can turn this off in Settings). Runs on one pod (ShedLock).
+      enabled: ${COMPETITION_DAILY_REFRESH:true}
+      cron: "0 0 5 * * *"
     dataforseo:
       # Finds online competitors (DataForSEO Labs). Pay as you go, about $0.01 a search;
       # login and the generated API password at https://app.dataforseo.com/api-access

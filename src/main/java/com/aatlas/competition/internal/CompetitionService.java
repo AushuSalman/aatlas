@@ -406,6 +406,31 @@ class CompetitionService {
                 sum.median(), anchor, message);
     }
 
+    /**
+     * The buying benchmark for one item, refreshed without a person: eBay bulk lots, divided down to
+     * a unit price and saved as {@code buy_market_benchmarks} - what the "Retail and bulk check" does,
+     * run by the daily job. eBay only (free, 5,000 searches a day); nothing when it is not set up.
+     * Needs a bound tenant.
+     *
+     * @return whether a bulk price was found and saved
+     */
+    boolean refreshBulkBenchmark(String itemNumber) {
+        var product = catalogue.product(itemNumber).orElse(null);
+        ShoppingProvider ebay = providers.stream().filter(p -> "ebay".equals(p.key()) && p.available())
+                .findFirst().orElse(null);
+        if (product == null || ebay == null) {
+            return false;
+        }
+        Market market = Market.of(catalogue.country());
+        String q = defaultQuery(product);
+        Searched bulk = search(List.of(ebay), q + " bulk lot case", market, List.of());
+        List<Listing> kept = judgeBulk(q, market.currency(), bulk.listings(), new java.util.IdentityHashMap<>())
+                .stream().filter(Judged::kept).map(Judged::listing).toList();
+        observations.saveBulkBenchmark(TenantContext.requireTenantId(), product.id(), clock.today(), kept,
+                market.currency());
+        return !kept.isEmpty();
+    }
+
     /** The configured providers among {@code keys}, in priority order; unknown or keyless keys are skipped. */
     List<ShoppingProvider> providersFor(List<String> keys) {
         return providers.stream().filter(p -> keys.contains(p.key()) && p.available()).toList();
@@ -510,6 +535,17 @@ class CompetitionService {
         if (out.isEmpty()) {
             throw ApiException.badRequest("unknown_provider",
                     "Unknown provider " + keys + "; one of " + providers.stream().map(ShoppingProvider::key).toList());
+        }
+        // Settings is the customer's choice: once made, a lookup never searches a source switched
+        // off there, whatever the screen asked for.
+        PriceSourceSettings.Settings s = sourceSettings.get(TenantContext.requireTenantId());
+        if (s.configured()) {
+            List<ShoppingProvider> allowed = out.stream().filter(p -> s.enabled().contains(p.key())).toList();
+            if (allowed.isEmpty()) {
+                throw ApiException.badRequest("sources_switched_off",
+                        "Those price sources are switched off in Settings → Competitor price sources.");
+            }
+            return allowed;
         }
         return out;
     }

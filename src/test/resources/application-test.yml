@@ -39,6 +39,9 @@ aatlas:
   market-data:
     # No calls out from a test context: FRED and Frankfurter are exercised by their own tests.
     enabled: false
+  competition:
+    daily-refresh:
+      enabled: false
   rls:
     # Off in tests: the policies compare against a connection variable that a
     # test transaction has no reason to set, and turning it on here would only

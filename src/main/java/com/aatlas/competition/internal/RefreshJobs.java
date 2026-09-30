@@ -76,6 +76,23 @@ class RefreshJobs {
                 + "where tenant_id = ? and id = ?", status, error, tenantId, id);
     }
 
+    /**
+     * Whether a daily check should be skipped: one is already going (moving in the last ten
+     * minutes), or a daily check already ran today.
+     */
+    @Transactional(readOnly = true)
+    boolean busyOrDoneToday(UUID tenantId) {
+        Boolean busy = jdbc.queryForObject("""
+                select exists (
+                    select 1 from competitor_refresh_jobs
+                     where tenant_id = ?
+                       and ((status in ('queued', 'running') and updated_at > now() - interval '10 minutes')
+                            or (trigger = 'daily' and created_at >= date_trunc('day', now())))
+                )
+                """, Boolean.class, tenantId);
+        return Boolean.TRUE.equals(busy);
+    }
+
     /** The item numbers an import batch created or updated. */
     @Transactional(readOnly = true)
     List<String> itemsOfBatch(UUID tenantId, UUID batchId) {

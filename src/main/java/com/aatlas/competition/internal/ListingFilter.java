@@ -19,6 +19,7 @@ import java.util.Set;
  * <ol>
  *   <li>no price, or a price in another currency;</li>
  *   <li>a title sharing too few of the query's words ({@link #MIN_MATCH});</li>
+ *   <li>a different size: the query says 1/2 in and the title only 1-1/4 in;</li>
  *   <li>a listing sold as a lot, case or pack - its price is not one unit's;</li>
  *   <li>a second listing from a seller already kept - one observation per competitor per day,
  *       which is what {@code competitor_prices} holds and what the median should count;</li>
@@ -54,6 +55,7 @@ final class ListingFilter {
      */
     static List<Judged> judge(String query, String currency, List<Listing> listings, boolean singleUnits) {
         Set<String> words = words(query);
+        Set<BigDecimal> querySizes = sizes(query);
         List<Judged> out = new ArrayList<>();
         List<Integer> candidates = new ArrayList<>();
         Set<String> sellers = new HashSet<>();
@@ -66,6 +68,9 @@ final class ListingFilter {
             } else if (match.compareTo(MIN_MATCH) < 0) {
                 out.add(new Judged(l, false, "Title matches too little of the item (" + pct(match) + " of its words)",
                         match));
+            } else if (!sameSize(querySizes, l.title())) {
+                out.add(new Judged(l, false, "A different size (" + String.join(", ", sizeLabels(l.title()))
+                        + ", not " + String.join(" or ", sizeLabels(query)) + ")", match));
             } else if (singleUnits && multiUnit(l.title())) {
                 out.add(new Judged(l, false, "Sold as a lot or pack, not a single unit", match));
             } else if (singleUnits && !sellers.add(seller(l))) {
@@ -106,6 +111,59 @@ final class ListingFilter {
         s = s.replaceFirst("^the\\s+", "").replaceFirst("^www\\.", "")
                 .replaceFirst("\\.(com|co\\.uk|net|org|us|biz|store|shop)$", "");
         return s.replaceAll("[^a-z0-9]", "");
+    }
+
+    /**
+     * A size in inches, the way plumbing and HVAC titles write it: a mixed fraction ("1-1/4"), a bare
+     * fraction ("1/2", read as inches - the trade's habit), or a number with an inch mark
+     * ("1.25 inch", "3/4 in.", "1\""). A bare whole number without a unit is not a size.
+     */
+    private static final java.util.regex.Pattern SIZE = java.util.regex.Pattern.compile(
+            "(?<![\\d/.])(?:(\\d+)-(\\d+)/(\\d+)|(\\d+)/(\\d+)|(\\d+(?:\\.\\d+)?)(?=\\s*(?:in\\b|in\\.|inch|\"|″|'')))",
+            java.util.regex.Pattern.CASE_INSENSITIVE);
+
+    /** Every size in a text, in inches. */
+    static Set<BigDecimal> sizes(String text) {
+        Set<BigDecimal> out = new LinkedHashSet<>();
+        if (text == null) {
+            return out;
+        }
+        java.util.regex.Matcher m = SIZE.matcher(text);
+        while (m.find()) {
+            BigDecimal v;
+            if (m.group(1) != null) {
+                v = new BigDecimal(m.group(1)).add(fraction(m.group(2), m.group(3)));
+            } else if (m.group(4) != null) {
+                v = fraction(m.group(4), m.group(5));
+            } else {
+                v = new BigDecimal(m.group(6));
+            }
+            if (v != null && v.signum() > 0 && v.compareTo(BigDecimal.valueOf(120)) <= 0) {
+                out.add(v.setScale(3, RoundingMode.HALF_UP));
+            }
+        }
+        return out;
+    }
+
+    private static BigDecimal fraction(String num, String den) {
+        BigDecimal d = new BigDecimal(den);
+        return d.signum() == 0 ? BigDecimal.ZERO : new BigDecimal(num).divide(d, 3, RoundingMode.HALF_UP);
+    }
+
+    /**
+     * The same item size: when the query names a size and the title names sizes, one of them must
+     * match. A title naming none is not judged - it may simply leave the size out.
+     */
+    static boolean sameSize(Set<BigDecimal> querySizes, String title) {
+        if (querySizes.isEmpty()) {
+            return true;
+        }
+        Set<BigDecimal> titleSizes = sizes(title);
+        return titleSizes.isEmpty() || titleSizes.stream().anyMatch(querySizes::contains);
+    }
+
+    private static List<String> sizeLabels(String text) {
+        return sizes(text).stream().map(v -> v.stripTrailingZeros().toPlainString() + " in").toList();
     }
 
     private static final java.util.regex.Pattern MULTI_WORDS = java.util.regex.Pattern.compile(

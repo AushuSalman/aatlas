@@ -148,6 +148,18 @@ class BuyRecommendationEngine {
             for (SupplierGateway.Quote link : links) {
                 calcs.add(quoteFor(itemNumber, link, logisticsRef, region, today, chosenSupplierId, incumbentId));
             }
+            // The rest of the panel stays in the list, unpriced: one supplier pricing the item (say a
+            // listing just added from the open market) must not hide everyone else from the comparison
+            // or from the RFQ that would get them to quote. No price means no part in the target.
+            java.util.Set<String> linked = new java.util.HashSet<>();
+            links.forEach(l -> linked.add(l.supplier().id()));
+            for (SupplierGateway.SupplierRow s : supplierGateway.panel()) {
+                if (linked.add(s.id())) {
+                    calcs.add(new QuoteCalc(new SupplierQuote(s.id(), s.name(), s.country(), null, null, null, null,
+                            s.leadTimeDays(), 0, s.leadTimeDays(), s.otifPct(), s.id().equals(chosenSupplierId),
+                            s.id().equals(incumbentId), null, null, null), s.id()));
+                }
+            }
         }
 
         List<QuoteCalc> quoted = calcs.stream().filter(c -> c.quote().unitCost() != null).toList();

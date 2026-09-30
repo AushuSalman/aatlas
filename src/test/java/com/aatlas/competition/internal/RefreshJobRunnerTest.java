@@ -62,6 +62,28 @@ class RefreshJobRunnerTest {
     }
 
     @Test
+    void theDailyRunAlsoRefreshesTheBuyingBulkPriceOnEbay() {
+        job("daily", List.of("A-1", "B-2"));
+        ShoppingProvider ebay = mock(ShoppingProvider.class);
+        when(ebay.key()).thenReturn("ebay");
+        when(ebay.label()).thenReturn("eBay (Browse API)");
+        when(competition.providersFor(List.of("ebay"))).thenReturn(List.of(ebay));
+        when(competition.refreshItem(any(), anyList(), anyList())).thenReturn(row("A-1", "saved", 1));
+        when(competition.refreshBulkBenchmark("A-1")).thenReturn(true);
+        when(competition.refreshBulkBenchmark("B-2")).thenReturn(false);
+
+        runner.execute(tenant, id);
+
+        verify(competition).refreshBulkBenchmark("A-1");
+        verify(competition).refreshBulkBenchmark("B-2");
+        ArgumentCaptor<String> title = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
+        verify(notifications).publish(eq(tenant), eq("competitor-prices"), title.capture(), body.capture(), any());
+        assertThat(title.getValue()).isEqualTo("Today's competitor prices are in");
+        assertThat(body.getValue()).startsWith("Daily check: ").contains("Bulk-lot buying prices refreshed for 1.");
+    }
+
+    @Test
     void noAvailableSourceFailsTheJobAndSaysSo() {
         job("import", List.of("A-1"));
         when(competition.providersFor(any())).thenReturn(List.of());

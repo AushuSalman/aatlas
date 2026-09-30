@@ -55,7 +55,28 @@ class PriceSourcesService {
                         COMING_SOON.contains(p.key())))
                 .toList();
         return new CompetitionDtos.SourcesSettings(s.configured(), views, catalogue.products().size(),
-                view(jobs.latest(tenant)));
+                view(jobs.latest(tenant)), s.dailyRefresh(), DailyPriceRefresh.RUNS_AT);
+    }
+
+    /**
+     * The daily check for one tenant (the scheduler binds it): every product, with the enabled
+     * sources, unless the tenant has not chosen sources, switched the daily check off, has no
+     * enabled source set up on the server, or a check is already going or already ran today.
+     *
+     * @return whether a check was started
+     */
+    boolean startDaily(UUID tenantId) {
+        PriceSourceSettings.Settings s = settings.get(tenantId);
+        if (!s.configured() || !s.dailyRefresh() || competition.providersFor(s.enabled()).isEmpty()
+                || jobs.busyOrDoneToday(tenantId)) {
+            return false;
+        }
+        List<String> items = catalogue.products().stream().map(Catalogue.ProductRef::itemNumber).toList();
+        if (items.isEmpty()) {
+            return false;
+        }
+        start(tenantId, "daily", s.enabled(), items);
+        return true;
     }
 
     CompetitionDtos.SaveSourcesResult save(CompetitionDtos.SaveSourcesRequest req) {
@@ -73,7 +94,7 @@ class PriceSourcesService {
             }
         }
         boolean firstTime = !settings.get(tenant).configured();
-        settings.save(tenant, wanted, TenantContext.currentUserId().orElse(null));
+        settings.save(tenant, wanted, req.dailyRefresh(), TenantContext.currentUserId().orElse(null));
 
         CompetitionDtos.JobView job = null;
         boolean fetch = req.fetchNow() != null ? req.fetchNow() : firstTime;

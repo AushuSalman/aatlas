@@ -29,7 +29,8 @@ final class CompetitionDtos {
      * @param productCount products in the catalogue - what a full price check covers
      * @param latestJob    the most recent background price check, or null
      */
-    record SourcesSettings(boolean configured, List<SourceView> sources, int productCount, JobView latestJob) {
+    record SourcesSettings(boolean configured, List<SourceView> sources, int productCount, JobView latestJob,
+            boolean dailyRefresh, String dailyAt) {
     }
 
     /**
@@ -41,8 +42,11 @@ final class CompetitionDtos {
             boolean comingSoon) {
     }
 
-    /** @param fetchNow start a price check over the whole catalogue; null = only the first time */
-    record SaveSourcesRequest(List<String> enabledSources, Boolean fetchNow) {
+    /**
+     * @param fetchNow     start a price check over the whole catalogue; null = only the first time
+     * @param dailyRefresh re-check every product once a day; null keeps the current setting
+     */
+    record SaveSourcesRequest(List<String> enabledSources, Boolean fetchNow, Boolean dailyRefresh) {
     }
 
     /** @param job the price check the save started, or null */

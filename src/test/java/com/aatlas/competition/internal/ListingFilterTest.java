@@ -50,6 +50,26 @@ class ListingFilterTest {
     }
 
     @Test
+    void aDifferentSizeIsNotThisItem() {
+        List<Judged> judged = ListingFilter.judge(Q, "USD", List.of(
+                l("New Sch 80 PVC 1.25 Inch Compact Ball Valve", "6.50", "A"),
+                l("PVC Single union Ball valve 1/2\" & 1\"", "7.30", "B"),
+                l("PVC ball valve 1-1/4 in", "8.00", "C"),
+                l("PVC ball valve, slip", "5.00", "D")));
+        assertThat(judged).extracting(Judged::kept).containsExactly(false, true, false, true);
+        assertThat(judged.get(0).reason()).isEqualTo("A different size (1.25 in, not 0.5 in)");
+    }
+
+    @Test
+    void sizesAreReadTheWayTheTradeWritesThem() {
+        assertThat(ListingFilter.sizes("1-1/4 in coupling")).containsExactly(new java.math.BigDecimal("1.250"));
+        assertThat(ListingFilter.sizes("1/2\" & 1\" valve")).containsExactly(new java.math.BigDecimal("0.500"),
+                new java.math.BigDecimal("1.000"));
+        assertThat(ListingFilter.sizes("Lot of 10 valves")).isEmpty();
+        assertThat(ListingFilter.sizes("3/4 in. PEX")).containsExactly(new java.math.BigDecimal("0.750"));
+    }
+
+    @Test
     void anotherCurrencyIsNotThisMarketsPrice() {
         Listing gbp = new Listing("ebay", "1/2 in PVC ball valve", new BigDecimal("5.00"), "GBP", "eBay: x", null);
         Judged j = ListingFilter.judge(Q, "USD", List.of(gbp)).get(0);

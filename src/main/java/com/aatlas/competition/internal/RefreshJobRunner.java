@@ -87,8 +87,20 @@ class RefreshJobRunner {
         int priced = 0;
         int observations = 0;
         int failed = 0;
+        int bulkPriced = 0;
         String firstPriced = null;
+        // The daily run also keeps the buy side's bulk-lot price fresh - eBay only, when it is switched on.
+        boolean withBulk = "daily".equals(job.trigger()) && chosen.stream().anyMatch(p -> "ebay".equals(p.key()));
         for (String item : job.items()) {
+            if (withBulk) {
+                try {
+                    if (competition.refreshBulkBenchmark(item)) {
+                        bulkPriced++;
+                    }
+                } catch (RuntimeException ex) {
+                    log.warn("Competitor-price job {}: bulk price for {} failed: {}", jobId, item, ex.getMessage());
+                }
+            }
             try {
                 RefreshRow row = competition.refreshItem(item, chosen, List.of());
                 if ("saved".equals(row.status())) {
@@ -114,12 +126,16 @@ class RefreshJobRunner {
         String body = priced + " of " + job.total() + " " + scope + " now have competitor prices from " + sources + "."
                 + (failed > 0 ? " " + failed + " could not be searched (a source's limit or an error) - they will be "
                         + "tried again next time." : "")
+                + (withBulk ? " Bulk-lot buying prices refreshed for " + bulkPriced + "." : "")
                 + " Open Sell → Competition to see them.";
         String link = firstPriced == null ? "/app/sell?panel=competition"
                 : "/app/sell?panel=competition&item=" + java.net.URLEncoder.encode(firstPriced,
                         java.nio.charset.StandardCharsets.UTF_8);
+        boolean daily = "daily".equals(job.trigger());
         notifications.publish(tenantId, "competitor-prices",
-                priced > 0 ? "Competitor prices updated" : "No competitor prices found", body, link);
+                priced > 0 ? (daily ? "Today's competitor prices are in" : "Competitor prices updated")
+                        : "No competitor prices found",
+                daily ? "Daily check: " + body : body, link);
         log.info("Competitor-price job {} ({}): {} of {} items priced, {} observations, {} failed", jobId,
                 job.trigger(), priced, job.total(), observations, failed);
     }
