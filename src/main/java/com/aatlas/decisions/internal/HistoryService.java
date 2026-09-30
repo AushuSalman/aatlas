@@ -32,14 +32,16 @@ public class HistoryService {
     private final DecisionRepository decisions;
     private final ProcurementAnalytics procurementAnalytics;
     private final Catalogue catalogue;
+    private final com.aatlas.decisions.DecisionOutcomes outcomes;
     private final AatlasClock clock;
 
     HistoryService(DealRepository deals, DecisionRepository decisions, ProcurementAnalytics procurementAnalytics,
-            Catalogue catalogue, AatlasClock clock) {
+            Catalogue catalogue, com.aatlas.decisions.DecisionOutcomes outcomes, AatlasClock clock) {
         this.deals = deals;
         this.decisions = decisions;
         this.procurementAnalytics = procurementAnalytics;
         this.catalogue = catalogue;
+        this.outcomes = outcomes;
         this.clock = clock;
     }
 
@@ -75,7 +77,7 @@ public class HistoryService {
         Map<String, String> shortNames = catalogue.products().stream()
                 .collect(Collectors.toMap(Catalogue.ProductRef::itemNumber, Catalogue.ProductRef::shortName,
                         (a, b) -> a));
-        return HistoryEngine.getHistory(impact, recent, shortNames);
+        return HistoryEngine.getHistory(impact, recent, shortNames, outcomes.byDeal());
     }
 
     public HistorySummaryView summary() {

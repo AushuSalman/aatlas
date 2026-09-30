@@ -154,10 +154,14 @@ final class SuggestionEngine {
         } else if (r.observed == null) {
             r.steps.add(PricingModel.COMPETITORS, "Competitor prices", SKIPPED,
                     "No competitor price on file for this item.");
-        } else if (cfg.on(PricingModel.COMPETITORS_PLAUSIBILITY) && implausible(r.observed.median(), r.floor)) {
+        } else if (cfg.on(PricingModel.COMPETITORS_PLAUSIBILITY)
+                && implausible(r.observed.median(), current != null ? current : r.floor)) {
+            // Against today's price when the item has one (what it really sells for); only an item with
+            // no price yet is judged against the minimum-margin price.
             r.steps.add(PricingModel.COMPETITORS, "Competitor prices", SKIPPED, "Competitor median "
-                    + r.money(r.observed.median()) + " is under half or over twice the minimum-margin price "
-                    + r.money(r.floor) + ", more likely a different product than a market; ignored.");
+                    + r.money(r.observed.median()) + " is under half or over twice "
+                    + (current != null ? "today's price " + r.money(current) : "the minimum-margin price " + r.money(r.floor))
+                    + ", more likely a different product than a market; ignored.");
         } else {
             r.competitor = r.observed;
             r.steps.add(PricingModel.COMPETITORS, "Competitor prices", APPLIED, "Median " + r.money(r.competitor.median())

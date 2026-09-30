@@ -370,11 +370,18 @@ public final class PricingMath {
         BigDecimal cm = competitorsOn ? positive(in.competitorMedian()) : null;
         int cc = cm == null ? 0 : Math.max(1, in.competitorCount());
         String competitorNote;
-        if (cm != null && cfg.on(PricingModel.COMPETITORS_PLAUSIBILITY) && hardFloor != null
-                && (cm.compareTo(times(hardFloor, 0.5)) < 0 || cm.compareTo(times(hardFloor, 2)) > 0)) {
+        // Plausible against what the item actually sells for: today's price, else the other branches'
+        // median, and only with neither the minimum-margin price. Judging it against the margin floor
+        // threw out real markets on high-margin lines - a breaker costing $20.67 that sells for $82 had
+        // its $82.39 competitor dropped as "over twice $27.56" and was priced off a cost formula instead.
+        BigDecimal plausibleRef = p0 != null ? p0 : positive(in.peerQ2()) != null ? positive(in.peerQ2()) : hardFloor;
+        String plausibleWhat = p0 != null ? "your price today" : positive(in.peerQ2()) != null
+                ? "your other branches' median" : "your minimum-margin price";
+        if (cm != null && cfg.on(PricingModel.COMPETITORS_PLAUSIBILITY) && plausibleRef != null
+                && (cm.compareTo(times(plausibleRef, 0.5)) < 0 || cm.compareTo(times(plausibleRef, 2)) > 0)) {
             r.flags.add(Recommendation.FLAG_COMPETITOR_IMPLAUSIBLE);
-            competitorNote = "Competitor median " + money2(cm) + " is outside half to twice your minimum-margin "
-                    + "price; ignored.";
+            competitorNote = "Competitor median " + money2(cm) + " is outside half to twice " + plausibleWhat + " ("
+                    + money2(plausibleRef) + "), more likely a different product or pack than a market; ignored.";
             cm = null;
             cc = 0;
         } else if (cm != null) {
@@ -529,6 +536,14 @@ public final class PricingMath {
         if (corridorOn && bandQ3 != null && bandQ3.compareTo(ceiling) > 0) {
             ceiling = bandQ3;
             ceilingSource = "own upper quartile";
+        }
+        // With no market evidence at all - the start is only the cost-based benchmark, or nothing - a
+        // formula is not a market, and it must not cap the price under what the item sells for today:
+        // today's price stays within reach, so the move cap, not the formula, decides how far it falls.
+        boolean noMarketEvidence = anchorSource == null || Anchor.BENCHMARK.equals(anchorSource);
+        if (noMarketEvidence && p0 != null && p0.compareTo(ceiling) > 0) {
+            ceiling = p0;
+            ceilingSource = "today's price (no market evidence)";
         }
         if (cost != null && cfg.on(PricingModel.CEILING_PLAUSIBILITY)) {
             BigDecimal cap = times(cost, cfg.number(PricingModel.CEILING_COST_MULTIPLE));

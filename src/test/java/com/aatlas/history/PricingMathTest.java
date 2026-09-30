@@ -343,4 +343,64 @@ class PricingMathTest {
         assertThat(onPricePoint(rec.optimal())).isTrue();
         assertThat(onPricePoint(rec.aggressive())).isTrue();
     }
+
+    // ---- live competitor prices on a high-margin line with no history --------------------
+
+    /** The 40A breaker: cost $20.67, selling at $82.02 (74.8% margin), no sales, no other branch. */
+    private static Case breaker() {
+        Case c = new Case();
+        c.cost = bd("20.67");
+        c.current = bd("82.02");
+        c.ownRef = null;
+        c.peerQ2 = null;
+        c.peerQ3 = null;
+        c.peerStores = 0;
+        c.bandQ1 = null;
+        c.bandQ3 = null;
+        c.bandN = 0;
+        c.elasticity = null;
+        c.ordersAtStore = 0;
+        c.benchmarkTargetMarginPct = bd("30");
+        c.rampSalt = "BW311240|200410|2026-09";
+        return c;
+    }
+
+    @Test
+    @DisplayName("A competitor at today's price is a market, however high the margin: it is kept and anchors the price")
+    void competitorAtTodaysPriceIsKeptOnAHighMarginLine() {
+        Case c = breaker();
+        c.competitorMedian = bd("82.39");
+        c.competitorCount = 1;
+        Recommendation rec = c.run();
+
+        assertThat(rec.flags()).doesNotContain(Recommendation.FLAG_COMPETITOR_IMPLAUSIBLE);
+        assertThat(step(rec, PricingModel.COMPETITORS).status()).isEqualTo(Step.APPLIED);
+        // Before: the $82.39 was dropped as over twice the $27.56 margin floor and the price fell to $30.45.
+        assertThat(rec.optimal()).isBetween(bd("70"), bd("91"));
+    }
+
+    @Test
+    @DisplayName("With only the cost benchmark, today's price stays within reach: the move cap, not the formula, limits the drop")
+    void aBenchmarkAloneCannotCutTodaysPriceBeyondTheMoveCap() {
+        Case c = breaker();
+        c.competitorMedian = null;
+        c.competitorCount = 0;
+        Recommendation rec = c.run();
+
+        assertThat(rec.flags()).doesNotContain(Recommendation.FLAG_CONSTRAINT_CONFLICT);
+        // The ±25% cap around $82.02 holds: never under $61.52.
+        assertThat(rec.optimal()).isGreaterThanOrEqualTo(bd("61.50"));
+    }
+
+    @Test
+    @DisplayName("A competitor far from today's price is still dropped as another product or pack")
+    void aCompetitorFarFromTodaysPriceIsStillDropped() {
+        Case c = breaker();
+        c.competitorMedian = bd("400");
+        c.competitorCount = 1;
+        Recommendation rec = c.run();
+
+        assertThat(rec.flags()).contains(Recommendation.FLAG_COMPETITOR_IMPLAUSIBLE);
+        assertThat(step(rec, PricingModel.COMPETITORS).note()).contains("your price today");
+    }
 }

@@ -92,12 +92,14 @@ public class PricingEngine {
     private final Reference reference;
     private final PriceList priceList;
     private final DealSummaries deals;
+    private final com.aatlas.decisions.DecisionOutcomes outcomes;
     private final AatlasClock clock;
 
     public PricingEngine(CatalogGateway catalog, SalesHistory sales, PriceLadder ladder, Inventory inventory,
             CompetitorPrices competitorPrices, Reference reference, PriceList priceList, DealSummaries deals,
-            AatlasClock clock) {
+            com.aatlas.decisions.DecisionOutcomes outcomes, AatlasClock clock) {
         this.catalog = catalog;
+        this.outcomes = outcomes;
         this.sales = sales;
         this.ladder = ladder;
         this.inventory = inventory;
@@ -193,7 +195,9 @@ public class PricingEngine {
 
         BigDecimal rpp = store != null ? store.rpp() : null;
 
-        SalesHistory.Elasticity elasticity = sales.elasticity(productId, storeUuid, today);
+        // What applied prices actually did for this item (measured sales before against after) is folded
+        // into the sensitivity: the model learns from outcomes, not only from what was chosen.
+        SalesHistory.Elasticity elasticity = outcomes.blend(sales.elasticity(productId, storeUuid, today), item, today);
         BigDecimal beta = elasticity.coefficient();
 
         Window w90 = Window.trailingDays(today, 90);

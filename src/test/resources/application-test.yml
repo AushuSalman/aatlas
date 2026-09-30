@@ -42,6 +42,8 @@ aatlas:
   competition:
     daily-refresh:
       enabled: false
+  outcomes:
+    enabled: false
   rls:
     # Off in tests: the policies compare against a connection variable that a
     # test transaction has no reason to set, and turning it on here would only

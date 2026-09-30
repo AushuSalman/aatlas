@@ -116,6 +116,12 @@ final class HistoryEngine {
      */
     static HistorySummary getHistory(ImpactData impact, List<com.aatlas.decisions.Decision> decisions,
             Map<String, String> shortNames) {
+        return getHistory(impact, decisions, shortNames, Map.of());
+    }
+
+    /** @param outcomes what each measured deal did, by deal key - the rows' result column */
+    static HistorySummary getHistory(ImpactData impact, List<com.aatlas.decisions.Decision> decisions,
+            Map<String, String> shortNames, Map<String, com.aatlas.decisions.DecisionOutcomes.Outcome> outcomes) {
         List<HistoryRow> rows = new ArrayList<>();
         for (DealRecord d : impact.deals()) {
             double actual = d.actualPrice().doubleValue();
@@ -136,19 +142,33 @@ final class HistoryEngine {
 
             double value = d.followed() ? d.gain().doubleValue() : -d.lost().doubleValue();
             String outcome = d.followed() ? (value > 0.5 ? "positive" : "neutral") : (value < -0.5 ? "negative" : "neutral");
-            String outcomeLabel = "positive".equals(outcome) ? "Positive"
-                    : "negative".equals(outcome) ? "Missed"
-                    : d.followed() ? "Followed" : "Neutral";
+            // "Followed" means the recommendation was used. A price set away from it - within half a
+            // percent is rounding - is labelled as what it was, whichever way it went: a sell priced
+            // $10 over the recommendation is the person's own call, not "followed".
+            double rel = suggested > 0 ? (actual - suggested) / suggested : 0;
+            boolean onRecommendation = Math.abs(rel) <= 0.005;
+            String outcomeLabel;
+            if (!onRecommendation) {
+                outcomeLabel = "sell".equals(d.side())
+                        ? (actual > suggested ? "Priced above" : "Priced below")
+                        : (actual < suggested ? "Beat target" : "Paid above target");
+            } else {
+                outcomeLabel = "positive".equals(outcome) ? "Positive"
+                        : "negative".equals(outcome) ? "Missed"
+                        : d.followed() ? "Followed" : "Neutral";
+            }
 
             String name = shortNames.get(d.itemNumber());
             if (name == null || name.isBlank()) {
                 name = d.description() != null && !d.description().isBlank() ? d.description() : d.itemNumber();
             }
 
+            com.aatlas.decisions.DecisionOutcomes.Outcome measured = outcomes.get(d.id());
             rows.add(new HistoryRow(
                     d.id(), d.date(), d.side(), d.itemNumber(), name,
                     d.counterparty(), d.qty(), suggested, applied, actual, marginPct, d.followed(),
-                    outcome, outcomeLabel, value, recorded, d.customer()));
+                    outcome, outcomeLabel, value, recorded, d.customer(),
+                    measured == null ? null : measured.label(), measured == null ? null : measured.verdict()));
         }
 
         int total = rows.size();

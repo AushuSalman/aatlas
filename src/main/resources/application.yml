@@ -273,6 +273,15 @@ aatlas:
       password: ${DATAFORSEO_PASSWORD:}
       base-url: https://api.dataforseo.com
 
+  outcomes:
+    # What each applied sell price did: units and profit a week, window-days before against after at
+    # its branch, measured nightly once the after-window closes. The observed price sensitivity is
+    # blended into the pricing model, so outcomes - not only choices - shape the next recommendation.
+    enabled: ${DECISION_OUTCOMES_ENABLED:true}
+    cron: "0 30 4 * * *"
+    window-days: 28
+    # An outcome with too few sales is retried while the decision is younger than this.
+    retry-days: 120
   market-data:
     # Live reference feeds (marketdata module): daily at 06:30 UTC and once at startup.
     enabled: ${MARKET_DATA_ENABLED:true}
