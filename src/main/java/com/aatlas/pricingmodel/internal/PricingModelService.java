@@ -8,6 +8,7 @@ import com.aatlas.common.web.CursorPage;
 import com.aatlas.decisions.DealSummaries;
 import com.aatlas.history.DecisionPatterns;
 import com.aatlas.history.PricingModel;
+import com.aatlas.history.PricingModel.Side;
 import com.aatlas.policy.Persona;
 import com.aatlas.policy.PolicyReader;
 import java.math.BigDecimal;
@@ -21,18 +22,27 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.data.domain.Limit;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Reads and writes a tenant's pricing-model overrides.
+ * Reads and writes a tenant's pricing-model overrides, one side at a time.
  *
- * <p>Reads are cached under {@link CacheNames#PRICING_MODEL} for the settings screen;
- * writes evict, and the cache manager is transaction-aware, so the eviction lands after
- * the commit rather than before a rollback. The engines do not read this cache: they go
- * through {@code history.Reference.pricingModel()}, a primary-key read per request.
+ * <p>The sell model and the buying model are two sides of one registry and share one
+ * stored row ({@code pricing_model_settings}), but every endpoint here serves one side:
+ * the view is that side's keys, a save replaces that side's overrides and keeps the
+ * other's, and a reset clears that side alone. Which side is a query parameter,
+ * {@code sell} unless said otherwise, so a caller from before the buying model existed
+ * sees what it always did.
+ *
+ * <p>Reads are cached under {@link CacheNames#PRICING_MODEL}, keyed by tenant and side;
+ * a write evicts both sides' entries, because one row backs them both. The cache manager
+ * is transaction-aware, so the eviction lands after the commit rather than before a
+ * rollback. The engines do not read this cache: they go through
+ * {@code history.Reference.pricingModel()}, a primary-key read per request.
  *
  * <p>Who may write is a policy question, answered by {@link PolicyReader}: the seats whose
  * persona says {@code guardrails: true} - heads of either side, finance and the director -
@@ -43,7 +53,8 @@ import org.springframework.transaction.annotation.Transactional;
  * <p>What is stored is {@link PricingModel.Config#overrides()}: a setting equal to its
  * default is not written, so the row says only what the tenant changed. Validation runs on
  * the raw request first, so a number outside its range is a 400 rather than silently
- * clamped.
+ * clamped, and a key that belongs to the other side is refused rather than silently
+ * dropped by the merge.
  */
 @Service
 class PricingModelService {
@@ -78,69 +89,104 @@ class PricingModelService {
         this.clock = clock;
     }
 
-    @Cacheable(cacheNames = CacheNames.PRICING_MODEL, key = "#tenantId")
+    /**
+     * The side a request names: {@code sell} when absent or blank, else {@code sell} or
+     * {@code buy} in any case. Anything else is a 400 the form can show against the
+     * {@code side} field, the same shape as a bad setting.
+     */
+    static Side sideOf(String raw) {
+        try {
+            return Side.of(raw);
+        } catch (IllegalArgumentException ex) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "validation_failed", "That is not a side of the pricing model.",
+                    Map.of("fields", Map.of("side", "Send sell or buy.")));
+        }
+    }
+
+    @Cacheable(cacheNames = CacheNames.PRICING_MODEL, key = "#tenantId + ':' + #side.name()")
     @Transactional(readOnly = true)
-    PricingModelView current(UUID tenantId) {
+    PricingModelView current(UUID tenantId, Side side) {
         return settings.findById(tenantId)
-                .map(PricingModelView::of)
-                .orElseGet(PricingModelView::defaults);
+                .map(row -> PricingModelView.of(side, row))
+                .orElseGet(() -> PricingModelView.defaults(side));
     }
 
-    @CacheEvict(cacheNames = CacheNames.PRICING_MODEL, key = "#tenantId")
+    /**
+     * Replaces one side's overrides with {@code requested} (normalised: defaults dropped)
+     * and keeps the other side's as stored. The screen posts its whole side, so what is
+     * sent is what that side becomes.
+     */
+    @Caching(evict = {
+        @CacheEvict(cacheNames = CacheNames.PRICING_MODEL, key = "#tenantId + ':SELL'"),
+        @CacheEvict(cacheNames = CacheNames.PRICING_MODEL, key = "#tenantId + ':BUY'")
+    })
     @Transactional
-    PricingModelView save(UUID tenantId, TenantContext.Actor actor, Map<String, PricingModel.Setting> requested) {
+    PricingModelView save(UUID tenantId, TenantContext.Actor actor, Side side,
+            Map<String, PricingModel.Setting> requested) {
         requireMaySetModel(tenantId, actor);
-        validate(requested);
-        Map<String, PricingModel.Setting> overrides = PricingModel.Config.of(requested).overrides();
-        return write(tenantId, actor, overrides, "set");
+        validate(side, requested);
+        return write(tenantId, actor, side, requested, "set");
     }
 
-    @CacheEvict(cacheNames = CacheNames.PRICING_MODEL, key = "#tenantId")
+    /** Clears one side's overrides; the other side is untouched. A tenant with no row gets one, on the defaults. */
+    @Caching(evict = {
+        @CacheEvict(cacheNames = CacheNames.PRICING_MODEL, key = "#tenantId + ':SELL'"),
+        @CacheEvict(cacheNames = CacheNames.PRICING_MODEL, key = "#tenantId + ':BUY'")
+    })
     @Transactional
-    PricingModelView reset(UUID tenantId, TenantContext.Actor actor) {
+    PricingModelView reset(UUID tenantId, TenantContext.Actor actor, Side side) {
         requireMaySetModel(tenantId, actor);
-        return write(tenantId, actor, Map.of(), "reset");
+        return write(tenantId, actor, side, Map.of(), "reset");
     }
 
     @Transactional(readOnly = true)
-    CursorPage<PricingModelHistoryView> history(UUID tenantId, Integer limit, String cursor) {
+    CursorPage<PricingModelHistoryView> history(UUID tenantId, Side side, Integer limit, String cursor) {
         int size = limit == null ? 20 : Math.max(1, Math.min(limit, MAX_PAGE));
         Limit fetch = Limit.of(size + 1);
         List<PricingModelHistoryEntity> rows = cursor == null || cursor.isBlank()
                 ? history.findByTenantIdOrderByIdDesc(tenantId, fetch)
                 : history.findByTenantIdAndIdLessThanOrderByIdDesc(tenantId, parseCursor(cursor), fetch);
-        return CursorPage.of(rows.stream().map(PricingModelHistoryView::of).toList(), size,
+        return CursorPage.of(rows.stream().map(row -> PricingModelHistoryView.of(side, row)).toList(), size,
                 row -> row.id().toString());
     }
 
     /**
-     * What the tenant's decisions have taught the model, tenant-wide. The same maths the
-     * chain runs per item, on every sell deal in the model's window, so the screen shows
-     * the lean a brand-new item would inherit and the habit the headline tier follows.
+     * What the tenant's decisions have taught one side of the model, tenant-wide. The same
+     * maths the chain runs per item, on every deal of that side in that side's window, so
+     * the screen shows the lean a brand-new item would inherit and the habit the headline
+     * tier follows. The buy side learns from costs agreed against a target, the sell side
+     * from prices applied against a suggestion; each reads its own knobs.
      */
     @Transactional(readOnly = true)
-    LearningView learning(UUID tenantId) {
-        PricingModel.Config config = PricingModel.Config.of(current(tenantId).overrides());
+    LearningView learning(UUID tenantId, Side side) {
+        PricingModel.Config config = stored(tenantId);
+        boolean buy = side == Side.BUY;
+        String dealSide = buy ? DealSummaries.BUY : DealSummaries.SELL;
+        String learningKey = buy ? PricingModel.BUY_LEARNING : PricingModel.LEARNING;
+        String strategyKey = buy ? PricingModel.BUY_LEARNING_STRATEGY : PricingModel.LEARNING_STRATEGY;
+        String windowKey = buy ? PricingModel.BUY_LEARNING_WINDOW_DAYS : PricingModel.LEARNING_WINDOW_DAYS;
+
         LocalDate today = clock.today();
-        int windowDays = config.value(PricingModel.LEARNING_WINDOW_DAYS).intValue();
+        int windowDays = config.value(windowKey).intValue();
         LocalDate since = today.minusDays(windowDays);
 
-        List<DealSummaries.Acceptance> rows = deals.acceptance(null, null, since, LEARNING_ROWS);
+        List<DealSummaries.Acceptance> rows = deals.acceptance(dealSide, null, null, since, LEARNING_ROWS);
         List<DecisionPatterns.Acceptance> patterns = rows.stream()
                 .map(r -> new DecisionPatterns.Acceptance(r.date(), r.suggested(), r.actual(),
                         DecisionPatterns.Acceptance.TENANT))
                 .toList();
-        DecisionPatterns.Learning lean = DecisionPatterns.learn(patterns, today, config);
+        DecisionPatterns.Learning lean = DecisionPatterns.learn(patterns, today, config, side);
 
         long followed = rows.stream().filter(DealSummaries.Acceptance::followed).count();
         Double followRatePct = rows.isEmpty() ? null : Math.round(followed * 1000.0 / rows.size()) / 10.0;
 
-        Map<String, Long> picks = deals.strategyPicks(since);
+        Map<String, Long> picks = deals.strategyPicks(dealSide, since);
         DecisionPatterns.Habit habit = DecisionPatterns.habit(picks, HABIT_MIN_PICKS, HABIT_MIN_SHARE_PCT).orElse(null);
 
         return new LearningView(
-                config.on(PricingModel.LEARNING),
-                config.on(PricingModel.LEARNING_STRATEGY),
+                side.key(),
+                config.on(learningKey),
+                config.on(strategyKey),
                 windowDays,
                 since,
                 rows.size(),
@@ -155,11 +201,11 @@ class PricingModelService {
 
     /**
      * Refuses a request the registry cannot make sense of, with a 400 the form can show
-     * key by key: an unknown key, the wrong field for the parameter's type, or a number
-     * outside its range. Runs before {@link PricingModel.Config#of} so nothing is
-     * silently dropped or clamped on the way in.
+     * key by key: an unknown key, a key of the other side, the wrong field for the
+     * parameter's type, or a number outside its range. Runs before the merge so nothing
+     * is silently dropped or clamped on the way in.
      */
-    static void validate(Map<String, PricingModel.Setting> requested) {
+    static void validate(Side side, Map<String, PricingModel.Setting> requested) {
         if (requested == null) {
             throw ApiException.badRequest("validation_failed", "Send the settings map.");
         }
@@ -169,6 +215,10 @@ class PricingModelService {
             PricingModel.Parameter p = PricingModel.parameter(key).orElse(null);
             if (p == null) {
                 fields.put(e.getKey() == null ? "" : e.getKey(), "Not a pricing-model parameter.");
+                continue;
+            }
+            if (p.side() != side) {
+                fields.put(key, p.label() + " belongs to the " + p.side().key() + " model; save it there.");
                 continue;
             }
             PricingModel.Setting s = e.getValue();
@@ -199,22 +249,39 @@ class PricingModelService {
 
     // ---- write -------------------------------------------------------------------------
 
-    private PricingModelView write(UUID tenantId, TenantContext.Actor actor, Map<String, PricingModel.Setting> overrides,
-            String action) {
+    /**
+     * Merges {@code sideOverrides} into the stored map as the new state of {@code side},
+     * stores the whole map, and records it in the history as stored - both sides - since
+     * the row is what changed.
+     */
+    private PricingModelView write(UUID tenantId, TenantContext.Actor actor, Side side,
+            Map<String, PricingModel.Setting> sideOverrides, String action) {
         Instant now = clock.now();
-        PricingModelEntity row = settings.findById(tenantId)
-                .map(existing -> {
-                    existing.apply(overrides, actor.userId());
-                    return existing;
-                })
-                .orElseGet(() -> new PricingModelEntity(tenantId, overrides, actor.userId()));
+        PricingModelEntity row = settings.findById(tenantId).orElse(null);
+        PricingModel.Config stored = row == null ? PricingModel.Config.defaults() : PricingModel.Config.of(row.getSettings());
+        PricingModel.Config merged = stored.withSide(side, sideOverrides);
+        Map<String, PricingModel.Setting> overrides = merged.overrides();
+
+        if (row == null) {
+            row = new PricingModelEntity(tenantId, overrides, actor.userId());
+        } else {
+            row.apply(overrides, actor.userId());
+        }
         row = settings.saveAndFlush(row);
 
         history.save(new PricingModelHistoryEntity(tenantId, action, overrides, actor.userId(), actor.role(), now));
 
-        log.info("Pricing model {} for tenant {} by user {} ({}): {} override{}", action, tenantId, actor.userId(),
-                actor.role(), overrides.size(), overrides.size() == 1 ? "" : "s");
-        return PricingModelView.of(row);
+        int mine = merged.overrides(side).size();
+        log.info("Pricing model {} on the {} side for tenant {} by user {} ({}): {} override{} on that side, {} stored in all",
+                action, side.key(), tenantId, actor.userId(), actor.role(), mine, mine == 1 ? "" : "s", overrides.size());
+        return PricingModelView.of(side, row);
+    }
+
+    /** The whole stored model, both sides, normalised; the defaults for a tenant that never saved. */
+    private PricingModel.Config stored(UUID tenantId) {
+        return settings.findById(tenantId)
+                .map(row -> PricingModel.Config.of(row.getSettings()))
+                .orElseGet(PricingModel.Config::defaults);
     }
 
     private void requireMaySetModel(UUID tenantId, TenantContext.Actor actor) {

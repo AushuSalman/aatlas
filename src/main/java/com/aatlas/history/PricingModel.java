@@ -9,47 +9,98 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * The pricing model's parameters: every step the recommendation chain can take, what each
+ * The pricing model's parameters: every step the recommendation chains can take, what each
  * defaults to, and a tenant's overrides on top.
+ *
+ * <p>There are two chains, one per {@link Side}: <b>sell</b> (the price to charge) and
+ * <b>buy</b> (the cost to aim for). Both live in this one registry, keyed apart by a
+ * {@code buy.} prefix, and a tenant's overrides for both live in one stored map, so a
+ * parameter is looked up the same way whichever chain reads it.
  *
  * <p>The registry is the single list. A parameter is either a <b>toggle</b> (a step that can
  * be switched off) or a <b>number</b> (a knob a step reads), and a number may belong to a
  * toggle ({@link Parameter#parent}) so that switching the step off silences its knobs too.
- * Adding a step or a knob is one entry here plus the line of {@link PricingMath} that reads
- * it: the settings screen renders whatever this list says, the store keeps only overrides
- * keyed by {@link Parameter#key}, and an override for a key that no longer exists is
- * dropped on read rather than failing.
+ * Adding a step or a knob is one entry here plus the line of the chain that reads it: the
+ * settings screen renders whatever this list says, the store keeps only overrides keyed by
+ * {@link Parameter#key}, and an override for a key that no longer exists is dropped on read
+ * rather than failing.
  *
  * <p>Labels and descriptions are written for the customer, not the engineer: they are what
- * the settings screen, the Sell derivation and the "How we price" page show. The section of
- * the pricing walkthrough each comes from is kept in {@link Parameter#doc} for the reader who
+ * the settings screen, the derivations and the "How we price" page show. The section of the
+ * pricing walkthrough each comes from is kept in {@link Parameter#doc} for the reader who
  * wants the maths.
  *
- * <p>The two guardrails every price is bounded by - the minimum-margin floor and the market
- * ceiling - are the tenant's guardrails ({@link Reference.Guardrails}) and are never part of
- * this list: nothing here can switch them off.
+ * <p>The two guardrails every sell price is bounded by - the minimum-margin floor and the
+ * market ceiling - are the tenant's guardrails ({@link Reference.Guardrails}) and are never
+ * part of this list: nothing here can switch them off. On the buy side the equivalent is
+ * the lowest real price on file: a target never goes under it.
  */
 public final class PricingModel {
 
     public enum Type { TOGGLE, NUMBER }
 
-    /** The settings screen's sections, in order. */
-    public enum Group {
-        MEASURE("measure", "What we learn from your sales", "How each item sells, before a price is worked out."),
-        COMPOSE("compose", "Where the price starts", "The starting point, and how the higher-margin price is found."),
-        ADJUST("adjust", "Small adjustments",
-                "Bounded nudges for demand, commodity costs and the local market, and moving to new prices gradually."),
-        LEARN("learn", "Learning from your decisions", "What your own pricing decisions are allowed to change."),
-        GUARD("guard", "Safety limits", "Checks every price passes before you see it.");
+    /** Which chain a parameter, group or preset belongs to. */
+    public enum Side {
+        SELL("sell"), BUY("buy");
 
+        private final String key;
+
+        Side(String key) {
+            this.key = key;
+        }
+
+        public String key() {
+            return key;
+        }
+
+        public static Side of(String key) {
+            if (key == null || key.isBlank()) {
+                return SELL;
+            }
+            for (Side s : values()) {
+                if (s.key.equalsIgnoreCase(key.strip())) {
+                    return s;
+                }
+            }
+            throw new IllegalArgumentException("Unknown pricing-model side '" + key + "'; expected sell or buy.");
+        }
+    }
+
+    /** The settings screen's sections, in order, per side. */
+    public enum Group {
+        MEASURE(Side.SELL, "measure", "What we learn from your sales", "How each item sells, before a price is worked out."),
+        COMPOSE(Side.SELL, "compose", "Where the price starts",
+                "The starting point, and how the higher-margin price is found."),
+        ADJUST(Side.SELL, "adjust", "Small adjustments",
+                "Bounded nudges for demand, commodity costs and the local market, and moving to new prices gradually."),
+        LEARN(Side.SELL, "learn", "Learning from your decisions", "What your own pricing decisions are allowed to change."),
+        GUARD(Side.SELL, "guard", "Safety limits", "Checks every price passes before you see it."),
+
+        BUY_MEASURE(Side.BUY, "buy.measure", "What we learn from your purchases",
+                "Who you really buy from and what you really paid, before a target is worked out."),
+        BUY_COMPOSE(Side.BUY, "buy.compose", "Where the target starts",
+                "What counts as evidence of the going rate, and where between the best price and the market the target sits."),
+        BUY_ADJUST(Side.BUY, "buy.adjust", "Comparing suppliers",
+                "What besides the quote counts when suppliers are ranked, and when to buy."),
+        BUY_LEARN(Side.BUY, "buy.learn", "Learning from your decisions",
+                "What the prices you actually agreed are allowed to change."),
+        BUY_GUARD(Side.BUY, "buy.guard", "Safety limits and reordering",
+                "Checks every target passes, and the reorder advice.");
+
+        private final Side side;
         private final String key;
         private final String label;
         private final String blurb;
 
-        Group(String key, String label, String blurb) {
+        Group(Side side, String key, String label, String blurb) {
+            this.side = side;
             this.key = key;
             this.label = label;
             this.blurb = blurb;
+        }
+
+        public Side side() {
+            return side;
         }
 
         public String key() {
@@ -62,6 +113,16 @@ public final class PricingModel {
 
         public String blurb() {
             return blurb;
+        }
+
+        public static List<Group> of(Side side) {
+            List<Group> out = new ArrayList<>();
+            for (Group g : values()) {
+                if (g.side == side) {
+                    out.add(g);
+                }
+            }
+            return out;
         }
     }
 
@@ -78,6 +139,10 @@ public final class PricingModel {
 
         public boolean toggle() {
             return type == Type.TOGGLE;
+        }
+
+        public Side side() {
+            return group.side();
         }
     }
 
@@ -97,11 +162,12 @@ public final class PricingModel {
     }
 
     /**
-     * A one-click set of overrides for people who do not want to tune knobs.
+     * A one-click set of overrides for people who do not want to tune knobs. Keys repeat per
+     * side ({@code balanced} exists for sell and for buy); look one up with its side.
      *
      * @param settings the overrides on top of the defaults; empty for the recommended preset
      */
-    public record Preset(String key, String label, String blurb, Map<String, Setting> settings) {
+    public record Preset(Side side, String key, String label, String blurb, Map<String, Setting> settings) {
 
         public static final String BALANCED = "balanced";
         public static final String CAREFUL = "careful";
@@ -109,7 +175,7 @@ public final class PricingModel {
         public static final String CUSTOM = "custom";
     }
 
-    // ---- keys -------------------------------------------------------------------------
+    // ---- keys: sell -------------------------------------------------------------------
 
     public static final String ELASTICITY = "elasticity";
     public static final String ELASTICITY_PRIOR = "elasticity.prior";
@@ -157,12 +223,61 @@ public final class PricingModel {
     public static final String MOVE_CAP_MAX_PCT = "moveCap.maxPct";
     public static final String ROUNDING = "rounding";
 
+    // ---- keys: buy --------------------------------------------------------------------
+
+    public static final String BUY_INCUMBENT = "buy.incumbent";
+    public static final String BUY_OBSERVED_LANDED = "buy.observedLanded";
+    public static final String BUY_OBSERVED_LANDED_MIN_ORDERS = "buy.observedLanded.minOrders";
+
+    public static final String BUY_MARKET = "buy.market";
+    public static final String BUY_MARKET_BULK_LOTS = "buy.market.bulkLots";
+    public static final String BUY_MARKET_RETAIL_DERIVED = "buy.market.retailDerived";
+    public static final String BUY_MARKET_PLAUSIBILITY = "buy.market.plausibility";
+    public static final String BUY_TARGET = "buy.target";
+    public static final String BUY_TARGET_GAP_SHARE = "buy.target.gapShare";
+    public static final String BUY_NEVER_ABOVE_CURRENT = "buy.neverAboveCurrent";
+
+    public static final String BUY_TERMS = "buy.terms";
+    public static final String BUY_TERMS_COST_OF_CAPITAL = "buy.terms.costOfCapital";
+    public static final String BUY_RELIABILITY = "buy.reliability";
+    public static final String BUY_RELIABILITY_OTIF_WEIGHT = "buy.reliability.otifWeight";
+    public static final String BUY_RELIABILITY_LEAD_PER_DAY = "buy.reliability.leadPerDay";
+    public static final String BUY_RELIABILITY_DEFECT_WEIGHT = "buy.reliability.defectWeight";
+    public static final String BUY_MOQ = "buy.moq";
+    public static final String BUY_MOQ_PENALTY = "buy.moq.penalty";
+    public static final String BUY_COMMODITY = "buy.commodity";
+    public static final String BUY_COMMODITY_PASS_THROUGH = "buy.commodity.passThrough";
+    public static final String BUY_PHASE_IN = "buy.phaseIn";
+    public static final String BUY_PHASE_IN_HALF_POINT = "buy.phaseIn.halfPoint";
+    public static final String BUY_PHASE_IN_LAUNCH = "buy.phaseIn.launch";
+
+    public static final String BUY_LEARNING = "buy.learning";
+    public static final String BUY_LEARNING_MAX_MOVE = "buy.learning.maxMove";
+    public static final String BUY_LEARNING_MIN_DECISIONS = "buy.learning.minDecisions";
+    public static final String BUY_LEARNING_WINDOW_DAYS = "buy.learning.windowDays";
+    public static final String BUY_LEARNING_HALF_LIFE_DAYS = "buy.learning.halfLifeDays";
+    public static final String BUY_LEARNING_DEADBAND = "buy.learning.deadband";
+    public static final String BUY_LEARNING_STRATEGY = "buy.learning.strategy";
+
+    public static final String BUY_MOVE_CAP = "buy.moveCap";
+    public static final String BUY_MOVE_CAP_MAX_PCT = "buy.moveCap.maxPct";
+    public static final String BUY_FLAGS = "buy.flags";
+    public static final String BUY_FLAGS_BULK_TOLERANCE = "buy.flags.bulkTolerance";
+    public static final String BUY_REORDER = "buy.reorder";
+    public static final String BUY_REORDER_COVER_WEEKS = "buy.reorder.coverWeeks";
+    public static final String BUY_REORDER_SAFETY_SHARE = "buy.reorder.safetyShare";
+    public static final String BUY_REORDER_OVERSTOCK_WEEKS = "buy.reorder.overstockWeeks";
+    public static final String BUY_REORDER_SOON_DAYS = "buy.reorder.soonDays";
+    public static final String BUY_REORDER_DEFAULT_LEAD_DAYS = "buy.reorder.defaultLeadDays";
+
     private static final List<Parameter> REGISTRY;
     private static final Map<String, Parameter> BY_KEY;
     private static final List<Preset> PRESETS;
 
     static {
         List<Parameter> r = new ArrayList<>();
+
+        // ================================ SELL ===========================================
 
         // ---- what we learn from your sales ----------------------------------------------
         toggle(r, ELASTICITY, Group.MEASURE, "Learn how price-sensitive each item is",
@@ -240,8 +355,8 @@ public final class PricingModel {
         number(r, TRUST_RAMP_HALF_POINT, Group.ADJUST, "Decisions to get halfway to the target", "", "12", "1", "60",
                 "decisions", TRUST_RAMP, "§3 step 8d");
         number(r, TRUST_RAMP_LAUNCH, Group.ADJUST, "Starting point for a new item",
-                "How far toward the target an item with no decisions yet is priced.", "25", "0", "100", "%",
-                TRUST_RAMP, "§3 step 8d");
+                "How far toward the target an item with no decisions yet is priced; the ramp never falls below it.",
+                "25", "0", "100", "%", TRUST_RAMP, "§3 step 8d");
         number(r, TRUST_RAMP_WOBBLE, Group.ADJUST, "Variation",
                 "A small, repeatable variation so prices do not all step up in lockstep. 0 turns it off.", "15", "0",
                 "30", "%", TRUST_RAMP, "§3 step 8d");
@@ -283,6 +398,126 @@ public final class PricingModel {
                 "Whole cents under $10, five cents under $100, fifty cents under $1,000, then whole dollars.", true,
                 null, "single-item step 8");
 
+        // ================================= BUY ===========================================
+
+        // ---- what we learn from your purchases ------------------------------------------
+        toggle(r, BUY_INCUMBENT, Group.BUY_MEASURE, "Start from the supplier you actually buy from",
+                "Your reference supplier is the one with the largest share of your spend on the item in the last "
+                        + "twelve months. Off: the cheapest quoted supplier is the reference instead.", true, null,
+                "§3 step 1");
+        toggle(r, BUY_OBSERVED_LANDED, Group.BUY_MEASURE, "Use what you really paid for landed cost",
+                "A supplier's landed cost comes from your received orders when there are enough of them; otherwise "
+                        + "it is the quote plus freight and duty for the lane. Off: always estimate from the lane.",
+                true, null, "§3 step 1");
+        number(r, BUY_OBSERVED_LANDED_MIN_ORDERS, Group.BUY_MEASURE, "Orders needed before real landed cost is trusted",
+                "", "3", "1", "20", "orders", BUY_OBSERVED_LANDED, "§3 step 1");
+
+        // ---- where the target starts ----------------------------------------------------
+        toggle(r, BUY_MARKET, Group.BUY_COMPOSE, "Use open-market evidence",
+                "Bulk-lot prices and a should-cost worked back from shop prices join your suppliers' quotes as "
+                        + "evidence of the going rate. Off: only your suppliers' quotes count.", true, null, "§3 step 7");
+        toggle(r, BUY_MARKET_BULK_LOTS, Group.BUY_COMPOSE, "Count bulk-lot prices",
+                "Per-unit prices from open-market lots checked in the last ninety days.", true, BUY_MARKET, "§3 step 7");
+        toggle(r, BUY_MARKET_RETAIL_DERIVED, Group.BUY_COMPOSE, "Work back from shop prices",
+                "Competitors' median shop price less your category's target margin: what a seller at that price "
+                        + "could afford to pay.", true, BUY_MARKET, "§3 step 7");
+        toggle(r, BUY_MARKET_PLAUSIBILITY, Group.BUY_COMPOSE, "Ignore market prices that look wrong",
+                "A market price under a third or over three times your suppliers' median is left out.", true,
+                BUY_MARKET, "§3 step 7");
+        toggle(r, BUY_TARGET, Group.BUY_COMPOSE, "Aim between the best price and the market median",
+                "The target sits part of the way from the lowest evidence toward the median, so it is achievable "
+                        + "rather than the single best listing. Off: the target is the lowest evidence.", true, null,
+                "§3 step 8b");
+        number(r, BUY_TARGET_GAP_SHARE, Group.BUY_COMPOSE, "How far from the lowest price toward the median",
+                "0 targets the best price seen; 100 targets the median.", "35", "0", "100", "%", BUY_TARGET,
+                "§3 step 8b");
+        toggle(r, BUY_NEVER_ABOVE_CURRENT, Group.BUY_COMPOSE, "Never target more than you pay today",
+                "If the evidence sits above what you already pay, the target is what you pay today. Off: the "
+                        + "target may rise to the evidence.", true, null, "§3 step 8b");
+
+        // ---- comparing suppliers --------------------------------------------------------
+        toggle(r, BUY_TERMS, Group.BUY_ADJUST, "Value payment terms",
+                "Credit days, early-payment discounts and late-delivery clauses are priced into each supplier's "
+                        + "effective cost. Off: compare landed cost alone.", true, null, "supplier comparison");
+        number(r, BUY_TERMS_COST_OF_CAPITAL, Group.BUY_ADJUST, "Cost of capital a year",
+                "What a day of credit is worth to you.", "8", "0", "30", "%", BUY_TERMS, "supplier comparison");
+        toggle(r, BUY_RELIABILITY, Group.BUY_ADJUST, "Price in reliability, lead time and quality",
+                "Late deliveries, long lead times, defects and short shipments add to a supplier's effective "
+                        + "cost, so a cheap unreliable quote does not win on price alone. Off: compare landed cost alone.",
+                true, null, "supplier comparison");
+        number(r, BUY_RELIABILITY_OTIF_WEIGHT, Group.BUY_ADJUST, "Weight on late deliveries",
+                "Share of the landed cost charged for a supplier that is late every time; 55 means a supplier "
+                        + "on time 90% of the time carries 5.5% extra.", "55", "0", "200", "%", BUY_RELIABILITY,
+                "supplier comparison");
+        number(r, BUY_RELIABILITY_LEAD_PER_DAY, Group.BUY_ADJUST, "Cost of each day of lead time",
+                "Share of the landed cost per day from order to delivery.", "0.06", "0", "1", "% a day",
+                BUY_RELIABILITY, "supplier comparison");
+        number(r, BUY_RELIABILITY_DEFECT_WEIGHT, Group.BUY_ADJUST, "Weight on defects",
+                "Share of the landed cost charged per percent of defective units.", "150", "0", "500", "%",
+                BUY_RELIABILITY, "supplier comparison");
+        toggle(r, BUY_MOQ, Group.BUY_ADJUST, "Penalise orders under the minimum",
+                "An order below a supplier's minimum carries a surcharge in the comparison.", true, null,
+                "supplier comparison");
+        number(r, BUY_MOQ_PENALTY, Group.BUY_ADJUST, "Surcharge for an order under the minimum", "", "4", "0", "20",
+                "%", BUY_MOQ, "supplier comparison");
+        toggle(r, BUY_COMMODITY, Group.BUY_ADJUST, "Follow commodity costs",
+                "The item's commodity trend decides buy now versus wait: a rising index says buy now, a falling "
+                        + "one says wait. Off: always buy now.", true, null, "buy now vs wait");
+        number(r, BUY_COMMODITY_PASS_THROUGH, Group.BUY_ADJUST, "Share of the 90-day index move expected within 30 days",
+                "", "38", "0", "100", "%", BUY_COMMODITY, "buy now vs wait");
+        toggle(r, BUY_PHASE_IN, Group.BUY_ADJUST, "Move the target gradually",
+                "The target starts near what you pay today and moves toward the full target as you record "
+                        + "purchase decisions for the item at that branch. Off: the full target is shown at once.",
+                true, null, "§3 step 8d");
+        number(r, BUY_PHASE_IN_HALF_POINT, Group.BUY_ADJUST, "Decisions to get halfway to the target", "", "6", "1",
+                "60", "decisions", BUY_PHASE_IN, "§3 step 8d");
+        number(r, BUY_PHASE_IN_LAUNCH, Group.BUY_ADJUST, "Starting point for a new item",
+                "How far toward the full target an item with no decisions yet is set; the ramp never falls below it.",
+                "50", "0", "100", "%", BUY_PHASE_IN, "§3 step 8d");
+
+        // ---- learning from your decisions ----------------------------------------------
+        toggle(r, BUY_LEARNING, Group.BUY_LEARN, "Learn from the prices you actually agree",
+                "If you keep agreeing prices above or below the target, the next target leans that way, within a "
+                        + "small limit.", true, null, "§3 step 9b");
+        number(r, BUY_LEARNING_MAX_MOVE, Group.BUY_LEARN, "Most this can change a target", "", "2", "0", "10", "%",
+                BUY_LEARNING, "§3 step 9b");
+        number(r, BUY_LEARNING_MIN_DECISIONS, Group.BUY_LEARN, "Decisions needed before it counts", "", "3", "1", "20",
+                "decisions", BUY_LEARNING, "§3 step 9b");
+        number(r, BUY_LEARNING_WINDOW_DAYS, Group.BUY_LEARN, "Look back over", "", "180", "30", "730", "days",
+                BUY_LEARNING, "§3 step 9b");
+        number(r, BUY_LEARNING_HALF_LIFE_DAYS, Group.BUY_LEARN, "Older decisions count half as much after", "", "60",
+                "7", "365", "days", BUY_LEARNING, "§3 step 9b");
+        number(r, BUY_LEARNING_DEADBAND, Group.BUY_LEARN, "Ignore differences smaller than", "", "1", "0", "10", "%",
+                BUY_LEARNING, "§3 step 9b");
+        toggle(r, BUY_LEARNING_STRATEGY, Group.BUY_LEARN, "Follow your usual buying strategy",
+                "If you mostly pick one strategy in the bulk buy basket, the plan recommends it.", true,
+                BUY_LEARNING, "§1");
+
+        // ---- safety limits and reordering -----------------------------------------------
+        toggle(r, BUY_MOVE_CAP, Group.BUY_GUARD, "Limit how far the target moves at once",
+                "The target stays within this of what you pay today in one go. It never goes under the lowest "
+                        + "real price on file.", true, null, "§3 step 10");
+        number(r, BUY_MOVE_CAP_MAX_PCT, Group.BUY_GUARD, "Most the target moves at once", "", "25", "5", "100", "%",
+                BUY_MOVE_CAP, "§3 step 10");
+        toggle(r, BUY_FLAGS, Group.BUY_GUARD, "Warn when you pay over the market",
+                "Flags when you pay more than the lowest shop price, more than the should-cost, or more than "
+                        + "bulk lots go for.", true, null, "market check");
+        number(r, BUY_FLAGS_BULK_TOLERANCE, Group.BUY_GUARD, "Tolerance above bulk-lot prices before a warning", "",
+                "5", "0", "50", "%", BUY_FLAGS, "market check");
+        toggle(r, BUY_REORDER, Group.BUY_GUARD, "Suggest when and how much to reorder",
+                "From stock on hand, selling pace and lead time: the reorder point, the quantity and the date.",
+                true, null, "reorder advice");
+        number(r, BUY_REORDER_COVER_WEEKS, Group.BUY_GUARD, "Weeks of stock an order should cover", "", "8", "1",
+                "52", "weeks", BUY_REORDER, "reorder advice");
+        number(r, BUY_REORDER_SAFETY_SHARE, Group.BUY_GUARD, "Safety stock, as a share of lead-time demand", "", "50",
+                "0", "200", "%", BUY_REORDER, "reorder advice");
+        number(r, BUY_REORDER_OVERSTOCK_WEEKS, Group.BUY_GUARD, "Weeks of stock that count as overstocked", "", "26",
+                "4", "104", "weeks", BUY_REORDER, "reorder advice");
+        number(r, BUY_REORDER_SOON_DAYS, Group.BUY_GUARD, "Days ahead that count as 'order soon'", "", "14", "1", "60",
+                "days", BUY_REORDER, "reorder advice");
+        number(r, BUY_REORDER_DEFAULT_LEAD_DAYS, Group.BUY_GUARD, "Lead time assumed when none is on file", "", "14",
+                "1", "120", "days", BUY_REORDER, "reorder advice");
+
         REGISTRY = Collections.unmodifiableList(r);
         Map<String, Parameter> byKey = new LinkedHashMap<>();
         for (Parameter p : r) {
@@ -296,17 +531,23 @@ public final class PricingModel {
                 if (parent == null || !parent.toggle()) {
                     throw new IllegalStateException(p.key() + " names a parent that is not a toggle: " + p.parent());
                 }
+                if (parent.side() != p.side()) {
+                    throw new IllegalStateException(p.key() + " names a parent on the other side: " + p.parent());
+                }
             }
             if (!p.toggle() && (p.defaultValue() == null || p.min() == null || p.max() == null
                     || p.defaultValue().compareTo(p.min()) < 0 || p.defaultValue().compareTo(p.max()) > 0)) {
                 throw new IllegalStateException(p.key() + " has a default outside its range");
+            }
+            if (p.side() == Side.BUY && !p.key().startsWith("buy.")) {
+                throw new IllegalStateException(p.key() + " is a buy parameter without the buy. prefix");
             }
         }
         BY_KEY = Collections.unmodifiableMap(byKey);
 
         // ---- presets ------------------------------------------------------------------------
         List<Preset> presets = new ArrayList<>();
-        presets.add(new Preset(Preset.BALANCED, "Recommended",
+        presets.add(new Preset(Side.SELL, Preset.BALANCED, "Recommended",
                 "Every step on with the standard settings. Right for most businesses.", Map.of()));
         Map<String, Setting> careful = new LinkedHashMap<>();
         careful.put(MOVE_CAP_MAX_PCT, Setting.value(new BigDecimal("10")));
@@ -315,18 +556,44 @@ public final class PricingModel {
         careful.put(ANCHOR_EXTERNAL_ADJUST_CAP, Setting.value(new BigDecimal("5")));
         careful.put(TRUST_RAMP_LAUNCH, Setting.value(new BigDecimal("15")));
         careful.put(TRUST_RAMP_HALF_POINT, Setting.value(new BigDecimal("20")));
-        presets.add(new Preset(Preset.CAREFUL, "Careful",
+        presets.add(new Preset(Side.SELL, Preset.CAREFUL, "Careful",
                 "Prices move in smaller steps and take longer to reach their targets. Good while you are getting "
                         + "used to the recommendations.", Collections.unmodifiableMap(careful)));
         Map<String, Setting> direct = new LinkedHashMap<>();
         direct.put(TRUST_RAMP, Setting.on(false));
         direct.put(LEARNING, Setting.on(false));
-        presets.add(new Preset(Preset.DIRECT, "Straight to target",
+        presets.add(new Preset(Side.SELL, Preset.DIRECT, "Straight to target",
                 "Shows the full target price at once and does not lean on your past decisions. Good for a price "
                         + "review where you want the model's own answer.", Collections.unmodifiableMap(direct)));
+
+        presets.add(new Preset(Side.BUY, Preset.BALANCED, "Recommended",
+                "Every step on with the standard settings. Right for most businesses.", Map.of()));
+        Map<String, Setting> buyCareful = new LinkedHashMap<>();
+        buyCareful.put(BUY_TARGET_GAP_SHARE, Setting.value(new BigDecimal("50")));
+        buyCareful.put(BUY_MOVE_CAP_MAX_PCT, Setting.value(new BigDecimal("10")));
+        buyCareful.put(BUY_LEARNING_MAX_MOVE, Setting.value(new BigDecimal("1")));
+        buyCareful.put(BUY_PHASE_IN_LAUNCH, Setting.value(new BigDecimal("30")));
+        buyCareful.put(BUY_PHASE_IN_HALF_POINT, Setting.value(new BigDecimal("10")));
+        presets.add(new Preset(Side.BUY, Preset.CAREFUL, "Careful",
+                "Targets sit closer to the market median and move in smaller steps. Good while you are getting "
+                        + "used to the recommendations.", Collections.unmodifiableMap(buyCareful)));
+        Map<String, Setting> buyDirect = new LinkedHashMap<>();
+        buyDirect.put(BUY_PHASE_IN, Setting.on(false));
+        buyDirect.put(BUY_LEARNING, Setting.on(false));
+        presets.add(new Preset(Side.BUY, Preset.DIRECT, "Straight to target",
+                "Shows the full target at once and does not lean on your past decisions. Good for a sourcing "
+                        + "review where you want the model's own answer.", Collections.unmodifiableMap(buyDirect)));
+
         for (Preset p : presets) {
-            if (!Config.of(p.settings()).overrides().equals(normalisedOverrides(p.settings()))) {
-                throw new IllegalStateException("Preset " + p.key() + " names a parameter it cannot set");
+            for (String key : p.settings().keySet()) {
+                Parameter param = byKey.get(key);
+                if (param == null || param.side() != p.side()) {
+                    throw new IllegalStateException("Preset " + p.side() + "/" + p.key() + " names " + key
+                            + ", which is not a parameter on its side");
+                }
+            }
+            if (Config.of(p.settings()).overrides().size() != p.settings().size()) {
+                throw new IllegalStateException("Preset " + p.key() + " names a setting that is already the default");
             }
         }
         PRESETS = Collections.unmodifiableList(presets);
@@ -346,39 +613,57 @@ public final class PricingModel {
                 new BigDecimal(min), new BigDecimal(max), unit, parent, doc));
     }
 
-    /** A preset's settings as {@link Config#of} would keep them: every key it names must survive. */
-    private static Map<String, Setting> normalisedOverrides(Map<String, Setting> raw) {
-        Map<String, Setting> out = new LinkedHashMap<>();
-        for (Map.Entry<String, Setting> e : raw.entrySet()) {
-            out.put(e.getKey(), e.getValue());
-        }
-        return out;
-    }
-
-    /** Every parameter, in display order. */
+    /** Every parameter of both sides, in display order. */
     public static List<Parameter> registry() {
         return REGISTRY;
+    }
+
+    /** One side's parameters, in display order. */
+    public static List<Parameter> registry(Side side) {
+        List<Parameter> out = new ArrayList<>();
+        for (Parameter p : REGISTRY) {
+            if (p.side() == side) {
+                out.add(p);
+            }
+        }
+        return Collections.unmodifiableList(out);
     }
 
     public static Optional<Parameter> parameter(String key) {
         return Optional.ofNullable(key == null ? null : BY_KEY.get(key.strip()));
     }
 
-    /** The one-click presets, in display order; the first is the defaults. */
+    /** The sell side's presets, in display order; the first is the defaults. */
     public static List<Preset> presets() {
-        return PRESETS;
+        return presets(Side.SELL);
     }
 
+    /** One side's presets, in display order; the first is the defaults. */
+    public static List<Preset> presets(Side side) {
+        List<Preset> out = new ArrayList<>();
+        for (Preset p : PRESETS) {
+            if (p.side() == side) {
+                out.add(p);
+            }
+        }
+        return Collections.unmodifiableList(out);
+    }
+
+    /** A sell-side preset by key. */
     public static Optional<Preset> preset(String key) {
-        return PRESETS.stream().filter(p -> p.key().equals(key)).findFirst();
+        return preset(Side.SELL, key);
+    }
+
+    public static Optional<Preset> preset(Side side, String key) {
+        return presets(side).stream().filter(p -> p.key().equals(key)).findFirst();
     }
 
     // ---- config -----------------------------------------------------------------------
 
     /**
-     * A tenant's model: the registry's defaults with the tenant's overrides on top. Built
-     * through {@link #of}, which drops unknown keys and clamps numbers, so a stored map from
-     * an older build is always readable.
+     * A tenant's model: the registry's defaults with the tenant's overrides on top, for both
+     * sides. Built through {@link #of}, which drops unknown keys and clamps numbers, so a
+     * stored map from an older build is always readable.
      */
     public static final class Config {
 
@@ -426,13 +711,51 @@ public final class PricingModel {
             return clean.isEmpty() ? DEFAULTS : new Config(clean);
         }
 
-        /** Only what differs from the defaults: what is stored. */
+        /**
+         * This config with one side's overrides replaced by {@code sideOverrides} (normalised
+         * the same way as {@link #of}) and the other side's kept: what a save of one side's
+         * settings screen does.
+         */
+        public Config withSide(Side side, Map<String, Setting> sideOverrides) {
+            Map<String, Setting> merged = new LinkedHashMap<>();
+            for (Map.Entry<String, Setting> e : overrides.entrySet()) {
+                Parameter p = BY_KEY.get(e.getKey());
+                if (p != null && p.side() != side) {
+                    merged.put(e.getKey(), e.getValue());
+                }
+            }
+            for (Map.Entry<String, Setting> e : of(sideOverrides).overrides().entrySet()) {
+                Parameter p = BY_KEY.get(e.getKey());
+                if (p != null && p.side() == side) {
+                    merged.put(e.getKey(), e.getValue());
+                }
+            }
+            return merged.isEmpty() ? DEFAULTS : new Config(merged);
+        }
+
+        /** Only what differs from the defaults, both sides: what is stored. */
         public Map<String, Setting> overrides() {
             return overrides;
         }
 
+        /** Only what differs from the defaults on one side. */
+        public Map<String, Setting> overrides(Side side) {
+            Map<String, Setting> out = new LinkedHashMap<>();
+            for (Map.Entry<String, Setting> e : overrides.entrySet()) {
+                Parameter p = BY_KEY.get(e.getKey());
+                if (p != null && p.side() == side) {
+                    out.put(e.getKey(), e.getValue());
+                }
+            }
+            return Collections.unmodifiableMap(out);
+        }
+
         public boolean isDefault() {
             return overrides.isEmpty();
+        }
+
+        public boolean isDefault(Side side) {
+            return overrides(side).isEmpty();
         }
 
         /**
@@ -467,7 +790,7 @@ public final class PricingModel {
             return value(key).doubleValue();
         }
 
-        /** Every key with its effective setting, for a screen that shows the whole model. */
+        /** Every key of both sides with its effective setting. */
         public Map<String, Setting> effective() {
             Map<String, Setting> out = new LinkedHashMap<>();
             for (Parameter p : REGISTRY) {
@@ -476,12 +799,28 @@ public final class PricingModel {
             return out;
         }
 
-        /** How many toggles are on, out of how many, for a one-line summary. */
+        /** Every key of one side with its effective setting, for the screen that shows that side. */
+        public Map<String, Setting> effective(Side side) {
+            Map<String, Setting> out = new LinkedHashMap<>();
+            for (Parameter p : REGISTRY) {
+                if (p.side() == side) {
+                    out.put(p.key(), p.toggle() ? Setting.on(on(p.key())) : Setting.value(value(p.key())));
+                }
+            }
+            return out;
+        }
+
+        /** How many sell toggles are on, out of how many. */
         public int[] toggleCount() {
+            return toggleCount(Side.SELL);
+        }
+
+        /** How many of one side's toggles are on, out of how many, for a one-line summary. */
+        public int[] toggleCount(Side side) {
             int on = 0;
             int total = 0;
             for (Parameter p : REGISTRY) {
-                if (p.toggle()) {
+                if (p.toggle() && p.side() == side) {
                     total++;
                     if (on(p.key())) {
                         on++;
@@ -491,10 +830,16 @@ public final class PricingModel {
             return new int[] {on, total};
         }
 
-        /** The preset these overrides are exactly, or {@link Preset#CUSTOM}. */
+        /** The sell preset these overrides are exactly, or {@link Preset#CUSTOM}. */
         public String activePreset() {
-            for (Preset p : PRESETS) {
-                if (sameSettings(Config.of(p.settings()).overrides(), overrides)) {
+            return activePreset(Side.SELL);
+        }
+
+        /** The preset one side's overrides are exactly, or {@link Preset#CUSTOM}. */
+        public String activePreset(Side side) {
+            Map<String, Setting> mine = overrides(side);
+            for (Preset p : presets(side)) {
+                if (sameSettings(Config.of(p.settings()).overrides(), mine)) {
                     return p.key();
                 }
             }

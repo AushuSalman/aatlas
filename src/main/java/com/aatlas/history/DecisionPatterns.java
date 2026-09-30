@@ -63,10 +63,35 @@ public final class DecisionPatterns {
     }
 
     /**
+     * Which knobs the lean reads and how it speaks, per side: the sell side learns from prices
+     * applied against a suggestion, the buy side from costs agreed against a target.
+     */
+    public record Keys(String windowDays, String halfLifeDays, String minDecisions, String deadband, String maxMove,
+            String verb, String reference, String presentVerb, String steadyReference) {
+
+        public static Keys of(PricingModel.Side side) {
+            return side == PricingModel.Side.BUY
+                    ? new Keys(PricingModel.BUY_LEARNING_WINDOW_DAYS, PricingModel.BUY_LEARNING_HALF_LIFE_DAYS,
+                            PricingModel.BUY_LEARNING_MIN_DECISIONS, PricingModel.BUY_LEARNING_DEADBAND,
+                            PricingModel.BUY_LEARNING_MAX_MOVE, "agreed", "the target", "agree", "the target")
+                    : new Keys(PricingModel.LEARNING_WINDOW_DAYS, PricingModel.LEARNING_HALF_LIFE_DAYS,
+                            PricingModel.LEARNING_MIN_DECISIONS, PricingModel.LEARNING_DEADBAND,
+                            PricingModel.LEARNING_MAX_MOVE, "applied", "the suggestion", "apply", "what is suggested");
+        }
+    }
+
+    /** The sell-side lean: see {@link #learn(List, LocalDate, PricingModel.Config, PricingModel.Side)}. */
+    public static Learning learn(List<Acceptance> rows, LocalDate today, PricingModel.Config config) {
+        return learn(rows, today, config, PricingModel.Side.SELL);
+    }
+
+    /**
      * The lean, from the closest basis that passes the gates: item-at-branch rows first,
      * then the item anywhere, then the whole tenant.
      */
-    public static Learning learn(List<Acceptance> rows, LocalDate today, PricingModel.Config config) {
+    public static Learning learn(List<Acceptance> rows, LocalDate today, PricingModel.Config config,
+            PricingModel.Side side) {
+        Keys keys = Keys.of(side);
         if (rows == null || rows.isEmpty()) {
             return Learning.none("No decisions recorded yet.");
         }
@@ -75,21 +100,26 @@ public final class DecisionPatterns {
             if (subset.isEmpty()) {
                 continue;
             }
-            Learning l = learnFrom(subset, basis, today, config);
+            Learning l = learnFrom(subset, basis, today, config, keys);
             if (l.available()) {
                 return l;
             }
         }
         // Nothing passed; report the widest basis so the note is about the most rows.
-        return learnFrom(rows, Acceptance.TENANT, today, config);
+        return learnFrom(rows, Acceptance.TENANT, today, config, keys);
     }
 
     static Learning learnFrom(List<Acceptance> rows, String basis, LocalDate today, PricingModel.Config config) {
-        int window = (int) config.number(PricingModel.LEARNING_WINDOW_DAYS);
-        double halfLife = config.number(PricingModel.LEARNING_HALF_LIFE_DAYS);
-        int minDecisions = (int) config.number(PricingModel.LEARNING_MIN_DECISIONS);
-        double deadband = config.number(PricingModel.LEARNING_DEADBAND);
-        double maxMove = config.number(PricingModel.LEARNING_MAX_MOVE);
+        return learnFrom(rows, basis, today, config, Keys.of(PricingModel.Side.SELL));
+    }
+
+    static Learning learnFrom(List<Acceptance> rows, String basis, LocalDate today, PricingModel.Config config,
+            Keys keys) {
+        int window = (int) config.number(keys.windowDays());
+        double halfLife = config.number(keys.halfLifeDays());
+        int minDecisions = (int) config.number(keys.minDecisions());
+        double deadband = config.number(keys.deadband());
+        double maxMove = config.number(keys.maxMove());
 
         List<double[]> weighted = new ArrayList<>();
         for (Acceptance r : rows) {
@@ -119,11 +149,13 @@ public final class DecisionPatterns {
         double biasRounded = Math.round(bias * 100) / 100.0;
         if (Math.abs(bias) < deadband) {
             return new Learning(false, n, round2(sumW), biasRounded, round2(confidence), 0, basis,
-                    "You apply about what is suggested (" + signed(biasRounded) + "% on " + n + " decisions).");
+                    "You " + keys.presentVerb() + " about " + keys.steadyReference() + " (" + signed(biasRounded)
+                            + "% on " + n + " decision" + (n == 1 ? "" : "s") + ").");
         }
         double move = Stats.clamp(bias, -maxMove, maxMove) * confidence;
-        String note = "You applied " + signed(biasRounded) + "% vs the suggestion across " + n + " decision"
-                + (n == 1 ? "" : "s") + " (" + basisLabel(basis) + "); leaning " + signed(round2(move)) + "%.";
+        String note = "You " + keys.verb() + " " + signed(biasRounded) + "% vs " + keys.reference() + " across " + n
+                + " decision" + (n == 1 ? "" : "s") + " (" + basisLabel(basis) + "); leaning " + signed(round2(move))
+                + "%.";
         return new Learning(true, n, round2(sumW), biasRounded, round2(confidence), round2(move), basis, note);
     }
 

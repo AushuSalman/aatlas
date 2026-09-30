@@ -13,6 +13,7 @@ import com.aatlas.common.error.ApiException;
 import com.aatlas.common.time.AatlasClock;
 import com.aatlas.history.Catalogue;
 import com.aatlas.history.PricingMath;
+import com.aatlas.history.PricingModel;
 import com.aatlas.history.PurchaseHistory;
 import com.aatlas.history.Reference;
 import com.aatlas.history.Suppliers;
@@ -68,7 +69,14 @@ public class BuyIntelEngine implements BuyIntelReader {
         return n >= 85 ? "High" : n >= 70 ? "Medium" : "Low";
     }
 
-    private SupplierEval evaluate(SupplierQuote q, BigDecimal qty, LocalDate today, List<SupplierGateway.Quote> links) {
+    /**
+     * One supplier's all-in cost. The tenant's buying model decides what besides the landed quote
+     * counts: payment terms ({@code buy.terms}), reliability, lead time and quality
+     * ({@code buy.reliability}) and the below-minimum surcharge ({@code buy.moq}), each at the
+     * model's own weights.
+     */
+    private SupplierEval evaluate(SupplierQuote q, BigDecimal qty, LocalDate today, List<SupplierGateway.Quote> links,
+            PricingModel.Config cfg) {
         SupplierGateway.SupplierRow row = supplierGateway.supplier(q.supplierId()).orElse(null);
         boolean hasQuote = q.unitCost() != null;
 
@@ -106,52 +114,60 @@ public class BuyIntelEngine implements BuyIntelReader {
 
         if (hasQuote) {
             BigDecimal landed = q.unitCost();
-            if (q.otifPct() != null) {
-                reliability = landed.multiply(HUNDRED.subtract(q.otifPct())).divide(HUNDRED, 4, RoundingMode.HALF_UP)
-                        .multiply(new BigDecimal("0.55")).setScale(4, RoundingMode.HALF_UP);
-                adjustments.add(new SupplierEval.Adjustment(
-                        "On-time delivery " + Js.toFixed(q.otifPct().doubleValue(), 0) + "%", reliability));
+            if (cfg.on(PricingModel.BUY_RELIABILITY)) {
+                BigDecimal otifWeight = share(cfg.value(PricingModel.BUY_RELIABILITY_OTIF_WEIGHT));
+                BigDecimal leadPerDay = share(cfg.value(PricingModel.BUY_RELIABILITY_LEAD_PER_DAY));
+                BigDecimal defectWeight = share(cfg.value(PricingModel.BUY_RELIABILITY_DEFECT_WEIGHT));
+                if (q.otifPct() != null) {
+                    reliability = landed.multiply(HUNDRED.subtract(q.otifPct())).divide(HUNDRED, 4, RoundingMode.HALF_UP)
+                            .multiply(otifWeight).setScale(4, RoundingMode.HALF_UP);
+                    adjustments.add(new SupplierEval.Adjustment(
+                            "On-time delivery " + Js.toFixed(q.otifPct().doubleValue(), 0) + "%", reliability));
+                }
+                if (q.totalLeadDays() != null) {
+                    leadTimeAdj = landed.multiply(BigDecimal.valueOf(q.totalLeadDays())).multiply(leadPerDay)
+                            .setScale(4, RoundingMode.HALF_UP);
+                    adjustments.add(new SupplierEval.Adjustment(q.totalLeadDays() + "-day lead time", leadTimeAdj));
+                }
+                if (row != null && row.defectPct() != null) {
+                    quality = landed.multiply(row.defectPct()).divide(HUNDRED, 4, RoundingMode.HALF_UP)
+                            .multiply(defectWeight).setScale(4, RoundingMode.HALF_UP);
+                    adjustments.add(new SupplierEval.Adjustment(Js.toFixed(row.defectPct().doubleValue(), 1) + "% defects", quality));
+                }
+                if (fulfilmentPct != null) {
+                    fulfilmentAdj = landed.multiply(HUNDRED.subtract(fulfilmentPct)).divide(HUNDRED, 4, RoundingMode.HALF_UP)
+                            .multiply(new BigDecimal("0.3")).setScale(4, RoundingMode.HALF_UP);
+                    adjustments.add(new SupplierEval.Adjustment(
+                            "Fulfilment " + Js.toFixed(fulfilmentPct.doubleValue(), 0) + "%", fulfilmentAdj));
+                }
             }
-            if (q.totalLeadDays() != null) {
-                leadTimeAdj = landed.multiply(BigDecimal.valueOf(q.totalLeadDays())).multiply(new BigDecimal("0.0006"))
-                        .setScale(4, RoundingMode.HALF_UP);
-                adjustments.add(new SupplierEval.Adjustment(q.totalLeadDays() + "-day lead time", leadTimeAdj));
-            }
-            if (row != null && row.defectPct() != null) {
-                quality = landed.multiply(row.defectPct()).divide(HUNDRED, 4, RoundingMode.HALF_UP)
-                        .multiply(new BigDecimal("1.5")).setScale(4, RoundingMode.HALF_UP);
-                adjustments.add(new SupplierEval.Adjustment(Js.toFixed(row.defectPct().doubleValue(), 1) + "% defects", quality));
-            }
-            if (fulfilmentPct != null) {
-                fulfilmentAdj = landed.multiply(HUNDRED.subtract(fulfilmentPct)).divide(HUNDRED, 4, RoundingMode.HALF_UP)
-                        .multiply(new BigDecimal("0.3")).setScale(4, RoundingMode.HALF_UP);
-                adjustments.add(new SupplierEval.Adjustment(
-                        "Fulfilment " + Js.toFixed(fulfilmentPct.doubleValue(), 0) + "%", fulfilmentAdj));
-            }
-            if (Boolean.FALSE.equals(meetsMoq)) {
-                moqAdj = landed.multiply(new BigDecimal("0.04")).setScale(4, RoundingMode.HALF_UP);
+            if (cfg.on(PricingModel.BUY_MOQ) && Boolean.FALSE.equals(meetsMoq)) {
+                moqAdj = landed.multiply(share(cfg.value(PricingModel.BUY_MOQ_PENALTY))).setScale(4, RoundingMode.HALF_UP);
                 adjustments.add(new SupplierEval.Adjustment("Below MOQ of " + Js.localeInt(moq), moqAdj));
             }
-            BigDecimal creditValue = TermsEngine.creditValuePerUnit(landed, commercial.creditDays());
-            if (creditValue != null && creditValue.signum() != 0) {
-                credit = creditValue.negate();
-                adjustments.add(new SupplierEval.Adjustment(commercial.creditDays() + " days credit", credit));
-            }
-            BigDecimal earlyPayValue = TermsEngine.earlyPayNetPerUnit(landed, commercial);
-            if (earlyPayValue != null && earlyPayValue.signum() != 0) {
-                earlyPay = earlyPayValue.negate();
-                adjustments.add(new SupplierEval.Adjustment(
-                        Js.toFixed(commercial.earlyPayDiscountPct() == null ? 0 : commercial.earlyPayDiscountPct().doubleValue(), 1)
-                                + "% early-pay discount, net", earlyPay));
-            }
-            if (q.otifPct() != null && penaltyRecoveryPerUnit.signum() != 0) {
-                BigDecimal missPct = HUNDRED.subtract(q.otifPct()).divide(HUNDRED, 6, RoundingMode.HALF_UP);
-                BigDecimal capped = penaltyRecoveryPerUnit.min(landed.multiply(new BigDecimal("0.55")));
-                penalty = missPct.multiply(capped).negate().setScale(4, RoundingMode.HALF_UP);
-                if (penalty.signum() != 0) {
+            if (cfg.on(PricingModel.BUY_TERMS)) {
+                BigDecimal costOfCapital = cfg.value(PricingModel.BUY_TERMS_COST_OF_CAPITAL);
+                BigDecimal creditValue = TermsEngine.creditValuePerUnit(landed, commercial.creditDays(), costOfCapital);
+                if (creditValue != null && creditValue.signum() != 0) {
+                    credit = creditValue.negate();
+                    adjustments.add(new SupplierEval.Adjustment(commercial.creditDays() + " days credit", credit));
+                }
+                BigDecimal earlyPayValue = TermsEngine.earlyPayNetPerUnit(landed, commercial, costOfCapital);
+                if (earlyPayValue != null && earlyPayValue.signum() != 0) {
+                    earlyPay = earlyPayValue.negate();
                     adjustments.add(new SupplierEval.Adjustment(
-                            "Late clause, capped at " + Js.toFixed(commercial.latePenaltyCapPct() == null ? 0
-                                    : commercial.latePenaltyCapPct().doubleValue(), 1) + "%", penalty));
+                            Js.toFixed(commercial.earlyPayDiscountPct() == null ? 0 : commercial.earlyPayDiscountPct().doubleValue(), 1)
+                                    + "% early-pay discount, net", earlyPay));
+                }
+                if (q.otifPct() != null && penaltyRecoveryPerUnit.signum() != 0) {
+                    BigDecimal missPct = HUNDRED.subtract(q.otifPct()).divide(HUNDRED, 6, RoundingMode.HALF_UP);
+                    BigDecimal capped = penaltyRecoveryPerUnit.min(landed.multiply(new BigDecimal("0.55")));
+                    penalty = missPct.multiply(capped).negate().setScale(4, RoundingMode.HALF_UP);
+                    if (penalty.signum() != 0) {
+                        adjustments.add(new SupplierEval.Adjustment(
+                                "Late clause, capped at " + Js.toFixed(commercial.latePenaltyCapPct() == null ? 0
+                                        : commercial.latePenaltyCapPct().doubleValue(), 1) + "%", penalty));
+                    }
                 }
             }
             effective = landed;
@@ -190,6 +206,11 @@ public class BuyIntelEngine implements BuyIntelReader {
 
     private static final BigDecimal HUNDRED = BigDecimal.valueOf(100);
 
+    /** A percentage knob as a share: 55 → 0.55, 0.06 → 0.0006. */
+    private static BigDecimal share(BigDecimal pct) {
+        return pct.divide(HUNDRED, 6, RoundingMode.HALF_UP);
+    }
+
     private static BigDecimal addNullable(BigDecimal a, BigDecimal b) {
         if (a == null && b == null) {
             return null;
@@ -216,9 +237,10 @@ public class BuyIntelEngine implements BuyIntelReader {
 
         BigDecimal effectiveQty = BigDecimal.valueOf(Math.max(1, qty));
         List<SupplierGateway.Quote> links = supplierGateway.quotesFor(product.id());
+        PricingModel.Config cfg = reference.pricingModel();
 
         List<SupplierEval> evaluated = rec.quotes().stream()
-                .map(q -> evaluate(q, effectiveQty, today, links))
+                .map(q -> evaluate(q, effectiveQty, today, links, cfg))
                 .toList();
 
         List<String> locked = new ArrayList<>(rec.locked());
@@ -337,10 +359,16 @@ public class BuyIntelEngine implements BuyIntelReader {
         }
 
         BuyNowVsWait nowVsWait = null;
-        if (currentCost != null) {
+        if (currentCost != null && !cfg.on(PricingModel.BUY_COMMODITY)) {
+            double cost = currentCost.doubleValue();
+            nowVsWait = new BuyNowVsWait("now", "Commodity trend not used by your buying model.",
+                    new BuyNowVsWait.Now(cost, Js.round2(cost * effectiveQty.doubleValue())),
+                    new BuyNowVsWait.Wait(30, Js.round2(cost), 0, 0, "Low"), "Commodity trend switched off");
+        } else if (currentCost != null) {
             Catalogue.ProductRef p = product;
             Reference.Commodity commodity = reference.commodity(p.commodity());
-            double drift30 = Js.round1(commodity.pct90() == null ? 0 : commodity.pct90().doubleValue() * 0.38);
+            double passThrough = cfg.number(PricingModel.BUY_COMMODITY_PASS_THROUGH) / 100;
+            double drift30 = Js.round1(commodity.pct90() == null ? 0 : commodity.pct90().doubleValue() * passThrough);
             double cost30 = Js.round2(currentCost.doubleValue() * (1 + drift30 / 100));
             double deltaPerUnit = Js.round2(cost30 - currentCost.doubleValue());
             boolean rising = drift30 > 0.8;

@@ -36,11 +36,17 @@ final class TermsEngine {
 
     /** Credit is money: the cost of capital on the price for the days you hold it. Null without a credit term. */
     static BigDecimal creditValuePerUnit(BigDecimal unitCost, Integer creditDays) {
+        return creditValuePerUnit(unitCost, creditDays, COST_OF_CAPITAL_PCT);
+    }
+
+    /** The same at the tenant's own cost of capital, percent a year (the buying model's knob). */
+    static BigDecimal creditValuePerUnit(BigDecimal unitCost, Integer creditDays, BigDecimal costOfCapitalPct) {
         if (unitCost == null || creditDays == null) {
             return null;
         }
+        BigDecimal rate = costOfCapitalPct == null ? COST_OF_CAPITAL_PCT : costOfCapitalPct;
         return unitCost.multiply(BigDecimal.valueOf(creditDays)).divide(DAYS_PER_YEAR, 6, RoundingMode.HALF_UP)
-                .multiply(COST_OF_CAPITAL_PCT).divide(HUNDRED, 2, RoundingMode.HALF_UP);
+                .multiply(rate).divide(HUNDRED, 2, RoundingMode.HALF_UP);
     }
 
     /**
@@ -48,13 +54,18 @@ final class TermsEngine {
      * terms are unknown; zero when no discount is offered or it is not worth it.
      */
     static BigDecimal earlyPayNetPerUnit(BigDecimal unitCost, CommercialTerms t) {
+        return earlyPayNetPerUnit(unitCost, t, COST_OF_CAPITAL_PCT);
+    }
+
+    /** The same at the tenant's own cost of capital, percent a year. */
+    static BigDecimal earlyPayNetPerUnit(BigDecimal unitCost, CommercialTerms t, BigDecimal costOfCapitalPct) {
         if (unitCost == null || t.earlyPayDiscountPct() == null || t.earlyPayDiscountPct().signum() <= 0) {
             return BigDecimal.ZERO;
         }
         BigDecimal discount = unitCost.multiply(t.earlyPayDiscountPct()).divide(HUNDRED, 2, RoundingMode.HALF_UP);
         int creditDays = t.creditDays() == null ? 0 : t.creditDays();
         int earlyPayDays = t.earlyPayDays() == null ? 0 : t.earlyPayDays();
-        BigDecimal creditGivenUp = creditValuePerUnit(unitCost, Math.max(0, creditDays - earlyPayDays));
+        BigDecimal creditGivenUp = creditValuePerUnit(unitCost, Math.max(0, creditDays - earlyPayDays), costOfCapitalPct);
         if (creditGivenUp == null) {
             creditGivenUp = BigDecimal.ZERO;
         }

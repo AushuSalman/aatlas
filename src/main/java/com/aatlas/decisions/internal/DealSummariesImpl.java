@@ -42,15 +42,16 @@ class DealSummariesImpl implements DealSummaries {
 
     @Override
     @Transactional(readOnly = true)
-    public List<Acceptance> acceptance(String itemNumberOrNull, String storeCodeOrNull, LocalDate since, int limit) {
+    public List<Acceptance> acceptance(String side, String itemNumberOrNull, String storeCodeOrNull, LocalDate since,
+            int limit) {
         UUID tenantId = TenantContext.requireTenantId();
         StringBuilder sql = new StringBuilder("""
                 select deal_date, item_number, destination_id, suggested_price, actual_price, followed
                   from deal
-                 where tenant_id = ? and side = 'sell' and deal_date >= ?
+                 where tenant_id = ? and side = ? and deal_date >= ?
                    and suggested_price > 0 and actual_price > 0
                 """);
-        List<Object> args = new ArrayList<>(List.of(tenantId, since));
+        List<Object> args = new ArrayList<>(List.of(tenantId, sideOf(side), since));
         if (itemNumberOrNull != null && !itemNumberOrNull.isBlank()) {
             sql.append(" and item_number = ?");
             args.add(itemNumberOrNull.strip());
@@ -68,26 +69,26 @@ class DealSummariesImpl implements DealSummaries {
 
     @Override
     @Transactional(readOnly = true)
-    public long priorApplied(String itemNumber, String storeCodeOrNull) {
+    public long priorApplied(String side, String itemNumber, String storeCodeOrNull) {
         UUID tenantId = TenantContext.requireTenantId();
         if (itemNumber == null || itemNumber.isBlank()) {
             return 0;
         }
         if (storeCodeOrNull == null || storeCodeOrNull.isBlank()) {
             Long n = jdbc.queryForObject(
-                    "select count(*) from deal where tenant_id = ? and side = 'sell' and item_number = ?",
-                    Long.class, tenantId, itemNumber.strip());
+                    "select count(*) from deal where tenant_id = ? and side = ? and item_number = ?",
+                    Long.class, tenantId, sideOf(side), itemNumber.strip());
             return n == null ? 0 : n;
         }
         Long n = jdbc.queryForObject(
-                "select count(*) from deal where tenant_id = ? and side = 'sell' and item_number = ? and destination_id = ?",
-                Long.class, tenantId, itemNumber.strip(), storeCodeOrNull.strip());
+                "select count(*) from deal where tenant_id = ? and side = ? and item_number = ? and destination_id = ?",
+                Long.class, tenantId, sideOf(side), itemNumber.strip(), storeCodeOrNull.strip());
         return n == null ? 0 : n;
     }
 
     @Override
     @Transactional(readOnly = true)
-    public Map<String, Long> strategyPicks(LocalDate since) {
+    public Map<String, Long> strategyPicks(String side, LocalDate since) {
         UUID tenantId = TenantContext.requireTenantId();
         Map<String, Long> out = new LinkedHashMap<>();
         // bulk_decision belongs to the bulk module, which depends on this one; read by SQL,
@@ -95,12 +96,20 @@ class DealSummariesImpl implements DealSummaries {
         jdbc.query("""
                 select strategy_key, count(*) as n
                   from bulk_decision
-                 where tenant_id = ? and kind = 'sell' and created_at >= ?
+                 where tenant_id = ? and kind = ? and created_at >= ?
                  group by strategy_key
                 """, rs -> {
             out.put(rs.getString("strategy_key"), rs.getLong("n"));
-        }, tenantId, since.atStartOfDay().atOffset(java.time.ZoneOffset.UTC));
+        }, tenantId, sideOf(side), since.atStartOfDay().atOffset(java.time.ZoneOffset.UTC));
         return out;
+    }
+
+    /** {@code sell} or {@code buy}; anything else is a caller bug, not a query. */
+    private static String sideOf(String side) {
+        if (SELL.equals(side) || BUY.equals(side)) {
+            return side;
+        }
+        throw new IllegalArgumentException("Unknown deal side '" + side + "'");
     }
 
     @Override

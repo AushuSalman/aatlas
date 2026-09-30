@@ -6,43 +6,69 @@ import com.aatlas.bulk.internal.BulkBuyDtos.LineView;
 import com.aatlas.bulk.internal.BulkBuyDtos.PlanView;
 import com.aatlas.bulk.internal.BulkBuyDtos.ProjectionView;
 import com.aatlas.common.error.ApiException;
+import com.aatlas.common.time.AatlasClock;
+import com.aatlas.decisions.DealSummaries;
+import com.aatlas.history.DecisionPatterns;
+import com.aatlas.history.PricingModel;
+import com.aatlas.history.Reference;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/** Computes a bulk buy plan, and applies one of its award strategies. */
+/**
+ * Computes a bulk buy plan, and applies one of its award strategies.
+ *
+ * <p>The plan itself is {@link BulkBuyEngine}'s pure arithmetic. On top of it, when the
+ * tenant's buying model follows their usual strategy ({@code buy.learning.strategy}), the
+ * strategy they mostly pick in the basket becomes the recommended one - the engine stays a
+ * pure function of the basket, and the habit is read here from the decision ledger.
+ */
 @Service
 public class BulkBuyService {
 
     private static final Logger log = LoggerFactory.getLogger(BulkBuyService.class);
 
+    /** Fewest bulk picks of one strategy, and its share of all picks, before it counts as a habit. */
+    static final int HABIT_MIN_PICKS = 3;
+    static final double HABIT_MIN_SHARE_PCT = 60;
+
+    static final String USUAL_CHOICE = " (your usual choice)";
+
     private final BulkBuyEngine engine;
     private final DecisionRecorder decisions;
     private final BulkAuthorization authorization;
     private final com.aatlas.decisions.DecisionRecorder ledger;
+    private final DealSummaries deals;
+    private final Reference reference;
+    private final AatlasClock clock;
 
     BulkBuyService(BulkBuyEngine engine, DecisionRecorder decisions, BulkAuthorization authorization,
-            com.aatlas.decisions.DecisionRecorder ledger) {
+            com.aatlas.decisions.DecisionRecorder ledger, DealSummaries deals, Reference reference, AatlasClock clock) {
         this.engine = engine;
         this.decisions = decisions;
         this.authorization = authorization;
         this.ledger = ledger;
+        this.deals = deals;
+        this.reference = reference;
+        this.clock = clock;
     }
 
     public PlanView plan(String regionKey, List<String> items, double horizon) {
-        return engine.plan(regionKey, items, horizon);
+        return withHabit(engine.plan(regionKey, items, horizon));
     }
 
     @Transactional
     public ApplyBuyResponse apply(ApplyBuyStrategyRequest request) {
         authorization.requireBulkSeat();
-        PlanView plan = engine.plan(request.regionKey(), request.items(), request.horizon());
+        PlanView plan = withHabit(engine.plan(request.regionKey(), request.items(), request.horizon()));
         ProjectionView chosen = plan.strategies().stream()
                 .filter(s -> s.key().equals(request.strategyKey()))
                 .findFirst()
@@ -66,6 +92,61 @@ public class BulkBuyService {
                 chosen.savings(), chosen, lines);
         mirrorToLedger(plan, chosen);
         return new ApplyBuyResponse(decisionId, chosen.key(), plan);
+    }
+
+    /**
+     * The plan with the tenant's usual strategy recommended, when the buying model says to
+     * follow it and the ledger shows a clear habit ({@link DecisionPatterns#habit}) for a
+     * strategy this plan has. A failing read - a tenant whose decision tables are not there
+     * yet - leaves the engine's own recommendation, with a warning.
+     */
+    PlanView withHabit(PlanView plan) {
+        try {
+            PricingModel.Config cfg = reference.pricingModel();
+            if (!cfg.on(PricingModel.BUY_LEARNING_STRATEGY)) {
+                return plan;
+            }
+            LocalDate since = clock.today().minusDays((long) cfg.number(PricingModel.BUY_LEARNING_WINDOW_DAYS));
+            Optional<DecisionPatterns.Habit> habit = DecisionPatterns.habit(
+                    deals.strategyPicks(DealSummaries.BUY, since), HABIT_MIN_PICKS, HABIT_MIN_SHARE_PCT);
+            if (habit.isEmpty()) {
+                return plan;
+            }
+            return recommend(plan, habit.get().strategyKey());
+        } catch (RuntimeException ex) {
+            log.warn("Decision history unavailable for the bulk buy plan in {} ({}); keeping the engine's recommendation",
+                    plan.regionKey(), ex.getMessage());
+            return plan;
+        }
+    }
+
+    /** The plan with {@code strategyKey} recommended and marked as the usual choice; unchanged when the plan lacks it. */
+    static PlanView recommend(PlanView plan, String strategyKey) {
+        if (plan.strategies().stream().noneMatch(s -> s.key().equals(strategyKey))) {
+            return plan;
+        }
+        List<ProjectionView> strategies = new ArrayList<>();
+        for (ProjectionView s : plan.strategies()) {
+            strategies.add(s.key().equals(strategyKey) ? withBlurb(s, usualChoice(s.blurb())) : s);
+        }
+        return new PlanView(plan.regionKey(), plan.regionLabel(), plan.lines(), plan.totalUnits(), plan.currentCost(),
+                plan.optimizedCost(), plan.savings(), strategies, strategyKey);
+    }
+
+    private static String usualChoice(String blurb) {
+        if (blurb == null || blurb.isBlank()) {
+            return "Your usual choice.";
+        }
+        if (blurb.endsWith(USUAL_CHOICE) || blurb.endsWith(USUAL_CHOICE + ".")) {
+            return blurb;
+        }
+        return blurb.endsWith(".") ? blurb.substring(0, blurb.length() - 1) + USUAL_CHOICE + "." : blurb + USUAL_CHOICE;
+    }
+
+    private static ProjectionView withBlurb(ProjectionView s, String blurb) {
+        return new ProjectionView(s.key(), s.title(), blurb, s.totalCost(), s.savings(), s.savingsPct(), s.risk(),
+                s.avgOtifPct(), s.avgLeadDays(), s.fulfilmentPct(), s.supplierCount(), s.dependency(), s.awards(),
+                s.benefits());
     }
 
     /**

@@ -164,7 +164,7 @@ class PricingModelTest {
     @Test
     @DisplayName("toggleCount() counts the toggles that are on, children of an off parent excluded")
     void toggleCountSums() {
-        long toggles = PricingModel.registry().stream().filter(PricingModel.Parameter::toggle).count();
+        long toggles = PricingModel.registry(PricingModel.Side.SELL).stream().filter(PricingModel.Parameter::toggle).count();
         int[] all = PricingModel.Config.defaults().toggleCount();
         assertThat(all[1]).isEqualTo((int) toggles);
         assertThat(all[0]).isEqualTo((int) toggles); // every toggle defaults on

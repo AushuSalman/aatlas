@@ -69,6 +69,8 @@ public record BuyRecommendation(
         /** Competitors' median shop price less the category's target margin; null without both. */
         BigDecimal shouldCost,
         List<MarketEvidence.Flag> flags,
-        /** How many to order and when; null never - a status says why when it cannot be sized. */
-        MarketEvidence.Reorder reorder) {
+        /** How many to order and when; a status says why when it cannot be sized. Null when the buying model's reorder advice is off. */
+        MarketEvidence.Reorder reorder,
+        /** How the tenant's buying model bore on this target; null when there is no target. */
+        BuyModelSummary model) {
 }

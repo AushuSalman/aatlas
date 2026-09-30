@@ -176,7 +176,11 @@ class BuyService {
             ledger.recordPurchase(new RecordPurchaseRequest(
                     rec.itemNumber(), rec.description(), rec.supplierName(), qty,
                     rec.incumbentCost() != null ? rec.incumbentCost() : (rec.currentCost() != null ? rec.currentCost() : agreed),
-                    target, agreed, date, true, rec.destinationId(),
+                    // followed is left to the ledger: agreed at or under the target. It used to be
+                    // hard-coded true, which made every award read as "at or under target" however
+                    // far over it the agreed cost was - and the buying model's learning card
+                    // reports that share.
+                    target, agreed, date, null, rec.destinationId(),
                     decisionId, rec.supplierId(), null, null));
         } catch (RuntimeException ex) {
             log.warn("Could not mirror buy award for {}@{} (supplier {}) into the decisions ledger: {}",

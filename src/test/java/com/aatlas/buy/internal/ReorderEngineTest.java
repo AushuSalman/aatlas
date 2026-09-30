@@ -63,6 +63,37 @@ class ReorderEngineTest {
     }
 
     @Test
+    void customSettingsChangeTheReorderPointAndCover() {
+        // 70 a week = 10 a day; 21 days' lead = 210, +100% safety = 420 reorder point; 100 on hand.
+        ReorderEngine.Settings s = new ReorderEngine.Settings(4, 100, 26, 14, 14);
+        Reorder r = ReorderEngine.plan(d("100"), TODAY, d("70"), "last 90 days", 21, "supplier", null, TODAY, s);
+        assertThat(r.reorderPoint()).isEqualByComparingTo("420");
+        // 420 + 4 weeks × 70 (280) - 100 on hand = 600
+        assertThat(r.orderQty()).isEqualByComparingTo("600");
+        assertThat(r.coverWeeks()).isEqualTo(4);
+        assertThat(r.steps()).anyMatch(st -> st.note().contains("100% safety stock"));
+
+        // The assumed lead time and the "order soon" horizon come from the settings too.
+        ReorderEngine.Settings slow = new ReorderEngine.Settings(8, 50, 26, 40, 28);
+        Reorder assumed = ReorderEngine.plan(d("60"), TODAY, d("7"), "b", null, "supplier", null, TODAY, slow);
+        assertThat(assumed.leadBasis()).isEqualTo("assumed");
+        assertThat(assumed.leadDays()).isEqualTo(28);
+        // 28 days' lead = 28, +50% = 42; 60 on hand → 18 days away, inside a 40-day "soon" horizon.
+        assertThat(assumed.reorderPoint()).isEqualByComparingTo("42");
+        assertThat(assumed.status()).isEqualTo("order-soon");
+
+        // A lower overstock line turns comfortable stock into overstock.
+        ReorderEngine.Settings tight = new ReorderEngine.Settings(8, 50, 4, 14, 14);
+        assertThat(ReorderEngine.plan(d("60"), TODAY, d("7"), "b", 14, "supplier", null, TODAY, tight).status())
+                .isEqualTo("overstocked");
+
+        // And the defaults are exactly what the 8-argument plan uses.
+        assertThat(ReorderEngine.Settings.DEFAULTS).isEqualTo(new ReorderEngine.Settings(8, 50, 26, 14, 14));
+        assertThat(ReorderEngine.plan(d("100"), TODAY, d("70"), "b", 21, "supplier", null, TODAY, ReorderEngine.Settings.DEFAULTS)
+                .orderQty()).isEqualByComparingTo("775");
+    }
+
+    @Test
     void noSalesOrNoStockSaySoInsteadOfGuessing() {
         assertThat(ReorderEngine.plan(d("50"), TODAY, null, "b", 14, "supplier", null, TODAY).status())
                 .isEqualTo("no-sales");
