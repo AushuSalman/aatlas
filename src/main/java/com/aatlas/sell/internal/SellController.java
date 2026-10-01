@@ -133,11 +133,13 @@ class SellController {
         return service.apply(request.item(), request.store(), request.price());
     }
 
-    @Operation(summary = "Record a customer quote",
-            description = "Prices the quote and records a decision + deal, same stand-in as POST /sell/apply.")
+    @Operation(summary = "Record a sale",
+            description = "Prices the quote and records it as a sale that happened: a decision, a deal and a "
+                    + "sales-history row. `price` is the unit price the sale was made at; absent, the quoted deal price.")
     @PostMapping(path = "/quotes", consumes = MediaType.APPLICATION_JSON_VALUE)
     ApplyResponseDto quotes(@Valid @RequestBody QuoteRequest request) {
-        return service.recordQuote(request.item(), request.store(), request.customerId(), request.qtyOrDefault());
+        return service.recordQuote(request.item(), request.store(), request.customerId(), request.qtyOrDefault(),
+                request.price());
     }
 
     @Operation(summary = "Last decisions on this (item, store) line",

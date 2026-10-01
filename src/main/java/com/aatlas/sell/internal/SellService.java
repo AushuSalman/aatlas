@@ -360,8 +360,22 @@ public class SellService {
         }
     }
 
+    /** The pre-existing call: the quoted deal price is the price recorded. */
     @Transactional
     public ApplyResponseDto recordQuote(String itemNumber, String storeId, String customerId, int qty) {
+        return recordQuote(itemNumber, storeId, customerId, qty, null);
+    }
+
+    /**
+     * A sale that happened. The quote is priced as {@code POST /sell/quote} would and recorded as
+     * the recommendation; {@code price}, when given, is the unit price the sale was actually made
+     * at and goes down as the applied figure, so the deal ledger and the pricing model see how far
+     * the team priced from the quote. Booked into the sales history too, so the Overview, demand
+     * and Insights count it like an imported invoice line.
+     */
+    @Transactional
+    public ApplyResponseDto recordQuote(String itemNumber, String storeId, String customerId, int qty,
+            BigDecimal price) {
         requireCatalogue();
         Answer a = answerFor(itemNumber, storeId);
         if (!a.raw().priceable()) {
@@ -374,16 +388,16 @@ public class SellService {
         String customerName = customer != null ? customer.name() : "Walk-in";
 
         BigDecimal dealPrice = q.dealPrice();
-        RecordRequest req = new RecordRequest("sell", itemNumber, storeId, intel.storeLabel(), dealPrice, dealPrice,
-                qty, intel.cost(), intel.currentPrice(), intel.name() + " quoted to " + customerName,
-                qty + " units at " + dealPrice + " - " + q.customerProfile().label() + ", "
+        BigDecimal actual = price != null ? price.setScale(2, RoundingMode.HALF_UP) : dealPrice;
+        String atPrice = actual.compareTo(dealPrice) == 0 ? "at " + actual : "at " + actual + " (quoted " + dealPrice + ")";
+        String title = customer != null ? intel.name() + " sold to " + customerName : intel.name() + " sold, walk-in";
+        RecordRequest req = new RecordRequest("sell", itemNumber, storeId, intel.storeLabel(), dealPrice, actual,
+                qty, intel.cost(), intel.currentPrice(), title,
+                qty + " units " + atPrice + " - " + q.customerProfile().label() + ", "
                         + q.speedTier().label().toLowerCase(java.util.Locale.ROOT) + " fulfilment",
-                BigDecimal.valueOf(Math.round(dealPrice.subtract(
-                        intel.currentPrice() == null ? dealPrice : intel.currentPrice()).doubleValue() * qty)),
-                "this deal", customerName,
-                // A recorded quote is a sale that happened: booked into the sales history too, so
-                // the Overview, demand and Insights count it like an imported invoice line.
-                customer != null ? customer.code() : null, true);
+                BigDecimal.valueOf(Math.round(actual.subtract(
+                        intel.currentPrice() == null ? actual : intel.currentPrice()).doubleValue() * qty)),
+                "this deal", customerName, customer != null ? customer.code() : null, true);
         Recorded recorded = decisions.record(req);
         return new ApplyResponseDto(recorded);
     }
