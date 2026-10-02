@@ -281,6 +281,8 @@ public final class PricingMath {
         /** Several competitors agree with each other far from this price: the recommendation follows them. */
         public static final String FLAG_MARKET_GAP = "market_gap";
         public static final String FLAG_CEILING_AT_FLOOR = "ceiling_at_floor";
+        /** The price sensitivity came from the tenant's trained demand model, not the monthly regression. */
+        public static final String FLAG_DEMAND_MODEL = "demand_model";
     }
 
     public static double anchorWeight(String source) {
@@ -347,9 +349,17 @@ public final class PricingMath {
             e = (wMeas * meas + wPrior * prior) / (wMeas + wPrior);
             sd = 1 / Math.sqrt(wMeas + wPrior);
             eConfidence = wMeas / (wMeas + wPrior);
-            eNote = "Measured " + fmt(meas, 2) + " over " + el.n() + " months (" + el.basis() + "), blended "
+            // The trained demand model's figure enters exactly as a measurement does: the same prior, the
+            // same weight. Only the wording and a flag say where it came from.
+            boolean fromModel = el.basis() != null && el.basis().startsWith(SalesHistory.Elasticity.MODEL);
+            eNote = (fromModel
+                    ? "Trained demand model: " + fmt(meas, 2) + " from " + el.n() + " months of weekly sales"
+                    : "Measured " + fmt(meas, 2) + " over " + el.n() + " months (" + el.basis() + ")") + ", blended "
                     + Math.round(eConfidence * 100) + "/" + Math.round((1 - eConfidence) * 100)
                     + " with the prior " + fmt(prior, 2) + ".";
+            if (fromModel) {
+                r.flags.add(Recommendation.FLAG_DEMAND_MODEL);
+            }
         } else {
             e = prior;
             sd = wPrior > 0 ? 1 / Math.sqrt(wPrior) : 0.5;

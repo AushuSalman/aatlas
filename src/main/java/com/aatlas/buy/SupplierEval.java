@@ -38,7 +38,20 @@ public record SupplierEval(
         String risk,
         String riskNote,
         boolean hasQuote,
-        Boolean holdsStock) {
+        Boolean holdsStock,
+        /** {@code delivery-model} when the lead time and on-time rate are the trained delivery model's forecast for this order; null when they are the supplier's averages. */
+        String deliverySource) {
+
+    /** The pre-existing shape: lead time and on-time rate from the supplier's averages. */
+    public SupplierEval(String supplierId, String name, String country, BigDecimal quoted, BigDecimal landed,
+            BigDecimal effective, BigDecimal freightAndDuty, Integer leadDays, BigDecimal otifPct, BigDecimal defectPct,
+            BigDecimal fulfilmentPct, String terms, CommercialTerms commercial, BigDecimal penaltyRecoveryPerUnit,
+            Integer moq, Boolean meetsMoq, Integer relationshipYears, List<Adjustment> adjustments, boolean isIncumbent,
+            boolean recommended, String risk, String riskNote, boolean hasQuote, Boolean holdsStock) {
+        this(supplierId, name, country, quoted, landed, effective, freightAndDuty, leadDays, otifPct, defectPct,
+                fulfilmentPct, terms, commercial, penaltyRecoveryPerUnit, moq, meetsMoq, relationshipYears, adjustments,
+                isIncumbent, recommended, risk, riskNote, hasQuote, holdsStock, null);
+    }
 
     /** One hidden cost, per unit, so the gap between quoted and effective can be itemised. */
     public record Adjustment(String label, BigDecimal amount) {

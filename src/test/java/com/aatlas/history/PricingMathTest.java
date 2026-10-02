@@ -94,6 +94,34 @@ class PricingMathTest {
         return rec.steps().stream().filter(s -> key.equals(s.key())).findFirst().orElseThrow();
     }
 
+    @Test
+    @DisplayName("a trained demand model's sensitivity enters step 1 like any measurement: same prior, same weight, named and flagged")
+    void demandModelSensitivity() {
+        Case c = new Case();
+        c.elasticity = new SalesHistory.Elasticity(bd("-2.10"), null, 12, SalesHistory.Elasticity.MODEL, null);
+        Recommendation rec = c.run();
+        assertThat(rec.flags()).contains(Recommendation.FLAG_DEMAND_MODEL);
+        assertThat(rec.steps()).anySatisfy(s -> assertThat(s.note()).contains("Trained demand model")
+                .contains("12 months of weekly sales").contains("blended 60/40 with the prior"));
+
+        // Folded with measured outcomes afterwards, it is still the model's figure underneath.
+        c.elasticity = new SalesHistory.Elasticity(bd("-1.90"), null, 14, SalesHistory.Elasticity.MODEL + "+outcomes", bd("0.2"));
+        assertThat(c.run().flags()).contains(Recommendation.FLAG_DEMAND_MODEL);
+
+        // The monthly regression is worded and flagged as before.
+        Recommendation regression = new Case().run();
+        assertThat(regression.flags()).doesNotContain(Recommendation.FLAG_DEMAND_MODEL);
+        assertThat(regression.steps()).anySatisfy(s -> assertThat(s.note()).contains("Measured").contains("months (item)"));
+
+        // The prior's weight is the tenant's setting: with no history needed, the model's figure stands alone.
+        Case trusting = new Case();
+        trusting.elasticity = new SalesHistory.Elasticity(bd("-2.10"), null, 12, SalesHistory.Elasticity.MODEL, null);
+        Map<String, PricingModel.Setting> raw = new java.util.LinkedHashMap<>();
+        raw.put(PricingModel.ELASTICITY_PRIOR_WEIGHT, PricingModel.Setting.value(bd("0")));
+        assertThat(trusting.run(PricingModel.Config.of(raw)).steps())
+                .anySatisfy(s -> assertThat(s.note()).contains("Trained demand model").contains("blended 100/0"));
+    }
+
     private static boolean onPricePoint(BigDecimal price) {
         return price.remainder(PRICE_STEP).signum() == 0;
     }

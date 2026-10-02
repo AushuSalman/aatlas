@@ -118,7 +118,8 @@ public interface SalesHistory {
     /**
      * Own-price elasticity.
      *
-     * @param basis {@code item-store}, {@code item}, {@code category} or {@code default}
+     * @param basis {@code item-store}, {@code item}, {@code category} or {@code default} for the monthly
+     *        regression; {@code demand-model} when the tenant's trained demand model answered for the pair
      * @param r2 null for the default
      * @param stdError null for the default
      */
@@ -128,6 +129,8 @@ public interface SalesHistory {
         public static final String ITEM = "item";
         public static final String CATEGORY = "category";
         public static final String DEFAULT = "default";
+        /** The trained demand model's probed price response, where it proved itself on the pair. */
+        public static final String MODEL = "demand-model";
 
         public static Elasticity defaultValue() {
             return new Elasticity(new BigDecimal("-1.2"), null, 0, DEFAULT, null);

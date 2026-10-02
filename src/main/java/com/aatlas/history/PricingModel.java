@@ -180,6 +180,7 @@ public final class PricingModel {
     public static final String ELASTICITY = "elasticity";
     public static final String ELASTICITY_PRIOR = "elasticity.prior";
     public static final String ELASTICITY_PRIOR_WEIGHT = "elasticity.priorWeight";
+    public static final String ELASTICITY_TRAINED_MODEL = "elasticity.trainedModel";
     public static final String SEGMENT = "segment";
     public static final String SEGMENT_REGULAR_MIN_ORDERS = "segment.regularMinOrders";
 
@@ -253,6 +254,7 @@ public final class PricingModel {
     public static final String BUY_RELIABILITY_OTIF_WEIGHT = "buy.reliability.otifWeight";
     public static final String BUY_RELIABILITY_LEAD_PER_DAY = "buy.reliability.leadPerDay";
     public static final String BUY_RELIABILITY_DEFECT_WEIGHT = "buy.reliability.defectWeight";
+    public static final String BUY_RELIABILITY_TRAINED_MODEL = "buy.reliability.trainedModel";
     public static final String BUY_MOQ = "buy.moq";
     public static final String BUY_MOQ_PENALTY = "buy.moq.penalty";
     public static final String BUY_COMMODITY = "buy.commodity";
@@ -300,6 +302,10 @@ public final class PricingModel {
         number(r, ELASTICITY_PRIOR_WEIGHT, Group.MEASURE, "History needed before the measurement is trusted",
                 "Roughly how many months of sales it takes to outweigh the starting assumption.", "8", "0", "50",
                 "months", ELASTICITY, "§3 step 4");
+        toggle(r, ELASTICITY_TRAINED_MODEL, Group.MEASURE, "Use the trained demand model where it has proven itself",
+                "Where the machine-learned demand model beat the baseline on an item's held-out weeks, its price "
+                        + "sensitivity replaces the monthly measurement and is blended with the starting assumption "
+                        + "the same way. Off: the monthly measurement only.", true, ELASTICITY, "§3 step 4");
         toggle(r, SEGMENT, Group.MEASURE, "Lead with the right price for how often an item sells",
                 "Items you sell often lead with the competitive price; items you sell rarely lead with the "
                         + "higher-margin price. Off: always lead with the competitive price.", true, null, "§3 step 3");
@@ -500,6 +506,12 @@ public final class PricingModel {
                 BUY_RELIABILITY, "supplier comparison");
         number(r, BUY_RELIABILITY_DEFECT_WEIGHT, Group.BUY_ADJUST, "Weight on defects",
                 "Share of the landed cost charged per percent of defective units.", "150", "0", "500", "%",
+                BUY_RELIABILITY, "supplier comparison");
+        toggle(r, BUY_RELIABILITY_TRAINED_MODEL, Group.BUY_ADJUST,
+                "Use the trained delivery model where it has proven itself",
+                "Where the machine-learned delivery model beat a supplier's own record on held-out orders, its "
+                        + "predicted lead time and chance of a late delivery for this order replace the supplier's "
+                        + "averages. The weights above still apply. Off: the supplier's averages.", true,
                 BUY_RELIABILITY, "supplier comparison");
         toggle(r, BUY_MOQ, Group.BUY_ADJUST, "Penalise orders under the minimum",
                 "An order below a supplier's minimum carries a surcharge in the comparison.", true, null,

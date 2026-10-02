@@ -74,12 +74,14 @@ class BuyRecommendationEngine {
     private final Inventory inventory;
     private final BuyBenchmarks buyBenchmarks;
     private final DealSummaries deals;
+    private final com.aatlas.supplymodel.DeliveryModels deliveryModels;
     private final AatlasClock clock;
 
     BuyRecommendationEngine(Catalogue catalogue, CatalogGateway catalog, SupplierGateway supplierGateway,
             PurchaseHistory purchases, SalesHistory sales, PriceLadder ladder, CompetitorPrices competitorPrices,
             Reference reference, Inventory inventory, BuyBenchmarks buyBenchmarks, DealSummaries deals,
-            AatlasClock clock) {
+            com.aatlas.supplymodel.DeliveryModels deliveryModels, AatlasClock clock) {
+        this.deliveryModels = deliveryModels;
         this.catalogue = catalogue;
         this.catalog = catalog;
         this.supplierGateway = supplierGateway;
@@ -92,6 +94,40 @@ class BuyRecommendationEngine {
         this.buyBenchmarks = buyBenchmarks;
         this.deals = deals;
         this.clock = clock;
+    }
+
+    /**
+     * The quote with its lead time and on-time rate taken from the tenant's delivery model, where the buying
+     * model allows it ({@code buy.reliability} and {@code buy.reliability.trainedModel} on) and the model has
+     * proven itself on this supplier: it beat the supplier's own record on its held-out orders. The forecast is
+     * for the supplier's usual order quantity of the item into this branch, against the lead time the supplier
+     * quotes. Anything else, or any failure, leaves the supplier's averages.
+     */
+    private SupplierQuote withDeliveryModel(SupplierQuote q, String itemNumber, String destinationId,
+            PricingModel.Config cfg) {
+        if (!cfg.on(PricingModel.BUY_RELIABILITY) || !cfg.on(PricingModel.BUY_RELIABILITY_TRAINED_MODEL)) {
+            return q;
+        }
+        try {
+            java.util.Optional<com.aatlas.supplymodel.DeliveryModels.Forecast> f = deliveryModels.forecast(q.supplierId(),
+                    itemNumber, destinationId, 0, q.totalLeadDays());
+            if (f.isEmpty() && q.name() != null) {
+                f = deliveryModels.forecast(q.name(), itemNumber, destinationId, 0, q.totalLeadDays());
+            }
+            com.aatlas.supplymodel.DeliveryModels.Forecast m = f
+                    .filter(x -> x.usable() && x.lateProbability() != null && x.leadDays() != null).orElse(null);
+            if (m == null) {
+                return q;
+            }
+            BigDecimal hundred = BigDecimal.valueOf(100);
+            BigDecimal otif = hundred.subtract(m.lateProbability().multiply(hundred)).setScale(1, RoundingMode.HALF_UP);
+            Integer lead = Integer.valueOf(m.leadDays().setScale(0, RoundingMode.HALF_UP).intValue());
+            return new SupplierQuote(q.supplierId(), q.name(), q.country(), q.exWorksCost(), q.freightCost(), q.dutyCost(),
+                    q.unitCost(), q.leadTimeDays(), q.transitDays(), lead, otif, q.isCurrent(), q.isIncumbent(),
+                    q.exWorksSource(), q.exWorksAsOf(), q.landedSource(), "delivery-model");
+        } catch (RuntimeException ex) {
+            return q;
+        }
     }
 
     static String storeCity(Catalogue.StoreRef store) {
@@ -217,8 +253,11 @@ class BuyRecommendationEngine {
 
         List<QuoteCalc> quoted = calcs.stream().filter(c -> c.quote().unitCost() != null).toList();
 
+        // Where the delivery model has proven itself on a supplier, its lead time and on-time rate for a
+        // typical order of this item into this branch replace the supplier's averages on the quote, so the
+        // comparison, the scenarios and the reorder timing all read the same forecast.
         List<SupplierQuote> quotes = calcs.stream()
-                .map(QuoteCalc::quote)
+                .map(c -> withDeliveryModel(c.quote(), itemNumber, destinationId, cfg))
                 .sorted((a, b) -> {
                     if (a.unitCost() == null && b.unitCost() == null) {
                         return 0;

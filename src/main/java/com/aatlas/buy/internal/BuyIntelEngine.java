@@ -17,6 +17,7 @@ import com.aatlas.history.PricingModel;
 import com.aatlas.history.PurchaseHistory;
 import com.aatlas.history.Reference;
 import com.aatlas.history.Suppliers;
+import com.aatlas.supplymodel.DeliveryModels;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
@@ -45,10 +46,13 @@ public class BuyIntelEngine implements BuyIntelReader {
     private final SupplierGateway supplierGateway;
     private final PurchaseHistory purchases;
     private final Reference reference;
+    private final DeliveryModels deliveryModels;
     private final AatlasClock clock;
 
     BuyIntelEngine(Catalogue catalogue, CatalogGateway catalog, BuyRecommendationEngine recommendationEngine,
-            SupplierGateway supplierGateway, PurchaseHistory purchases, Reference reference, AatlasClock clock) {
+            SupplierGateway supplierGateway, PurchaseHistory purchases, Reference reference,
+            DeliveryModels deliveryModels, AatlasClock clock) {
+        this.deliveryModels = deliveryModels;
         this.catalogue = catalogue;
         this.catalog = catalog;
         this.recommendationEngine = recommendationEngine;
@@ -76,9 +80,26 @@ public class BuyIntelEngine implements BuyIntelReader {
      * model's own weights.
      */
     private SupplierEval evaluate(SupplierQuote q, BigDecimal qty, LocalDate today, List<SupplierGateway.Quote> links,
-            PricingModel.Config cfg) {
+            PricingModel.Config cfg, String itemNumber, String destination) {
         SupplierGateway.SupplierRow row = supplierGateway.supplier(q.supplierId()).orElse(null);
         boolean hasQuote = q.unitCost() != null;
+
+        // Where the tenant's delivery model has proven itself on this supplier, its forecast for this order
+        // (this item, branch and quantity, against the lead time the supplier quotes) stands in for the
+        // supplier's averages. The model's own weights below price it, the same as they price the averages.
+        DeliveryModels.Forecast modelled = cfg.on(PricingModel.BUY_RELIABILITY)
+                && cfg.on(PricingModel.BUY_RELIABILITY_TRAINED_MODEL)
+                        ? deliveryForecast(q, itemNumber, destination, qty) : null;
+        final BigDecimal otifPct = modelled != null
+                ? HUNDRED.subtract(modelled.lateProbability().multiply(HUNDRED)).setScale(1, RoundingMode.HALF_UP)
+                : q.otifPct();
+        final Integer leadDays = modelled != null
+                ? Integer.valueOf(modelled.leadDays().setScale(0, RoundingMode.HALF_UP).intValue())
+                : q.totalLeadDays();
+        // A quote that arrives already carrying the model's typical-order forecast keeps its marker even if
+        // the order-specific forecast could not be had.
+        final String deliverySource = modelled != null ? "delivery-model" : q.deliverySource();
+        final String modelNote = deliverySource != null ? ", delivery model" : "";
 
         Optional<Suppliers.Terms> termsOpt = supplierGateway.terms(q.supplierId());
         CommercialTerms commercial = TermsEngine.commercialTerms(termsOpt.orElse(null));
@@ -118,16 +139,16 @@ public class BuyIntelEngine implements BuyIntelReader {
                 BigDecimal otifWeight = share(cfg.value(PricingModel.BUY_RELIABILITY_OTIF_WEIGHT));
                 BigDecimal leadPerDay = share(cfg.value(PricingModel.BUY_RELIABILITY_LEAD_PER_DAY));
                 BigDecimal defectWeight = share(cfg.value(PricingModel.BUY_RELIABILITY_DEFECT_WEIGHT));
-                if (q.otifPct() != null) {
-                    reliability = landed.multiply(HUNDRED.subtract(q.otifPct())).divide(HUNDRED, 4, RoundingMode.HALF_UP)
+                if (otifPct != null) {
+                    reliability = landed.multiply(HUNDRED.subtract(otifPct)).divide(HUNDRED, 4, RoundingMode.HALF_UP)
                             .multiply(otifWeight).setScale(4, RoundingMode.HALF_UP);
                     adjustments.add(new SupplierEval.Adjustment(
-                            "On-time delivery " + Js.toFixed(q.otifPct().doubleValue(), 0) + "%", reliability));
+                            "On-time delivery " + Js.toFixed(otifPct.doubleValue(), 0) + "%" + modelNote, reliability));
                 }
-                if (q.totalLeadDays() != null) {
-                    leadTimeAdj = landed.multiply(BigDecimal.valueOf(q.totalLeadDays())).multiply(leadPerDay)
+                if (leadDays != null) {
+                    leadTimeAdj = landed.multiply(BigDecimal.valueOf(leadDays)).multiply(leadPerDay)
                             .setScale(4, RoundingMode.HALF_UP);
-                    adjustments.add(new SupplierEval.Adjustment(q.totalLeadDays() + "-day lead time", leadTimeAdj));
+                    adjustments.add(new SupplierEval.Adjustment(leadDays + "-day lead time" + modelNote, leadTimeAdj));
                 }
                 if (row != null && row.defectPct() != null) {
                     quality = landed.multiply(row.defectPct()).divide(HUNDRED, 4, RoundingMode.HALF_UP)
@@ -159,8 +180,8 @@ public class BuyIntelEngine implements BuyIntelReader {
                             Js.toFixed(commercial.earlyPayDiscountPct() == null ? 0 : commercial.earlyPayDiscountPct().doubleValue(), 1)
                                     + "% early-pay discount, net", earlyPay));
                 }
-                if (q.otifPct() != null && penaltyRecoveryPerUnit.signum() != 0) {
-                    BigDecimal missPct = HUNDRED.subtract(q.otifPct()).divide(HUNDRED, 6, RoundingMode.HALF_UP);
+                if (otifPct != null && penaltyRecoveryPerUnit.signum() != 0) {
+                    BigDecimal missPct = HUNDRED.subtract(otifPct).divide(HUNDRED, 6, RoundingMode.HALF_UP);
                     BigDecimal capped = penaltyRecoveryPerUnit.min(landed.multiply(new BigDecimal("0.55")));
                     penalty = missPct.multiply(capped).negate().setScale(4, RoundingMode.HALF_UP);
                     if (penalty.signum() != 0) {
@@ -179,13 +200,16 @@ public class BuyIntelEngine implements BuyIntelReader {
 
         String riskLabel = null;
         String riskNote = "Not assessed";
-        if (q.otifPct() != null || (row != null && row.defectPct() != null)) {
-            double otif = q.otifPct() != null ? q.otifPct().doubleValue() : 100;
+        if (otifPct != null || (row != null && row.defectPct() != null)) {
+            double otif = otifPct != null ? otifPct.doubleValue() : 100;
             double defect = row != null && row.defectPct() != null ? row.defectPct().doubleValue() : 0;
-            Integer totalLead = q.totalLeadDays();
+            Integer totalLead = leadDays;
             if (otif < 82 || defect > 2.5) {
                 riskLabel = "High";
-                riskNote = otif < 82 ? "Misses " + Js.toFixed(100 - otif, 0) + "% of delivery dates"
+                riskNote = otif < 82
+                        ? (deliverySource != null
+                                ? Js.toFixed(100 - otif, 0) + "% chance this order is late, by the delivery model"
+                                : "Misses " + Js.toFixed(100 - otif, 0) + "% of delivery dates")
                         : Js.toFixed(defect, 1) + "% defect rate";
             } else if (otif < 90 || (totalLead != null && totalLead > 40)) {
                 riskLabel = "Medium";
@@ -198,10 +222,34 @@ public class BuyIntelEngine implements BuyIntelReader {
         }
 
         return new SupplierEval(q.supplierId(), q.name(), q.country(), q.exWorksCost(), q.unitCost(), effective,
-                addNullable(q.freightCost(), q.dutyCost()), q.totalLeadDays(), q.otifPct(),
+                addNullable(q.freightCost(), q.dutyCost()), leadDays, otifPct,
                 row != null ? row.defectPct() : null, fulfilmentPct, commercial.termsLabel(), commercial,
                 penaltyRecoveryPerUnit, moq, meetsMoq, relationshipYears, adjustments, q.isIncumbent(), false,
-                riskLabel, riskNote, hasQuote, row != null ? row.holdsStock() : null);
+                riskLabel, riskNote, hasQuote, row != null ? row.holdsStock() : null, deliverySource);
+    }
+
+    /**
+     * The delivery model's forecast for this order from this supplier, when it may be used: the model is
+     * trained, knows the supplier (by id, else by name) and beat the supplier's own record on its held-out
+     * orders. Null otherwise, or on any failure, and the supplier's averages stand.
+     */
+    private DeliveryModels.Forecast deliveryForecast(SupplierQuote q, String itemNumber, String destination,
+            BigDecimal qty) {
+        try {
+            int units = Math.max(1, qty.intValue());
+            // What the supplier quotes, order to dock: its own lead time plus transit. Not the quote's total,
+            // which may already be the model's typical-order forecast.
+            Integer promised = q.leadTimeDays() != null ? Integer.valueOf(q.leadTimeDays() + q.transitDays())
+                    : q.totalLeadDays();
+            Optional<DeliveryModels.Forecast> f = deliveryModels.forecast(q.supplierId(), itemNumber, destination, units,
+                    promised);
+            if (f.isEmpty() && q.name() != null) {
+                f = deliveryModels.forecast(q.name(), itemNumber, destination, units, promised);
+            }
+            return f.filter(x -> x.usable() && x.lateProbability() != null && x.leadDays() != null).orElse(null);
+        } catch (RuntimeException ex) {
+            return null;
+        }
     }
 
     private static final BigDecimal HUNDRED = BigDecimal.valueOf(100);
@@ -240,7 +288,7 @@ public class BuyIntelEngine implements BuyIntelReader {
         PricingModel.Config cfg = reference.pricingModel();
 
         List<SupplierEval> evaluated = rec.quotes().stream()
-                .map(q -> evaluate(q, effectiveQty, today, links, cfg))
+                .map(q -> evaluate(q, effectiveQty, today, links, cfg, itemNumber, destination))
                 .toList();
 
         List<String> locked = new ArrayList<>(rec.locked());
@@ -447,6 +495,7 @@ public class BuyIntelEngine implements BuyIntelReader {
         return new SupplierEval(s.supplierId(), s.name(), s.country(), s.quoted(), s.landed(), s.effective(),
                 s.freightAndDuty(), s.leadDays(), s.otifPct(), s.defectPct(), s.fulfilmentPct(), s.terms(),
                 s.commercial(), s.penaltyRecoveryPerUnit(), s.moq(), s.meetsMoq(), s.relationshipYears(),
-                s.adjustments(), s.isIncumbent(), recommended, s.risk(), s.riskNote(), s.hasQuote(), s.holdsStock());
+                s.adjustments(), s.isIncumbent(), recommended, s.risk(), s.riskNote(), s.hasQuote(), s.holdsStock(),
+                s.deliverySource());
     }
 }

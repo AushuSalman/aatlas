@@ -93,13 +93,16 @@ public class PricingEngine {
     private final PriceList priceList;
     private final DealSummaries deals;
     private final com.aatlas.decisions.DecisionOutcomes outcomes;
+    private final com.aatlas.demandmodel.DemandModels demandModels;
     private final AatlasClock clock;
 
     public PricingEngine(CatalogGateway catalog, SalesHistory sales, PriceLadder ladder, Inventory inventory,
             CompetitorPrices competitorPrices, Reference reference, PriceList priceList, DealSummaries deals,
-            com.aatlas.decisions.DecisionOutcomes outcomes, AatlasClock clock) {
+            com.aatlas.decisions.DecisionOutcomes outcomes, com.aatlas.demandmodel.DemandModels demandModels,
+            AatlasClock clock) {
         this.catalog = catalog;
         this.outcomes = outcomes;
+        this.demandModels = demandModels;
         this.sales = sales;
         this.ladder = ladder;
         this.inventory = inventory;
@@ -108,6 +111,78 @@ public class PricingEngine {
         this.priceList = priceList;
         this.deals = deals;
         this.clock = clock;
+    }
+
+    /**
+     * The trained demand model's price sensitivity for the pair, in place of the monthly regression's, when
+     * the tenant's model allows it ({@code elasticity} and {@code elasticity.trainedModel} on) and the
+     * demand model has proven itself there: it beat the baseline on the pair's held-out weeks and its probed
+     * response is downward. It enters the chain exactly as a measurement does - blended with the prior at the
+     * model's own weight - so the same settings govern it. Anything else, or any failure, leaves the
+     * regression's answer.
+     */
+    private DemandPick withDemandModel(SalesHistory.Elasticity measured, String item, String storeCode,
+            BigDecimal price, com.aatlas.history.PricingModel.Config cfg) {
+        if (!cfg.on(com.aatlas.history.PricingModel.ELASTICITY)
+                || !cfg.on(com.aatlas.history.PricingModel.ELASTICITY_TRAINED_MODEL)) {
+            return new DemandPick(measured, DemandModelUse.of(DemandModelUse.OFF,
+                    "The trained demand model is switched off in Settings."));
+        }
+        if (storeCode == null || price == null || price.signum() <= 0) {
+            return new DemandPick(measured, DemandModelUse.of(DemandModelUse.NOT_IN_MODEL,
+                    "There is no branch or price on file to ask the demand model about."));
+        }
+        try {
+            java.util.Optional<com.aatlas.demandmodel.DemandModels.Forecast> found = demandModels.forecast(item,
+                    storeCode, price);
+            if (found.isEmpty()) {
+                return new DemandPick(measured, demandModels.trained()
+                        ? DemandModelUse.of(DemandModelUse.NOT_IN_MODEL,
+                                "This item at this branch is not in the demand model: too little sales history.")
+                        : DemandModelUse.of(DemandModelUse.NOT_TRAINED,
+                                "No demand model is trained for this business yet."));
+            }
+            com.aatlas.demandmodel.DemandModels.Forecast f = found.get();
+            if (!f.usable() || f.elasticity() == null || f.elasticity().signum() >= 0) {
+                return new DemandPick(measured, new DemandModelUse(DemandModelUse.NOT_USABLE, whyNotUsable(f),
+                        f.elasticity(), f.errorPct(), f.baselineErrorPct()));
+            }
+            SalesHistory.Elasticity modelled = new SalesHistory.Elasticity(f.elasticity(), null,
+                    Math.max(1, (int) Math.round(f.weeks() / 4.345)), SalesHistory.Elasticity.MODEL, null);
+            return new DemandPick(modelled, new DemandModelUse(DemandModelUse.USED,
+                    "Its price sensitivity is used for this item.", f.elasticity(), f.errorPct(),
+                    f.baselineErrorPct()));
+        } catch (RuntimeException ex) {
+            return new DemandPick(measured, null);
+        }
+    }
+
+    /** The sensitivity the chain will run on, and what the demand model had to do with it. */
+    private record DemandPick(SalesHistory.Elasticity elasticity, DemandModelUse use) {
+    }
+
+    /** Why the model stood aside for a pair it knows, in the words a seller would use. */
+    private static String whyNotUsable(com.aatlas.demandmodel.DemandModels.Forecast f) {
+        if (!f.beatsBaseline()) {
+            return f.errorPct() == null
+                    ? "This item sold too little in the latest weeks to check the model against."
+                    : "It did not forecast this item better than a simple average of recent weeks.";
+        }
+        if (f.elasticity() == null || f.elasticity().signum() >= 0) {
+            return "It forecasts this item better than a simple average, but in your sales history the item sold "
+                    + "more in the weeks it was priced higher, so its read of price is not trusted here.";
+        }
+        return sentence(f.note());
+    }
+
+    /** A stored note as a sentence: "beat the baseline, but ..." becomes "Beat the baseline, but ... ." */
+    private static String sentence(String note) {
+        if (note == null || note.isBlank()) {
+            return "The demand model did not prove itself on this item.";
+        }
+        String s = note.trim();
+        s = Character.toUpperCase(s.charAt(0)) + s.substring(1);
+        return s.endsWith(".") ? s : s + ".";
     }
 
     private static String domainOf(String sourceUrl) {
@@ -197,7 +272,12 @@ public class PricingEngine {
 
         // What applied prices actually did for this item (measured sales before against after) is folded
         // into the sensitivity: the model learns from outcomes, not only from what was chosen.
-        SalesHistory.Elasticity elasticity = outcomes.blend(sales.elasticity(productId, storeUuid, today), item, today);
+        // The tenant's model is read here, ahead of the chain, because it also decides whether the trained
+        // demand model may answer for this pair.
+        com.aatlas.history.PricingModel.Config cfg = reference.pricingModel();
+        DemandPick demandPick = withDemandModel(sales.elasticity(productId, storeUuid, today), item,
+                store != null ? store.storeCode() : null, currentPriceValue, cfg);
+        SalesHistory.Elasticity elasticity = outcomes.blend(demandPick.elasticity(), item, today);
         BigDecimal beta = elasticity.coefficient();
 
         Window w90 = Window.trailingDays(today, 90);
@@ -221,7 +301,6 @@ public class PricingEngine {
         }
 
         // -- the chain, as the tenant's model configures it ---------------------------------
-        com.aatlas.history.PricingModel.Config cfg = reference.pricingModel();
         String storeCode = store != null ? store.storeCode() : null;
         LocalDate lastSale = storeUuid == null ? null : sales.lastSale(productId, storeUuid).orElse(null);
         Reference.Benchmark benchmark = reference.benchmark(product.category(), product.subcategory());
@@ -284,7 +363,7 @@ public class PricingEngine {
                 commodityPct90, commodityLabel, commodityAsOf, commoditySource,
                 w90Stats.units(), w90pStats.units(), itemStoreStats.units(), w30Stats.avgPrice(), w90pStats.avgPrice(),
                 onHandUnits, inventoryAsOf, stale,
-                buckets, rec, cfg,
+                buckets, rec, cfg, demandPick.use(),
                 List.copyOf(locked));
     }
 
@@ -354,7 +433,7 @@ public class PricingEngine {
                 null, null, null, null,
                 null, null, null, null, null,
                 null, null, false,
-                List.of(), null, com.aatlas.history.PricingModel.Config.defaults(),
+                List.of(), null, com.aatlas.history.PricingModel.Config.defaults(), null,
                 List.of("margin", "demand", "inventory", "competitors", "forecast"));
     }
 
@@ -405,7 +484,12 @@ public class PricingEngine {
         int[] toggles = cfg.toggleCount();
         return new ModelSummaryDto(toggles[0], toggles[1], rec.segment(), rec.headlineTier(),
                 BigDecimal.valueOf(rec.maturity()).setScale(2, RoundingMode.HALF_UP), rec.externalRole(),
-                rec.flags());
+                rec.flags(), demandModelDto(m.demandModelUse()));
+    }
+
+    private static com.aatlas.sell.internal.dto.PricingDtos.DemandModelDto demandModelDto(DemandModelUse use) {
+        return use == null ? null : new com.aatlas.sell.internal.dto.PricingDtos.DemandModelDto(use.status(), use.note(),
+                use.elasticity(), use.errorPct(), use.baselineErrorPct());
     }
 
     private static PriceTierDto tierView(String label, BigDecimal price, PricingModel m, String blurb) {

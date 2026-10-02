@@ -85,6 +85,7 @@ public final class PricingTypes {
 
             List<Bucket> buckets, PricingMath.Recommendation recommendation,
             com.aatlas.history.PricingModel.Config modelConfig,
+            DemandModelUse demandModelUse,
 
             List<String> locked) {
 

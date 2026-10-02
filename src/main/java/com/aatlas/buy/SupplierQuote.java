@@ -38,5 +38,16 @@ public record SupplierQuote(
         boolean isIncumbent,
         String exWorksSource,
         LocalDate exWorksAsOf,
-        String landedSource) {
+        String landedSource,
+        /** {@code delivery-model} when {@code totalLeadDays} and {@code otifPct} are the trained delivery model's forecast for a typical order of this item into the branch; null when they are the supplier's averages. */
+        String deliverySource) {
+
+    /** The pre-existing shape: lead time and on-time rate from the supplier's averages. */
+    public SupplierQuote(String supplierId, String name, String country, BigDecimal exWorksCost, BigDecimal freightCost,
+            BigDecimal dutyCost, BigDecimal unitCost, Integer leadTimeDays, int transitDays, Integer totalLeadDays,
+            BigDecimal otifPct, boolean isCurrent, boolean isIncumbent, String exWorksSource, LocalDate exWorksAsOf,
+            String landedSource) {
+        this(supplierId, name, country, exWorksCost, freightCost, dutyCost, unitCost, leadTimeDays, transitDays,
+                totalLeadDays, otifPct, isCurrent, isIncumbent, exWorksSource, exWorksAsOf, landedSource, null);
+    }
 }

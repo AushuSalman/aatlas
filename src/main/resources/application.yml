@@ -290,6 +290,29 @@ aatlas:
     # POST /api/v1/pricing-model/tune.
     tune-enabled: ${PRICING_MODEL_TUNE_ENABLED:true}
     tune-cron: "0 0 5 * * *"
+  demand-model:
+    # The demand model (demandmodel module): a random forest of regression trees, one per tenant, fitted to the
+    # tenant's own weekly sales per item and branch. Nightly after the tuner, every ACTIVE tenant; on demand from
+    # POST /api/v1/demand-model/train. Each run holds the last holdout-weeks back and scores the model against the
+    # naive baseline pair by pair; a pair the model did not beat is reported and never used. Runs on one pod.
+    enabled: ${DEMAND_MODEL_ENABLED:true}
+    cron: "0 15 5 * * *"
+    holdout-weeks: 8
+    trees: 100
+    # Pairs spanning fewer weeks are left out; at most this many pairs (the busiest) are loaded per tenant.
+    min-weeks: 12
+    max-pairs: 2000
+  delivery-model:
+    # The delivery model (supplymodel module): two random forests per tenant on its received purchase orders - the
+    # slip in days against what the supplier promised, and late as 0/1 read as a probability. Nightly after the
+    # demand model; on demand from POST /api/v1/delivery-model/train. The latest holdout-share of the orders is held
+    # back and each supplier is scored against its own trailing record; a supplier the model did not beat is
+    # reported and never used. Runs on one pod.
+    enabled: ${DELIVERY_MODEL_ENABLED:true}
+    cron: "0 30 5 * * *"
+    trees: 100
+    holdout-share: 0.2
+    min-holdout: 8
   market-data:
     # Live reference feeds (marketdata module): daily at 06:30 UTC and once at startup.
     enabled: ${MARKET_DATA_ENABLED:true}

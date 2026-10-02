@@ -91,7 +91,18 @@ public final class PricingDtos {
             String headlineTier,
             BigDecimal maturity,
             String externalRole,
-            List<String> flags) {
+            List<String> flags,
+            DemandModelDto demandModel) {
+    }
+
+    /**
+     * What the trained demand model did for this pair, whether or not it answered: {@code used},
+     * {@code not_usable}, {@code not_in_model}, {@code not_trained} or {@code off}, with one sentence
+     * for the screen and, where the pair is in the model, its probed price response and held-out
+     * error against the baseline's (percent of units sold).
+     */
+    public record DemandModelDto(String status, String note, BigDecimal elasticity, BigDecimal errorPct,
+            BigDecimal baselineErrorPct) {
     }
 
     /**

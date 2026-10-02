@@ -162,6 +162,22 @@ class PricingModelTest {
     }
 
     @Test
+    @DisplayName("the trained models are switches in the same registry: on by default, each under the step it feeds")
+    void trainedModelToggles() {
+        PricingModel.Parameter sell = PricingModel.registry(PricingModel.Side.SELL).stream()
+                .filter(p -> p.key().equals(PricingModel.ELASTICITY_TRAINED_MODEL)).findFirst().orElseThrow();
+        assertThat(sell.toggle()).isTrue();
+        assertThat(sell.parent()).isEqualTo(PricingModel.ELASTICITY);
+        PricingModel.Parameter buy = PricingModel.registry(PricingModel.Side.BUY).stream()
+                .filter(p -> p.key().equals(PricingModel.BUY_RELIABILITY_TRAINED_MODEL)).findFirst().orElseThrow();
+        assertThat(buy.toggle()).isTrue();
+        assertThat(buy.parent()).isEqualTo(PricingModel.BUY_RELIABILITY);
+        PricingModel.Config defaults = PricingModel.Config.defaults();
+        assertThat(defaults.on(PricingModel.ELASTICITY_TRAINED_MODEL)).isTrue();
+        assertThat(defaults.on(PricingModel.BUY_RELIABILITY_TRAINED_MODEL)).isTrue();
+    }
+
+    @Test
     @DisplayName("toggleCount() counts the toggles that are on, children of an off parent excluded")
     void toggleCountSums() {
         long toggles = PricingModel.registry(PricingModel.Side.SELL).stream().filter(PricingModel.Parameter::toggle).count();
