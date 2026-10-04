@@ -51,9 +51,28 @@ class DemandModelService implements DemandModels {
 
     private static final Logger log = LoggerFactory.getLogger(DemandModelService.class);
 
-    /** A tenant's model as served. */
+    /** The forecasting models a tenant can choose, in the order they are offered; the first is the default. */
+    static final List<ModelOption> MODEL_OPTIONS = List.of(
+            new ModelOption(DemandTrainer.AUTO, "Automatic",
+                    "Each item uses the model that beat its recent average in two back-tests in a row, and the "
+                            + "90-day pace where none did. Recommended."),
+            new ModelOption(Smoothers.CHRONOS, Smoothers.label(Smoothers.CHRONOS),
+                    "A pretrained deep-learning forecaster. It has forecasts only when its service was running at "
+                            + "the last training run."),
+            new ModelOption(Smoothers.FOREST, Smoothers.label(Smoothers.FOREST),
+                    "Machine-learned on your own sales: reads price, competitor prices and recent demand."),
+            new ModelOption(Smoothers.SBA, Smoothers.label(Smoothers.SBA),
+                    "Built for items that sell in lumps, with empty weeks between."),
+            new ModelOption(Smoothers.TSB, Smoothers.label(Smoothers.TSB),
+                    "For lumpy sellers too; fades when an item stops selling."),
+            new ModelOption(Smoothers.SES, Smoothers.label(Smoothers.SES),
+                    "A weighted average that follows the most recent weeks."));
+
+    private static final String NOT_TRAINED = "Not trained yet. It runs nightly once there is sales history, or train it now.";
+
+    /** A tenant's model as served, with the forecasting model the tenant chose. */
     record Loaded(Instant trainedAt, Model<Regressor> forecast, Model<Regressor> response,
-            Map<String, PairRecord> pairs) {
+            Map<String, PairRecord> pairs, String forecastModel) {
     }
 
     private final DemandModelRepository repo;
@@ -63,6 +82,7 @@ class DemandModelService implements DemandModels {
     private final PolicyReader policy;
     private final HistoryCaches caches;
     private final AatlasClock clock;
+    private final ChronosClient chronos;
     private final int holdoutWeeks;
     private final int trees;
     private final int minWeeks;
@@ -74,6 +94,7 @@ class DemandModelService implements DemandModels {
 
     DemandModelService(DemandModelRepository repo, TrainingRows trainingRows, SalesHistory salesHistory,
             Catalogue catalogue, PolicyReader policy, HistoryCaches caches, AatlasClock clock,
+            ChronosClient chronos,
             @Value("${aatlas.demand-model.holdout-weeks:8}") int holdoutWeeks,
             @Value("${aatlas.demand-model.trees:100}") int trees,
             @Value("${aatlas.demand-model.min-weeks:12}") int minWeeks,
@@ -85,6 +106,7 @@ class DemandModelService implements DemandModels {
         this.policy = policy;
         this.caches = caches;
         this.clock = clock;
+        this.chronos = chronos;
         this.holdoutWeeks = holdoutWeeks;
         this.trees = trees;
         this.minWeeks = minWeeks;
@@ -95,8 +117,29 @@ class DemandModelService implements DemandModels {
     public Status train() {
         TenantContext.Actor actor = TenantContext.current()
                 .orElseThrow(() -> ApiException.forbidden("Sign in to train the demand model."));
-        requireMayTrain(actor);
+        requireGuardrailSeat(actor, "train the demand model");
         return train(actor.tenantId());
+    }
+
+    @Override
+    @Transactional
+    public Status chooseForecastModel(String key) {
+        TenantContext.Actor actor = TenantContext.current()
+                .orElseThrow(() -> ApiException.forbidden("Sign in to change the forecasting model."));
+        requireGuardrailSeat(actor, "change the forecasting model");
+        String wanted = key == null ? "" : key.strip();
+        if (MODEL_OPTIONS.stream().noneMatch(o -> o.key().equals(wanted))) {
+            throw ApiException.badRequest("validation_failed", "Unknown forecasting model \"" + wanted + "\". Choose one of: "
+                    + MODEL_OPTIONS.stream().map(ModelOption::key).collect(java.util.stream.Collectors.joining(", ")) + ".");
+        }
+        UUID tenantId = actor.tenantId();
+        DemandModelEntity row = repo.findById(tenantId).orElseGet(() -> DemandModelEntity.fresh(tenantId));
+        row.chooseForecastModel(DemandTrainer.AUTO.equals(wanted) ? null : wanted);
+        repo.save(row);
+        loaded.invalidate(tenantId);
+        // The sell chain reads the forecast: recommendations cached under the old choice are stale now.
+        caches.evictAfterCommit(tenantId);
+        return status(row);
     }
 
     /** One run for one tenant, as the nightly job and the on-demand call share it. Runs as the tenant. */
@@ -112,14 +155,14 @@ class DemandModelService implements DemandModels {
         DemandModelEntity row = repo.findById(tenantId).orElseGet(() -> DemandModelEntity.fresh(tenantId));
         try {
             DemandTrainer.Settings settings = DemandTrainer.Settings.defaults().withHoldoutWeeks(holdoutWeeks).withTrees(trees);
-            DemandTrainer.Result result = DemandTrainer.train(grid, settings);
+            DemandTrainer.Result result = DemandTrainer.train(grid, settings, DemandTrainer.FOREST, chronos.orNull());
             Map<String, PairRecord> pairs = new LinkedHashMap<>();
             for (Map.Entry<String, WeeklyGrid.Context> e : grid.contexts().entrySet()) {
                 pairs.put(e.getKey(), record(e.getValue(), result.evals().get(e.getKey()), today));
             }
             long usable = pairs.values().stream().filter(PairRecord::usable).count();
             int weeks = grid.contexts().values().stream().mapToInt(WeeklyGrid.Context::weeks).max().orElse(0);
-            String note = usable + " of " + pairs.size() + " item-branch pairs beat the baseline on the held-out weeks";
+            String note = note(pairs.values(), DemandTrainer.AUTO);
             row.trained(result.forecast().serialize().toByteArray(), result.response().serialize().toByteArray(),
                     pairs, now, result.rows(), weeks, from, lastWeek, holdoutWeeks, result.millis(), note);
             log.info("Demand model for tenant {}: {} rows, {} pairs, {} usable, {} ms", tenantId, result.rows(),
@@ -155,37 +198,101 @@ class DemandModelService implements DemandModels {
         return new PairRecord(c.item(), c.store(), c.category(), c.lastWeek().toString(), c.lastPrice(), c.cost(),
                 c.compMedian(), c.lags(), c.medianPrice(), c.weeks(), c.units(), ev.holdoutUnits(),
                 finite(ev.errorModel()), finite(ev.errorBaseline()), ev.beats(), ev.usable(), ev.elasticity(),
-                regression, basis, ev.forecastNext(), ev.settledNext(), ev.note());
+                regression, basis, ev.forecastNext(), ev.settledNext(), ev.note(), finite(ev.horizonError()),
+                finite(ev.horizonBaseline()), ev.forecastUsable(), ev.horizonUnits(), ev.trailingUnits(),
+                ev.calibration(), ev.forecastMethod(), ev.forecastNote(), ev.methods());
+    }
+
+    /** The forecasting model a tenant chose, as a key; automatic when it chose none, or one this build no longer offers. */
+    private static String chosenModel(String stored) {
+        return stored != null && MODEL_OPTIONS.stream().anyMatch(o -> o.key().equals(stored)) ? stored
+                : DemandTrainer.AUTO;
+    }
+
+    /**
+     * A stored pair's forecast under a choice of model. A pair stored before every forecaster's back-tests were
+     * kept has only the one verdict it was stored with, whatever is chosen.
+     */
+    static DemandTrainer.Verdict verdict(PairRecord p, String model) {
+        if (p.methods() == null || p.methods().isEmpty()) {
+            return new DemandTrainer.Verdict(p.forecastMethod() == null ? Smoothers.FOREST : p.forecastMethod(),
+                    p.forecastUsable(), p.forecastUsable(), p.horizonError() == null ? Double.NaN : p.horizonError(),
+                    p.horizonBaseline() == null ? Double.NaN : p.horizonBaseline(), p.horizonUnits(),
+                    p.forecastNote());
+        }
+        return DemandTrainer.verdict(p.methods(), model);
+    }
+
+    /** The run in a sentence, under a choice of model: how many pairs have a forecast in use and from which forecaster. */
+    static String note(java.util.Collection<PairRecord> pairs, String model) {
+        long priceRead = pairs.stream().filter(PairRecord::usable).count();
+        List<DemandTrainer.Verdict> verdicts = pairs.stream().map(p -> verdict(p, model)).toList();
+        long inUse = verdicts.stream().filter(DemandTrainer.Verdict::usable).count();
+        String tail = "; the read of price is proven on " + priceRead;
+        if (!DemandTrainer.AUTO.equals(model)) {
+            long proven = verdicts.stream().filter(v -> v.usable() && v.proven()).count();
+            String label = Smoothers.label(model);
+            return inUse == 0
+                    ? label + " is the forecasting model chosen in Settings, but it has no forecasts from the last "
+                            + "training run, so the 90-day pace is used" + tail
+                    : label + " is the forecasting model chosen in Settings: it forecasts " + inUse + " of "
+                            + pairs.size() + " item-branch pairs, and beat the recent average in two back-tests in "
+                            + "a row on " + proven + " of them" + tail;
+        }
+        // By forecaster, most used first: "Croston SBA 12, Random forest 6".
+        Map<String, Long> byMethod = new LinkedHashMap<>();
+        verdicts.stream().filter(DemandTrainer.Verdict::usable)
+                .forEach(v -> byMethod.merge(Smoothers.label(v.method()), 1L, Long::sum));
+        String split = byMethod.entrySet().stream()
+                .sorted(Map.Entry.<String, Long>comparingByValue().reversed())
+                .map(m -> m.getKey() + " " + m.getValue())
+                .collect(java.util.stream.Collectors.joining(", "));
+        return "A four-week forecast beat the recent average in two back-tests in a row on " + inUse + " of "
+                + pairs.size() + " item-branch pairs" + (split.isEmpty() ? "" : " (" + split + ")") + tail;
     }
 
     @Override
     @Transactional(readOnly = true)
     public Status status() {
         UUID tenantId = TenantContext.requireTenantId();
-        return repo.findById(tenantId).map(this::status).orElse(new Status(false, null, 0, 0, 0, 0, null, null,
-                holdoutWeeks, 0, "Not trained yet. It runs nightly once there is sales history, or train it now.",
-                0, 0, null, 0, List.of()));
+        return repo.findById(tenantId).map(this::status).orElse(new Status(false, null, 0, 0, 0, 0, 0, null, null,
+                holdoutWeeks, 0, NOT_TRAINED, 0, 0, null, 0, List.of(), modelLabel(DemandTrainer.AUTO),
+                DemandTrainer.AUTO, MODEL_OPTIONS));
     }
 
     private Status status(DemandModelEntity row) {
+        // The report is read under the model chosen in Settings today, not the one in force when it trained.
+        String model = chosenModel(row.getForecastModel());
         List<PairReport> report = row.getPairs().values().stream()
-                .sorted(Comparator.comparing(PairRecord::usable).reversed().thenComparing(PairRecord::units, Comparator.reverseOrder()))
-                .map(DemandModelService::report)
+                .sorted(Comparator.comparing((PairRecord p) -> p.usable() || verdict(p, model).usable()).reversed()
+                        .thenComparing(PairRecord::units, Comparator.reverseOrder()))
+                .map(p -> report(p, model))
                 .toList();
         int usable = (int) row.getPairs().values().stream().filter(PairRecord::usable).count();
         TrainingRows.Pending pending = trainingRows.pending(row.getTenantId(), row.getTrainedAt(), row.getToWeek(),
                 clock.today());
+        int forecastUsable = (int) report.stream().filter(PairReport::forecastUsable).count();
+        boolean scored = row.getPairs().values().stream().anyMatch(p -> p.methods() != null && !p.methods().isEmpty());
         return new Status(row.getModel() != null, row.getTrainedAt(), row.getRows(), row.getPairCount(), usable,
-                row.getWeeks(), row.getFromWeek(), row.getToWeek(), row.getHoldoutWeeks(), row.getTrainMillis(),
-                row.getNote(), pending.sinceTrained(), pending.inOpenWeek(), pending.countedFrom(),
-                pending.awaitingRetrain(), report);
+                forecastUsable, row.getWeeks(), row.getFromWeek(), row.getToWeek(),
+                row.getHoldoutWeeks() > 0 ? row.getHoldoutWeeks() : holdoutWeeks, row.getTrainMillis(),
+                scored ? note(row.getPairs().values(), model) : row.getNote() != null ? row.getNote() : NOT_TRAINED,
+                pending.sinceTrained(), pending.inOpenWeek(), pending.countedFrom(), pending.awaitingRetrain(), report,
+                modelLabel(model), model, MODEL_OPTIONS);
     }
 
-    static PairReport report(PairRecord p) {
+    private static String modelLabel(String model) {
+        return DemandTrainer.AUTO.equals(model) ? "Automatic" : Smoothers.label(model);
+    }
+
+    static PairReport report(PairRecord p, String model) {
+        DemandTrainer.Verdict v = verdict(p, model);
         return new PairReport(p.item(), p.store(), p.category(), p.weeks(), dec(p.holdoutUnits(), 0),
                 pct(p.errorModel()), pct(p.errorBaseline()), p.beats(), p.usable(), dec(p.elasticity(), 2),
                 p.regressionElasticity() == null ? null : dec(p.regressionElasticity(), 2), p.regressionBasis(),
-                dec(p.lastPrice(), 2), dec(p.forecastNext(), 1), dec(p.settledNext(), 1), p.note());
+                dec(p.lastPrice(), 2), dec(p.forecastNext(), 1), dec(p.settledNext(), 1), p.note(),
+                dec(v.nextUnits(), 1), dec(p.trailingUnits(), 1), v.usable(), pct(finite(v.errorShare())),
+                pct(finite(v.naiveShare())), Smoothers.label(v.method()), v.note());
     }
 
     @Override
@@ -205,11 +312,22 @@ class DemandModelService implements DemandModels {
                 p.lastPrice(), p.cost(), p.compMedian(), p.lags(), p.medianPrice(), p.weeks(), p.units());
         boolean itemOneHot = DemandTrainer.Settings.defaults().itemOneHot();
         boolean season = DemandTrainer.trainedWithSeason(l.forecast());
-        double units = DemandTrainer.predictUnits(l.forecast(),
+        double scale = p.calibration() > 0 ? p.calibration() : 1;
+        double units = scale * DemandTrainer.predictUnits(l.forecast(),
                 Features.at(c, price.doubleValue(), itemOneHot, season, true));
         double settled = DemandTrainer.settledUnits(l.response(), c, price.doubleValue(), itemOneHot, season);
+        double[] flat = new double[DemandTrainer.HORIZON_WEEKS];
+        java.util.Arrays.fill(flat, price.doubleValue());
+        DemandTrainer.Verdict v = verdict(p, l.forecastModel());
+        // The forest answers at the price asked; every other forecaster holds the one level it gave at training.
+        double horizon = Smoothers.FOREST.equals(v.method())
+                ? DemandTrainer.rollForward(l.forecast(), c, c.lags(), c.compMedian(), flat,
+                        c.lastWeek().plusWeeks(1), scale, itemOneHot, season)
+                : v.nextUnits();
         return Optional.of(new Forecast(dec(units, 1), dec(settled, 1), dec(p.elasticity(), 2), p.usable(), p.beats(),
-                p.weeks(), pct(p.errorModel()), pct(p.errorBaseline()), l.trainedAt(), p.note()));
+                p.weeks(), pct(p.errorModel()), pct(p.errorBaseline()), l.trainedAt(), p.note(), dec(horizon, 1),
+                dec(p.trailingUnits(), 1), v.usable(), pct(finite(v.errorShare())), pct(finite(v.naiveShare())),
+                Smoothers.label(v.method()), v.note(), v.proven()));
     }
 
     @Override
@@ -221,7 +339,7 @@ class DemandModelService implements DemandModels {
         return loaded.get(tenantId, t -> repo.findById(t)
                 .filter(r -> r.getModel() != null && r.getResponseModel() != null)
                 .map(r -> new Loaded(r.getTrainedAt(), deserialize(r.getModel()), deserialize(r.getResponseModel()),
-                        r.getPairs()))
+                        r.getPairs(), chosenModel(r.getForecastModel())))
                 .orElse(null));
     }
 
@@ -235,11 +353,12 @@ class DemandModelService implements DemandModels {
         }
     }
 
-    private void requireMayTrain(TenantContext.Actor actor) {
+    /** The seats that may change the pricing model are the ones that may train this one and choose what it reads. */
+    private void requireGuardrailSeat(TenantContext.Actor actor, String what) {
         Persona persona = policy.personaFor(actor.tenantId(), actor.role());
         if (!persona.guardrails()) {
             throw new ApiException(HttpStatus.FORBIDDEN, "not_allowed",
-                    "Your seat cannot train the demand model. Heads of sales and purchasing, finance and the "
+                    "Your seat cannot " + what + ". Heads of sales and purchasing, finance and the "
                             + "commercial director can.");
         }
     }

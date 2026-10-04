@@ -196,21 +196,22 @@ final class BuyTargetChain {
             List<BigDecimal> marketValues = counted.stream().map(MarketEvidence.Point::value).sorted().toList();
             Agreement agreement = agreement(marketValues, cfg);
 
-            // ---- 1c. plausibility: a lone market price far from what suppliers quote is a different
-            // product. Prices that agree with each other are never dropped for being far away.
+            // ---- 1c. plausibility: a lone market price far from what suppliers quote is left out, said as
+            // how far it sits and never as a guess at why. Prices that agree with each other are never dropped
+            // for being far away.
             if (!cfg.on(PricingModel.BUY_MARKET_PLAUSIBILITY)) {
                 kept.addAll(counted);
-                steps.add(new CalcStep("Market prices that look wrong", "—",
+                steps.add(new CalcStep("Market prices far from your quotes", "—",
                         "Market prices are used as they come.", OFF));
             } else if (supplierMedian == null) {
                 kept.addAll(counted);
-                steps.add(new CalcStep("Market prices that look wrong", "—",
+                steps.add(new CalcStep("Market prices far from your quotes", "—",
                         "No supplier quotes to check the market prices against.", SKIPPED));
             } else if (counted.isEmpty()) {
-                steps.add(new CalcStep("Market prices that look wrong", "—", "No market prices to check.", SKIPPED));
+                steps.add(new CalcStep("Market prices far from your quotes", "—", "No market prices to check.", SKIPPED));
             } else if (agreement.credible()) {
                 kept.addAll(counted);
-                steps.add(new CalcStep("Market prices that look wrong", "none",
+                steps.add(new CalcStep("Market prices far from your quotes", "none",
                         "All " + counted.size() + " market prices agree with each other (from "
                                 + Js.fmtMoney(marketValues.get(0).doubleValue()) + " to "
                                 + Js.fmtMoney(marketValues.get(marketValues.size() - 1).doubleValue())
@@ -236,14 +237,14 @@ final class BuyTargetChain {
                     }
                 }
                 if (dropped.isEmpty()) {
-                    steps.add(new CalcStep("Market prices that look wrong", "none",
+                    steps.add(new CalcStep("Market prices far from your quotes", "none",
                             "All " + counted.size() + " market " + (counted.size() == 1 ? "price sits" : "prices sit")
                                     + " between a third and three times your suppliers' median "
                                     + Js.fmtMoney(supplierMedian.doubleValue()) + ".", APPLIED));
                 } else {
                     flags.add(BuyModelSummary.FLAG_COMPETITOR_IMPLAUSIBLE);
-                    steps.add(new CalcStep("Market prices that look wrong", dropped.size() + " left out",
-                            "Left out " + String.join("; ", why) + ": more likely a different product than the going rate.",
+                    steps.add(new CalcStep("Market prices far from your quotes", dropped.size() + " left out",
+                            "Left out " + String.join("; ", why) + ".",
                             APPLIED));
                 }
             }

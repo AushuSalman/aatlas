@@ -161,6 +161,13 @@
       <artifactId>tribuo-regression-tree</artifactId>
       <version>${tribuo.version}</version>
     </dependency>
+    <!-- Gradient boosting, for the bake-off against the forest only (ModelBakeOffTest): not on the runtime classpath. -->
+    <dependency>
+      <groupId>org.tribuo</groupId>
+      <artifactId>tribuo-regression-xgboost</artifactId>
+      <version>${tribuo.version}</version>
+      <scope>test</scope>
+    </dependency>
 
     <!-- ============ batch + scheduling ============ -->
     <dependency>

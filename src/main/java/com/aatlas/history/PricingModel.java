@@ -204,6 +204,7 @@ public final class PricingModel {
     public static final String DEMAND = "demand";
     public static final String DEMAND_MAX_MOVE = "demand.maxMove";
     public static final String DEMAND_MAX_AGE_DAYS = "demand.maxAgeDays";
+    public static final String DEMAND_TRAINED_MODEL = "demand.trainedModel";
     public static final String COMMODITY = "commodity";
     public static final String COMMODITY_PASS_THROUGH = "commodity.passThrough";
     public static final String LOCAL_MARKET = "localMarket";
@@ -321,19 +322,20 @@ public final class PricingModel {
                 "Even a competitor far below you moves the starting point by this much at most.", "10", "0", "30", "%",
                 ANCHOR_INTERNAL, "§3 step 8b");
         number(r, ANCHOR_EXTERNAL_DIVERGENCE, Group.COMPOSE, "Ignore competitor prices further away than",
-                "A price this far from your own is more likely a different product than a real market price.", "30",
+                "A competitor price further than this from your own starting point does not nudge it.", "30",
                 "5", "100", "%", ANCHOR_INTERNAL, "§3 step 8b");
         toggle(r, COMPETITORS, Group.COMPOSE, "Use competitor prices",
                 "Prices you imported, entered or fetched live count toward the starting point and the ceiling. "
                         + "Off: priced from your own history and the benchmarks only.", true, null, "§3 step 7");
-        toggle(r, COMPETITORS_PLAUSIBILITY, Group.COMPOSE, "Ignore a lone competitor price that looks wrong",
-                "A single competitor price under half or over twice what the item sells for today is left out. "
-                        + "Several competitors that agree with each other are never dropped for being far away.",
+        toggle(r, COMPETITORS_PLAUSIBILITY, Group.COMPOSE, "Leave out competitor prices far from your own",
+                "Competitor prices under half or over twice what the item sells for today are left out, and the "
+                        + "prices nearer yours are used. Several competitors that agree with each other are never "
+                        + "left out for being far away. Off: every competitor price counts.",
                 true, COMPETITORS, "§3 step 7");
         toggle(r, COMPETITORS_MARKET_GAP, Group.COMPOSE, "Follow the market when competitors clearly disagree with your price",
                 "When several competitor prices agree with each other but sit far from your price, the "
                         + "recommendation follows the market instead of your own history, past the usual phase-in "
-                        + "and move limits, and says so. Off: such prices are treated as a wrong match and ignored.",
+                        + "and move limits, and says so. Off: such prices are not used.",
                 true, COMPETITORS, "§3 step 7 and 8b");
         number(r, COMPETITORS_MARKET_GAP_MIN_AGREEING, Group.COMPOSE, "Competitors that must agree", "", "2", "1",
                 "10", "competitors", COMPETITORS_MARKET_GAP, "§3 step 7");
@@ -371,6 +373,10 @@ public final class PricingModel {
                 "§3 step 9");
         number(r, DEMAND_MAX_AGE_DAYS, Group.ADJUST, "Ignore when the last sale is older than", "", "45", "7", "365",
                 "days", DEMAND, "§3 step 9");
+        toggle(r, DEMAND_TRAINED_MODEL, Group.ADJUST, "Use a trained forecast for demand",
+                "A trained model's forecast of an item's next four weeks replaces the 90-day pace as the demand "
+                        + "signal. Which model forecasts is chosen under Forecasting model, in Settings. The "
+                        + "limits above still apply. Off: the 90-day pace.", true, DEMAND, "§3 step 9");
         toggle(r, COMMODITY, Group.ADJUST, "Follow commodity costs",
                 "Part of a rise or fall in the item's raw material, such as copper or steel, is passed into the price.",
                 true, null, "single-item step 4");
@@ -460,14 +466,14 @@ public final class PricingModel {
         toggle(r, BUY_MARKET_RETAIL_DERIVED, Group.BUY_COMPOSE, "Work back from shop prices",
                 "Competitors' median shop price less your category's target margin: what a seller at that price "
                         + "could afford to pay.", true, BUY_MARKET, "§3 step 7");
-        toggle(r, BUY_MARKET_PLAUSIBILITY, Group.BUY_COMPOSE, "Ignore a lone market price that looks wrong",
+        toggle(r, BUY_MARKET_PLAUSIBILITY, Group.BUY_COMPOSE, "Leave out a lone market price far from your suppliers' quotes",
                 "A single market price under a third or over three times your suppliers' median is left out. "
                         + "Several market prices that agree with each other are never dropped for being far away.",
                 true, BUY_MARKET, "§3 step 7");
         toggle(r, BUY_MARKET_GAP, Group.BUY_COMPOSE, "Follow the market when it clearly disagrees with what you pay",
                 "When open-market prices agree with each other but sit far below your suppliers' quotes, the "
-                        + "target follows the market instead of being dropped as a wrong match, past the usual "
-                        + "phase-in and move limits, and says so. Off: such prices are ignored.", true, BUY_MARKET,
+                        + "target follows the market instead of leaving those prices out, past the usual "
+                        + "phase-in and move limits, and says so. Off: such prices are not used.", true, BUY_MARKET,
                 "§3 step 7 and 8b");
         number(r, BUY_MARKET_GAP_MIN_AGREEING, Group.BUY_COMPOSE, "Market prices that must agree", "", "2", "1", "10",
                 "prices", BUY_MARKET_GAP, "§3 step 7");

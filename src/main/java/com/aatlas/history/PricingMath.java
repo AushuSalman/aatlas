@@ -128,15 +128,43 @@ public final class PricingMath {
      */
     public record Demand(String level, String label, double movePercent, double confWeight, double index,
             String confidence, String trendDirection, BigDecimal trendPct, BigDecimal recentVelocity,
-            BigDecimal expectedVelocity, double maxAdjustmentPct, int historyDays, long transactions) {
+            BigDecimal expectedVelocity, double maxAdjustmentPct, int historyDays, long transactions, String basis) {
 
         public static final String HIGH = "high";
+        /** The signal is the trailing 90 days against the 90 before. */
+        public static final String PACE = "pace";
+        /** The signal is the trained demand model's four-week forecast against the recent weeks. */
+        public static final String FORECAST = "forecast";
         public static final String MEDIUM = "medium";
         public static final String LOW = "low";
     }
 
     /** Null when there were no transactions in the 180 days: nothing to say. */
     public static Demand demand(SalesHistory.Velocity v) {
+        return demand(v, Demand.PACE);
+    }
+
+    /**
+     * The demand signal from the trained demand model: the weekly units it forecasts over the next four
+     * weeks against the units actually sold a week over the recent ones. Everything downstream is the same
+     * as for the 90-day pace - the same thresholds, the same scaling by confidence, the same cap in the
+     * chain - so the tenant's demand settings govern it unchanged. Falls back to the pace when there is no
+     * recent rate to compare with.
+     */
+    public static Demand demandForecast(SalesHistory.Velocity measured, BigDecimal forecastPerWeek,
+            BigDecimal recentPerWeek) {
+        if (forecastPerWeek == null || recentPerWeek == null || recentPerWeek.signum() <= 0) {
+            return demand(measured);
+        }
+        BigDecimal trend = pct(forecastPerWeek.subtract(recentPerWeek), recentPerWeek);
+        long recent = measured == null ? 10 : Math.max(1, measured.recentTxns());
+        long prior = measured == null ? 10 : measured.priorTxns();
+        SalesHistory.Velocity v = new SalesHistory.Velocity(forecastPerWeek, recentPerWeek, trend, recent, prior,
+                measured == null ? 0 : measured.historyDays(), measured == null ? null : measured.volumePercentile());
+        return demand(v, Demand.FORECAST);
+    }
+
+    private static Demand demand(SalesHistory.Velocity v, String basis) {
         if (v == null) {
             return null;
         }
@@ -170,7 +198,7 @@ public final class PricingMath {
         String confidence = n >= 40 ? "High" : n >= 15 ? "Medium" : "Low";
         String direction = trend == null || Math.abs(t) < 5 ? "flat" : t > 0 ? "up" : "down";
         return new Demand(level, label, move, confWeight, index, confidence, direction, trend,
-                v.recentPerWeek(), v.priorPerWeek(), 3, v.historyDays(), n);
+                v.recentPerWeek(), v.priorPerWeek(), 3, v.historyDays(), n, basis);
     }
 
     // ---- 3.1 recommendation --------------------------------------------------------------
@@ -231,7 +259,24 @@ public final class PricingMath {
             BigDecimal peerQ2, BigDecimal peerQ3, int peerStores,
             BigDecimal bandQ1, BigDecimal bandQ3, long bandN, Demand demand, LocalDate lastSale, LocalDate today,
             BigDecimal commodityPct90, BigDecimal rpp, SalesHistory.Elasticity elasticity, long ordersAtStore,
-            BigDecimal benchmarkTargetMarginPct, Reference.Guardrails guardrails, Track track, String rampSalt) {
+            BigDecimal benchmarkTargetMarginPct, Reference.Guardrails guardrails, Track track, String rampSalt,
+            List<BigDecimal> competitorPrices) {
+
+        /**
+         * The shape before each competitor price was passed in: with only the median, count, low and high, the
+         * set is judged as a whole.
+         */
+        public Inputs(BigDecimal cost, BigDecimal currentPrice, BigDecimal ownRef, Anchor ladderAnchor,
+                BigDecimal competitorMedian, int competitorCount, BigDecimal competitorLow, BigDecimal competitorHigh,
+                BigDecimal peerQ2, BigDecimal peerQ3, int peerStores,
+                BigDecimal bandQ1, BigDecimal bandQ3, long bandN, Demand demand, LocalDate lastSale, LocalDate today,
+                BigDecimal commodityPct90, BigDecimal rpp, SalesHistory.Elasticity elasticity, long ordersAtStore,
+                BigDecimal benchmarkTargetMarginPct, Reference.Guardrails guardrails, Track track, String rampSalt) {
+            this(cost, currentPrice, ownRef, ladderAnchor, competitorMedian, competitorCount, competitorLow,
+                    competitorHigh, peerQ2, peerQ3, peerStores, bandQ1, bandQ3, bandN, demand, lastSale, today,
+                    commodityPct90, rpp, elasticity, ordersAtStore, benchmarkTargetMarginPct, guardrails, track,
+                    rampSalt, null);
+        }
     }
 
     /**
@@ -278,11 +323,15 @@ public final class PricingMath {
         public static final String FLAG_CONSTRAINT_CONFLICT = "constraint_conflict";
         public static final String FLAG_TIER_GAP_INFEASIBLE = "tier_gap_infeasible";
         public static final String FLAG_COMPETITOR_IMPLAUSIBLE = "competitor_implausible";
+        /** Some competitor prices were far from the item's own and left out; the rest were used. */
+        public static final String FLAG_COMPETITORS_TRIMMED = "competitors_trimmed";
         /** Several competitors agree with each other far from this price: the recommendation follows them. */
         public static final String FLAG_MARKET_GAP = "market_gap";
         public static final String FLAG_CEILING_AT_FLOOR = "ceiling_at_floor";
         /** The price sensitivity came from the tenant's trained demand model, not the monthly regression. */
         public static final String FLAG_DEMAND_MODEL = "demand_model";
+        /** The demand step read the trained demand model's four-week forecast, not the 90-day pace. */
+        public static final String FLAG_DEMAND_FORECAST = "demand_forecast";
     }
 
     public static double anchorWeight(String source) {
@@ -394,6 +443,53 @@ public final class PricingMath {
         BigDecimal plausibleRef = p0 != null ? p0 : positive(in.peerQ2()) != null ? positive(in.peerQ2()) : hardFloor;
         String plausibleWhat = p0 != null ? "your price today" : positive(in.peerQ2()) != null
                 ? "your other branches' median" : "your minimum-margin price";
+        // With each price in hand, a set that disagrees with itself is judged price by price rather than kept
+        // or thrown out whole on its median. Prices within half to twice what the item sells for are used; the
+        // rest are too far from it to price against, and are left out. Nothing here can tell why a price is far
+        // away, so the notes say how far and never guess a cause. The one exception is a far group that agrees
+        // with itself and clearly outnumbers the near ones: that is the market sitting away from this price, and
+        // the market-gap step below reads it.
+        String trimmedNote = null;
+        List<BigDecimal> each = !competitorsOn || in.competitorPrices() == null ? List.of()
+                : in.competitorPrices().stream().map(PricingMath::positive).filter(p -> p != null).sorted().toList();
+        if (cm != null && each.size() >= 2 && plausibleRef != null && cfg.on(PricingModel.COMPETITORS_PLAUSIBILITY)) {
+            double within = 1 + cfg.number(PricingModel.COMPETITORS_MARKET_GAP_AGREEMENT) / 100;
+            boolean wholeAgrees = each.get(each.size() - 1).doubleValue() <= each.get(0).doubleValue() * within;
+            if (!wholeAgrees) {
+                BigDecimal half = times(plausibleRef, 0.5);
+                BigDecimal twice = times(plausibleRef, 2);
+                List<BigDecimal> near = each.stream().filter(p -> p.compareTo(half) >= 0 && p.compareTo(twice) <= 0)
+                        .toList();
+                List<BigDecimal> far = each.stream().filter(p -> p.compareTo(half) < 0 || p.compareTo(twice) > 0)
+                        .toList();
+                if (!near.isEmpty() && !far.isEmpty()) {
+                    boolean farIsTheMarket = cfg.on(PricingModel.COMPETITORS_MARKET_GAP)
+                            && far.size() >= (int) cfg.number(PricingModel.COMPETITORS_MARKET_GAP_MIN_AGREEING)
+                            && far.get(far.size() - 1).doubleValue() <= far.get(0).doubleValue() * within
+                            && far.size() >= 2 * near.size();
+                    List<BigDecimal> kept = farIsTheMarket ? far : near;
+                    List<BigDecimal> dropped = farIsTheMarket ? near : far;
+                    // Said by side: the kept prices sit between the two groups, so one range would mislead.
+                    List<BigDecimal> below = far.stream().filter(p -> p.compareTo(half) < 0).toList();
+                    List<BigDecimal> above = far.stream().filter(p -> p.compareTo(twice) > 0).toList();
+                    String farSides = (below.isEmpty() ? "" : below.size() + " under half of it (" + rangeOf(below) + ")")
+                            + (below.isEmpty() || above.isEmpty() ? "" : " and ")
+                            + (above.isEmpty() ? "" : above.size() + " over twice it (" + rangeOf(above) + ")");
+                    trimmedNote = farIsTheMarket
+                            ? dropped.size() + " of " + each.size() + " competitor price" + (dropped.size() == 1 ? "" : "s")
+                                    + " near " + plausibleWhat + " (" + rangeOf(dropped) + ") left out: the other "
+                                    + kept.size() + " agree with each other away from it."
+                            : dropped.size() + " of " + each.size() + " competitor price" + (dropped.size() == 1 ? "" : "s")
+                                    + " left out as far from " + plausibleWhat + " (" + money2(plausibleRef) + "): "
+                                    + farSides + ".";
+                    cm = medianOf(kept);
+                    cc = kept.size();
+                    cLow = kept.get(0);
+                    cHigh = kept.get(kept.size() - 1);
+                    r.flags.add(Recommendation.FLAG_COMPETITORS_TRIMMED);
+                }
+            }
+        }
         // Several competitors that agree with each other are a market, however far from this price:
         // an item on file at $3 whose live check finds three listings at $68-$72 is underpriced, not
         // mismatched. A lone price, or prices that disagree among themselves, is judged for plausibility.
@@ -420,14 +516,27 @@ public final class PricingMath {
                 : !competitorsAgree ? "Competitor prices disagree with each other" + spread + ", so no single market leads."
                 : "Competitors agree with your price (" + fmt(Math.abs(gapPct), 0) + "% away); the usual chain applies.";
         // Agreeing competitors are exempt from the plausibility gate only while the market-gap step is
-        // on; with it off, a far-away set is what the customer asked to treat as a wrong match.
+        // on; with it off, a far-away set is what the customer asked to leave out.
         if (cm != null && !(marketGapOn && competitorsAgree) && cfg.on(PricingModel.COMPETITORS_PLAUSIBILITY)
                 && plausibleRef != null
                 && (cm.compareTo(times(plausibleRef, 0.5)) < 0 || cm.compareTo(times(plausibleRef, 2)) > 0)) {
             r.flags.add(Recommendation.FLAG_COMPETITOR_IMPLAUSIBLE);
-            competitorNote = (cc <= 1 ? "A lone competitor price " : "Competitor prices that disagree with each other"
-                    + spread + ", median ") + money2(cm) + ", outside half to twice " + plausibleWhat + " ("
-                    + money2(plausibleRef) + "): more likely a different product or pack than a market; ignored.";
+            boolean closeTogether = cLow == null || cHigh == null
+                    || cHigh.doubleValue() <= cLow.doubleValue() * (1 + agreement);
+            String outside = " outside half to twice " + plausibleWhat + " (" + money2(plausibleRef) + "). ";
+            if (cc <= 1) {
+                competitorNote = "A lone competitor price " + money2(cm) + " is" + outside
+                        + "One price that far from yours is not enough to price against, so it was not used.";
+            } else if (!closeTogether) {
+                competitorNote = "Competitor prices that disagree with each other" + spread + ", median " + money2(cm)
+                        + ", are" + outside + "Prices that far from yours that also disagree with each other are "
+                        + "not enough to price against, so they were not used.";
+            } else {
+                competitorNote = cc + " competitor prices" + spread + ", median " + money2(cm) + ", are" + outside
+                        + (marketGapOn ? minAgreeing + " that agree are needed before prices that far from yours "
+                                + "can lead, so they were not used."
+                                : "Following the market is switched off, so they were not used.");
+            }
             cm = null;
             cc = 0;
             cLow = null;
@@ -441,11 +550,14 @@ public final class PricingMath {
         } else {
             competitorNote = competitorsOn ? "No competitor prices on file for this item." : "Competitor prices are off.";
         }
+        if (trimmedNote != null) {
+            competitorNote = competitorNote + " " + trimmedNote;
+        }
         String marketGapStatus;
         String marketGapNote;
         if (!marketGapOn) {
             marketGapStatus = Step.OFF;
-            marketGapNote = "Off; competitors far from your price are treated as a wrong match.";
+            marketGapNote = "Off; competitor prices far from your price are not used.";
         } else if (marketGap) {
             marketGapStatus = Step.APPLIED;
             marketGapNote = competitorNote;
@@ -707,9 +819,18 @@ public final class PricingMath {
                 double move = Stats.clamp(demand.movePercent() * (maxMove / 3.0), -maxMove, maxMove);
                 r.scaleBoth(1 + move / 100);
                 afterDemand = r.win;
+                boolean forecast = Demand.FORECAST.equals(demand.basis());
                 r.step(PricingModel.DEMAND, "Demand", Step.APPLIED, demand.label() + ": " + signed(move, 2)
-                        + "% (recent pace " + demand.recentVelocity() + "/wk against " + demand.expectedVelocity()
-                        + "/wk expected, confidence " + demand.confidence().toLowerCase(Locale.ROOT) + ").");
+                        + (forecast
+                                ? "% (the trained demand model forecasts " + demand.recentVelocity()
+                                        + "/wk over the next four weeks against " + demand.expectedVelocity()
+                                        + "/wk recently, confidence "
+                                : "% (recent pace " + demand.recentVelocity() + "/wk against "
+                                        + demand.expectedVelocity() + "/wk expected, confidence ")
+                        + demand.confidence().toLowerCase(Locale.ROOT) + ").");
+                if (forecast) {
+                    r.flags.add(Recommendation.FLAG_DEMAND_FORECAST);
+                }
             }
         }
 
@@ -984,6 +1105,20 @@ public final class PricingMath {
             rounded = round2(clamp(price, lo, hi));
         }
         return rounded;
+    }
+
+    /** "$9.53 to $61.85", or the one price, for prices already sorted ascending. */
+    private static String rangeOf(List<BigDecimal> sorted) {
+        return sorted.size() == 1 ? money2(sorted.get(0))
+                : money2(sorted.get(0)) + " to " + money2(sorted.get(sorted.size() - 1));
+    }
+
+    /** The median of prices already sorted ascending. */
+    private static BigDecimal medianOf(List<BigDecimal> sorted) {
+        int n = sorted.size();
+        BigDecimal mid = n % 2 == 1 ? sorted.get(n / 2)
+                : sorted.get(n / 2 - 1).add(sorted.get(n / 2)).divide(BigDecimal.valueOf(2), 4, RoundingMode.HALF_UP);
+        return mid.setScale(4, RoundingMode.HALF_UP);
     }
 
     private static BigDecimal positive(BigDecimal v) {

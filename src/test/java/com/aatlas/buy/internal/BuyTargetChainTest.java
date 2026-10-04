@@ -239,7 +239,7 @@ class BuyTargetChainTest {
         assertThat(r.marketHigh()).isEqualByComparingTo("7.5");
         assertThat(r.flags()).containsExactly(BuyModelSummary.FLAG_COMPETITOR_IMPLAUSIBLE);
         assertThat(r.targetBasis()).isEqualTo("panel");
-        CalcStep check = step(r, "Market prices that look wrong");
+        CalcStep check = step(r, "Market prices far from your quotes");
         assertThat(check.kind()).isEqualTo("applied");
         assertThat(check.note()).contains("$30.00").contains("over three times");
 
@@ -261,7 +261,7 @@ class BuyTargetChainTest {
         assertThat(r.marketHigh()).isEqualByComparingTo("30.00");
         assertThat(r.flags()).isEmpty();
         assertThat(r.targetBasis()).isEqualTo("panel+market");
-        assertThat(step(r, "Market prices that look wrong").kind()).isEqualTo("off");
+        assertThat(step(r, "Market prices far from your quotes").kind()).isEqualTo("off");
     }
 
     @Test
@@ -270,7 +270,7 @@ class BuyTargetChainTest {
         BuyTargetChain.Result r = compose(points, null, BuyTargetChain.Track.of(0, null), cfg(straight()));
         assertThat(r.points()).hasSize(2);
         assertThat(r.targetBasis()).isEqualTo("market");
-        assertThat(step(r, "Market prices that look wrong").kind()).isEqualTo("skipped");
+        assertThat(step(r, "Market prices far from your quotes").kind()).isEqualTo("skipped");
         // 5 + 35% of (17.5 − 5) = 9.375; no cost today, so nothing holds it.
         assertThat(r.target()).isEqualByComparingTo("9.375");
         assertThat(step(r, "Never above what you pay today").kind()).isEqualTo("skipped");
@@ -287,7 +287,7 @@ class BuyTargetChainTest {
         assertThat(r.target()).isEqualByComparingTo("6.70");
         assertThat(step(r, "Open-market evidence").kind()).isEqualTo("off");
         assertThat(r.steps()).extracting(CalcStep::label).doesNotContain("Bulk lots, per unit",
-                "Market prices that look wrong");
+                "Market prices far from your quotes");
 
         // With the market on, the bulk lots become the low and the should-cost joins the evidence.
         BuyTargetChain.Result on = compose(points, "9", BuyTargetChain.Track.of(0, null), cfg(straight()));
@@ -333,7 +333,7 @@ class BuyTargetChainTest {
     void everyModelStepIsRecordedWithAKind() {
         BuyTargetChain.Result r = compose(panel(), "9", BuyTargetChain.Track.of(0, null), Config.defaults());
         assertThat(r.steps()).extracting(CalcStep::label).containsSubsequence(
-                "Open-market evidence", "Market prices that look wrong", "Market gap", "Panel quotes, landed here",
+                "Open-market evidence", "Market prices far from your quotes", "Market gap", "Panel quotes, landed here",
                 "Market median",
                 "Between the best price and the median", "Never above what you pay today", "Your decisions",
                 "Phase-in", "Move cap", "Target set at");
@@ -379,8 +379,8 @@ class BuyTargetChainTest {
         assertThat(step.value()).isEqualTo("$3.00");
         assertThat(step.note()).isEqualTo("2 open-market prices agree at around $3.00 (from $2.90 to $3.10); "
                 + "your suppliers quote $60.00, and the market sits 95% below that. The target follows the market.");
-        assertThat(step(r, "Market prices that look wrong").kind()).isEqualTo("applied");
-        assertThat(step(r, "Market prices that look wrong").value()).isEqualTo("none");
+        assertThat(step(r, "Market prices far from your quotes").kind()).isEqualTo("applied");
+        assertThat(step(r, "Market prices far from your quotes").value()).isEqualTo("none");
         assertThat(step(r, "Market evidence, per unit").note()).contains("no longer starts from them");
         assertThat(step(r, "Phase-in").kind()).isEqualTo("skipped");
         assertThat(step(r, "Phase-in").note()).contains("follows the market at once");
@@ -435,7 +435,7 @@ class BuyTargetChainTest {
         CalcStep gap = step(r, "Market gap");
         assertThat(gap.kind()).isEqualTo("skipped");
         assertThat(gap.note()).contains("disagree with each other").contains("$3.00 to $40.00");
-        assertThat(step(r, "Market prices that look wrong").note()).contains("under a third");
+        assertThat(step(r, "Market prices far from your quotes").note()).contains("under a third");
         assertThat(step(r, "Phase-in").kind()).isEqualTo("applied");
     }
 
@@ -495,7 +495,7 @@ class BuyTargetChainTest {
         assertThat(r.marketLow()).isEqualByComparingTo("58");
         assertThat(r.target()).isEqualByComparingTo("58.70");
         assertThat(step(r, "Market gap").kind()).isEqualTo("off");
-        assertThat(step(r, "Market prices that look wrong").note()).contains("under a third");
+        assertThat(step(r, "Market prices far from your quotes").note()).contains("under a third");
     }
 
     @Test

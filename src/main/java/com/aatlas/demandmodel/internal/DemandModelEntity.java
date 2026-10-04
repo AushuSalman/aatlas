@@ -66,6 +66,10 @@ public class DemandModelEntity {
     @Column(name = "note")
     private String note;
 
+    /** The one forecaster the tenant chose to read for every item, by key; null for the one proven on each item. */
+    @Column(name = "forecast_model")
+    private String forecastModel;
+
     @Version
     @Column(name = "version")
     private Long version;
@@ -162,6 +166,15 @@ public class DemandModelEntity {
 
     public String getNote() {
         return note;
+    }
+
+    public String getForecastModel() {
+        return forecastModel;
+    }
+
+    /** Kept across training runs: a run replaces the model and its report, not what the tenant chose to read. */
+    void chooseForecastModel(String key) {
+        this.forecastModel = key;
     }
 
     public Long getVersion() {

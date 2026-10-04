@@ -6,12 +6,15 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import java.math.BigDecimal;
 import org.springframework.http.MediaType;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -51,6 +54,24 @@ class DemandModelController {
     @PostMapping("/train")
     DemandModels.Status train() {
         return models.train();
+    }
+
+    /** @param model a key from the status's {@code forecastModels}: {@code auto}, {@code chronos}, {@code forest}, ... */
+    record ForecastModelRequest(@NotBlank String model) {
+    }
+
+    @Operation(summary = "Choose the forecasting model",
+            description = "Which forecaster the Sell demand step reads: auto for the one proven on each item, or one "
+                    + "model for every item it has a forecast for. Takes effect at once, with no retraining. Only "
+                    + "seats whose persona may change the pricing model.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Saved; the status and report as they read under the new choice."),
+        @ApiResponse(responseCode = "400", description = "Not a forecasting model this API offers (code validation_failed)."),
+        @ApiResponse(responseCode = "403", description = "This seat may not change it (code not_allowed).")
+    })
+    @PutMapping(path = "/forecast-model", consumes = MediaType.APPLICATION_JSON_VALUE)
+    DemandModels.Status chooseForecastModel(@RequestBody @Valid ForecastModelRequest body) {
+        return models.chooseForecastModel(body.model());
     }
 
     @Operation(summary = "Forecast one pair at a price",

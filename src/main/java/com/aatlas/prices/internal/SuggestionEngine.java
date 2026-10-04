@@ -177,7 +177,7 @@ final class SuggestionEngine {
             r.steps.add(PricingModel.COMPETITORS, "Competitor prices", SKIPPED, "Competitor median "
                     + r.money(r.observed.median()) + " is under half or over twice "
                     + (current != null ? "today's price " + r.money(current) : "the minimum-margin price " + r.money(r.floor))
-                    + ", more likely a different product than a market; ignored.");
+                    + ": too far from it to price against, so it was not used.");
         } else {
             r.competitor = r.observed;
             r.steps.add(PricingModel.COMPETITORS, "Competitor prices", APPLIED, "Median " + r.money(r.competitor.median())

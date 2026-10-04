@@ -114,51 +114,86 @@ public class PricingEngine {
     }
 
     /**
-     * The trained demand model's price sensitivity for the pair, in place of the monthly regression's, when
-     * the tenant's model allows it ({@code elasticity} and {@code elasticity.trainedModel} on) and the
-     * demand model has proven itself there: it beat the baseline on the pair's held-out weeks and its probed
-     * response is downward. It enters the chain exactly as a measurement does - blended with the prior at the
-     * model's own weight - so the same settings govern it. Anything else, or any failure, leaves the
-     * regression's answer.
+     * What the trained demand model contributes for the pair, where the tenant's model allows it and the
+     * demand model has proven itself there. Two things, each on its own evidence:
+     *
+     * <p>its <b>price read</b> ({@code elasticity.trainedModel}) replaces the monthly regression's sensitivity
+     * when the one-week forecast beat the baseline on the pair's held-out weeks and the probed response is
+     * downward. It enters the chain exactly as a measurement does - blended with the prior at the model's own
+     * weight;
+     *
+     * <p>its <b>four-week forecast</b> ({@code demand.trainedModel}) replaces the 90-day pace as the demand
+     * signal when that forecast beat the pair's recent average on the held-out weeks. The demand step's own
+     * limits apply to it unchanged.
+     *
+     * <p>Anything else, or any failure, leaves the rule engine's own figures.
      */
-    private DemandPick withDemandModel(SalesHistory.Elasticity measured, String item, String storeCode,
-            BigDecimal price, com.aatlas.history.PricingModel.Config cfg) {
-        if (!cfg.on(com.aatlas.history.PricingModel.ELASTICITY)
-                || !cfg.on(com.aatlas.history.PricingModel.ELASTICITY_TRAINED_MODEL)) {
-            return new DemandPick(measured, DemandModelUse.of(DemandModelUse.OFF,
+    private DemandPick withDemandModel(SalesHistory.Elasticity measured, Velocity velocity, String item,
+            String storeCode, BigDecimal price, com.aatlas.history.PricingModel.Config cfg) {
+        PricingMath.Demand pace = PricingMath.demand(velocity);
+        boolean priceOn = cfg.on(com.aatlas.history.PricingModel.ELASTICITY)
+                && cfg.on(com.aatlas.history.PricingModel.ELASTICITY_TRAINED_MODEL);
+        boolean forecastOn = cfg.on(com.aatlas.history.PricingModel.DEMAND)
+                && cfg.on(com.aatlas.history.PricingModel.DEMAND_TRAINED_MODEL);
+        if (!priceOn && !forecastOn) {
+            return new DemandPick(measured, pace, DemandModelUse.of(DemandModelUse.OFF,
                     "The trained demand model is switched off in Settings."));
         }
         if (storeCode == null || price == null || price.signum() <= 0) {
-            return new DemandPick(measured, DemandModelUse.of(DemandModelUse.NOT_IN_MODEL,
+            return new DemandPick(measured, pace, DemandModelUse.of(DemandModelUse.NOT_IN_MODEL,
                     "There is no branch or price on file to ask the demand model about."));
         }
         try {
             java.util.Optional<com.aatlas.demandmodel.DemandModels.Forecast> found = demandModels.forecast(item,
                     storeCode, price);
             if (found.isEmpty()) {
-                return new DemandPick(measured, demandModels.trained()
+                return new DemandPick(measured, pace, demandModels.trained()
                         ? DemandModelUse.of(DemandModelUse.NOT_IN_MODEL,
                                 "This item at this branch is not in the demand model: too little sales history.")
                         : DemandModelUse.of(DemandModelUse.NOT_TRAINED,
                                 "No demand model is trained for this business yet."));
             }
             com.aatlas.demandmodel.DemandModels.Forecast f = found.get();
-            if (!f.usable() || f.elasticity() == null || f.elasticity().signum() >= 0) {
-                return new DemandPick(measured, new DemandModelUse(DemandModelUse.NOT_USABLE, whyNotUsable(f),
-                        f.elasticity(), f.errorPct(), f.baselineErrorPct()));
-            }
-            SalesHistory.Elasticity modelled = new SalesHistory.Elasticity(f.elasticity(), null,
-                    Math.max(1, (int) Math.round(f.weeks() / 4.345)), SalesHistory.Elasticity.MODEL, null);
-            return new DemandPick(modelled, new DemandModelUse(DemandModelUse.USED,
-                    "Its price sensitivity is used for this item.", f.elasticity(), f.errorPct(),
-                    f.baselineErrorPct()));
+
+            boolean priceUsable = priceOn && f.usable() && f.elasticity() != null && f.elasticity().signum() < 0;
+            SalesHistory.Elasticity elasticity = priceUsable
+                    ? new SalesHistory.Elasticity(f.elasticity(), null,
+                            Math.max(1, (int) Math.round(f.weeks() / 4.345)), SalesHistory.Elasticity.MODEL, null)
+                    : measured;
+            String status = !priceOn ? DemandModelUse.OFF : priceUsable ? DemandModelUse.USED : DemandModelUse.NOT_USABLE;
+            String note = !priceOn ? "Its read of price is switched off in Settings."
+                    : priceUsable ? "Its price sensitivity is used for this item." : whyNotUsable(f);
+
+            boolean forecastUsable = forecastOn && f.forecastUsable() && f.horizonUnitsPerWeek() != null
+                    && f.trailingUnitsPerWeek() != null && f.trailingUnitsPerWeek().signum() > 0;
+            PricingMath.Demand demand = forecastUsable
+                    ? PricingMath.demandForecast(velocity, f.horizonUnitsPerWeek(), f.trailingUnitsPerWeek())
+                    : pace;
+            String forecastStatus = !forecastOn ? DemandModelUse.OFF
+                    : forecastUsable ? DemandModelUse.USED : DemandModelUse.NOT_USABLE;
+            String forecastNote = !forecastOn ? "Its forecast is switched off in Settings."
+                    : forecastUsable
+                            ? "Its forecast (" + (f.forecastMethod() == null ? "Random forest" : f.forecastMethod())
+                                    + ") sets the demand step: " + f.horizonUnitsPerWeek().toPlainString()
+                                    + " a week expected over the next four weeks, against "
+                                    + f.trailingUnitsPerWeek().toPlainString() + " a week recently."
+                                    + (f.forecastProven() ? "" : " It is the model chosen in Settings; it has not "
+                                            + "beaten this item's recent average in both back-tests.")
+                    : f.forecastNote() != null ? f.forecastNote() + " The 90-day pace is used."
+                    : f.horizonErrorPct() == null
+                            ? "This item sold too little in the latest weeks to check a forecast, so the 90-day pace is used."
+                            : "No forecast method beat the item's recent average in two back-tests in a row, so the "
+                                    + "90-day pace is used.";
+            return new DemandPick(elasticity, demand, new DemandModelUse(status, note, f.elasticity(), f.errorPct(),
+                    f.baselineErrorPct(), forecastStatus, forecastNote, f.horizonUnitsPerWeek(),
+                    f.trailingUnitsPerWeek(), f.horizonErrorPct(), f.horizonBaselineErrorPct()));
         } catch (RuntimeException ex) {
-            return new DemandPick(measured, null);
+            return new DemandPick(measured, pace, null);
         }
     }
 
-    /** The sensitivity the chain will run on, and what the demand model had to do with it. */
-    private record DemandPick(SalesHistory.Elasticity elasticity, DemandModelUse use) {
+    /** The sensitivity and the demand signal the chain will run on, and what the demand model had to do with them. */
+    private record DemandPick(SalesHistory.Elasticity elasticity, PricingMath.Demand demand, DemandModelUse use) {
     }
 
     /** Why the model stood aside for a pair it knows, in the words a seller would use. */
@@ -228,11 +263,6 @@ public class PricingEngine {
         BigDecimal ownRef = itemStoreStats.lastPrice();
 
         Velocity velocity = sales.velocity(productId, storeUuid, today);
-        PricingMath.Demand demand = PricingMath.demand(velocity);
-        DemandModel demandModel = demand == null ? null : toDemandModel(demand);
-        if (demand == null) {
-            locked.add("demand");
-        }
 
         Reference.Guardrails guardrails = reference.guardrails();
 
@@ -273,11 +303,17 @@ public class PricingEngine {
         // What applied prices actually did for this item (measured sales before against after) is folded
         // into the sensitivity: the model learns from outcomes, not only from what was chosen.
         // The tenant's model is read here, ahead of the chain, because it also decides whether the trained
-        // demand model may answer for this pair.
+        // demand model may answer for this pair: its four-week forecast for the demand step, its price read
+        // for the sensitivity.
         com.aatlas.history.PricingModel.Config cfg = reference.pricingModel();
-        DemandPick demandPick = withDemandModel(sales.elasticity(productId, storeUuid, today), item,
+        DemandPick demandPick = withDemandModel(sales.elasticity(productId, storeUuid, today), velocity, item,
                 store != null ? store.storeCode() : null, currentPriceValue, cfg);
         SalesHistory.Elasticity elasticity = outcomes.blend(demandPick.elasticity(), item, today);
+        PricingMath.Demand demand = demandPick.demand();
+        DemandModel demandModel = demand == null ? null : toDemandModel(demand);
+        if (demand == null) {
+            locked.add("demand");
+        }
         BigDecimal beta = elasticity.coefficient();
 
         Window w90 = Window.trailingDays(today, 90);
@@ -317,7 +353,9 @@ public class PricingEngine {
                 competitorLow, competitorHigh,
                 peerQ2, peerQ3, peerStores, bandQ1, band.map(PriceBand::q3).orElse(null),
                 band.map(PriceBand::n).orElse(0L), demand, lastSale, today, commodityPct90, rpp, elasticity,
-                itemStoreStats.txns(), benchmarkTargetMarginPct, guardrails, track, rampSalt);
+                itemStoreStats.txns(), benchmarkTargetMarginPct, guardrails, track, rampSalt,
+                // Each price, so a set that disagrees with itself can be judged one by one.
+                observations.stream().map(Observation::price).filter(p -> p != null && p.signum() > 0).toList());
         PricingMath.Recommendation rec = PricingMath.recommend(inputs, cfg).orElse(null);
 
         // The regional multiplier the chain would apply; "competition" only when the step ran
@@ -489,7 +527,8 @@ public class PricingEngine {
 
     private static com.aatlas.sell.internal.dto.PricingDtos.DemandModelDto demandModelDto(DemandModelUse use) {
         return use == null ? null : new com.aatlas.sell.internal.dto.PricingDtos.DemandModelDto(use.status(), use.note(),
-                use.elasticity(), use.errorPct(), use.baselineErrorPct());
+                use.elasticity(), use.errorPct(), use.baselineErrorPct(), use.forecastStatus(), use.forecastNote(),
+                use.horizonUnits(), use.trailingUnits(), use.horizonErrorPct(), use.horizonBaselineErrorPct());
     }
 
     private static PriceTierDto tierView(String label, BigDecimal price, PricingModel m, String blurb) {

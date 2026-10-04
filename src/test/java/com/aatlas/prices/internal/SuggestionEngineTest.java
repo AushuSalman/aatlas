@@ -304,7 +304,7 @@ class SuggestionEngineTest {
         assertThat(row.basis().get("competitor")).isNull();
         assertThat(status(row, PricingModel.COMPETITORS)).isEqualTo("skipped");
         assertThat(step(row, PricingModel.COMPETITORS).get("note").toString()).contains("$40.00").contains("$13.89")
-                .contains("ignored");
+                .contains("not used");
 
         SuggestionEngine.SuggestionRow kept = SuggestionEngine.suggest(inputs(
                 null, cost("10"), null, one("40.00"), null, null, NONE, off(PricingModel.COMPETITORS_PLAUSIBILITY),
@@ -620,7 +620,7 @@ class SuggestionEngineTest {
         assertThat(row.basis().get("marketGap")).isNull();
         assertThat(status(row, PricingModel.COMPETITORS)).isEqualTo("skipped");
         assertThat(step(row, PricingModel.COMPETITORS).get("note").toString()).contains("$70.00")
-                .contains("today's price $3.00").contains("ignored");
+                .contains("today's price $3.00").contains("not used");
         assertThat(status(row, PricingModel.COMPETITORS_MARKET_GAP)).isEqualTo("skipped");
         assertThat(step(row, PricingModel.COMPETITORS_MARKET_GAP).get("note")).isEqualTo("Only one competitor price.");
         assertThat(status(row, PricingModel.MOVE_CAP)).isEqualTo("applied");
@@ -669,7 +669,7 @@ class SuggestionEngineTest {
         assertThat(row.basis().get("competitor")).isNull();
         assertThat(row.basis().get("marketGap")).isNull();
         assertThat(status(row, PricingModel.COMPETITORS)).isEqualTo("skipped");
-        assertThat(step(row, PricingModel.COMPETITORS).get("note").toString()).contains("ignored");
+        assertThat(step(row, PricingModel.COMPETITORS).get("note").toString()).contains("not used");
         assertThat(status(row, PricingModel.COMPETITORS_MARKET_GAP)).isEqualTo("off");
         assertThat(status(row, PricingModel.CEILING_PLAUSIBILITY)).isEqualTo("applied");
         assertThat(status(row, PricingModel.MOVE_CAP)).isEqualTo("applied");

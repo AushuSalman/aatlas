@@ -102,7 +102,10 @@ public final class PricingDtos {
      * error against the baseline's (percent of units sold).
      */
     public record DemandModelDto(String status, String note, BigDecimal elasticity, BigDecimal errorPct,
-            BigDecimal baselineErrorPct) {
+            BigDecimal baselineErrorPct,
+            /** The four-week forecast's verdict: {@code used}, {@code not_usable} or {@code off}; null when the pair is not in a model. */
+            String forecastStatus, String forecastNote, BigDecimal horizonUnitsPerWeek, BigDecimal trailingUnitsPerWeek,
+            BigDecimal horizonErrorPct, BigDecimal horizonBaselineErrorPct) {
     }
 
     /**

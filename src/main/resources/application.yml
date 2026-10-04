@@ -302,6 +302,13 @@ aatlas:
     # Pairs spanning fewer weeks are left out; at most this many pairs (the busiest) are loaded per tenant.
     min-weeks: 12
     max-pairs: 2000
+    # Chronos, a pretrained time-series model, joins the four-week forecast contest when its service
+    # (scripts/chronos_server.py) is running and its URL is set here. It is asked for forecasts over HTTP and
+    # has to beat the recent average twice like every other forecaster. Unset, or not answering: the contest
+    # runs without it.
+    chronos:
+      url: ${CHRONOS_URL:}
+      timeout-seconds: 120
   delivery-model:
     # The delivery model (supplymodel module): two random forests per tenant on its received purchase orders - the
     # slip in days against what the supplier promised, and late as 0/1 read as a probability. Nightly after the

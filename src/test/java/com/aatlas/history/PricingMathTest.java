@@ -61,12 +61,13 @@ class PricingMathTest {
         BigDecimal benchmarkTargetMarginPct = bd("40");
         PricingMath.Track track = PricingMath.Track.none();
         String rampSalt = "CU-ELBOW-34|100959|2026-09";
+        java.util.List<BigDecimal> competitorPrices = null;
 
         PricingMath.Inputs build() {
             return new PricingMath.Inputs(cost, current, ownRef, ladderAnchor, competitorMedian, competitorCount,
                     competitorLow, competitorHigh,
                     peerQ2, peerQ3, peerStores, bandQ1, bandQ3, bandN, demand, lastSale, TODAY, commodityPct90, rpp,
-                    elasticity, ordersAtStore, benchmarkTargetMarginPct, GUARDRAILS, track, rampSalt);
+                    elasticity, ordersAtStore, benchmarkTargetMarginPct, GUARDRAILS, track, rampSalt, competitorPrices);
         }
 
         Recommendation run(PricingModel.Config config) {
@@ -92,6 +93,100 @@ class PricingMathTest {
 
     private static Step step(Recommendation rec, String key) {
         return rec.steps().stream().filter(s -> key.equals(s.key())).findFirst().orElseThrow();
+    }
+
+    /** A case whose competitor prices are given one by one; the aggregates are what the engine would compute from them. */
+    private static Case withCompetitors(String... prices) {
+        Case c = new Case();
+        java.util.List<BigDecimal> each = java.util.Arrays.stream(prices).map(PricingMathTest::bd).sorted().toList();
+        c.competitorPrices = each;
+        c.competitorCount = each.size();
+        c.competitorLow = each.get(0);
+        c.competitorHigh = each.get(each.size() - 1);
+        int n = each.size();
+        c.competitorMedian = n % 2 == 1 ? each.get(n / 2)
+                : each.get(n / 2 - 1).add(each.get(n / 2)).divide(bd("2"));
+        return c;
+    }
+
+    @Test
+    @DisplayName("competitor prices that disagree are judged one by one: the far ones are left out, the near ones used")
+    void competitorsTrimmed() {
+        // Today's price is $10. Three sellers near it, four far above it that do not agree with each other.
+        Case c = withCompetitors("9.50", "10.20", "11.00", "28.00", "31.00", "55.00", "60.00");
+        Recommendation rec = c.run();
+        assertThat(rec.flags()).contains(Recommendation.FLAG_COMPETITORS_TRIMMED)
+                .doesNotContain(Recommendation.FLAG_COMPETITOR_IMPLAUSIBLE, Recommendation.FLAG_MARKET_GAP);
+        Step step = step(rec, PricingModel.COMPETITORS);
+        assertThat(step.status()).isEqualTo(Step.APPLIED);
+        assertThat(step.note()).contains("Median $10.20 over 3 competitors")
+                .contains("4 of 7 competitor prices left out as far from your price today ($10.00): 4 over twice it ($28.00 to $60.00)");
+
+        // Far on both sides: said by side, because the kept prices sit between the two groups.
+        Step both = step(withCompetitors("2.00", "3.00", "9.50", "10.20", "11.00", "28.00", "60.00").run(), PricingModel.COMPETITORS);
+        assertThat(both.note()).contains("4 of 7 competitor prices left out")
+                .contains("2 under half of it ($2.00 to $3.00) and 2 over twice it ($28.00 to $60.00)");
+
+        // The same set as a whole, without the individual prices: its median is over twice the price, so all of it goes.
+        Case whole = withCompetitors("9.50", "10.20", "11.00", "28.00", "31.00", "55.00", "60.00");
+        whole.competitorPrices = null;
+        assertThat(whole.run().flags()).contains(Recommendation.FLAG_COMPETITOR_IMPLAUSIBLE)
+                .doesNotContain(Recommendation.FLAG_COMPETITORS_TRIMMED);
+
+        // Nothing near the price and no agreement among the far ones: still a wrong match, still ignored.
+        Recommendation none = withCompetitors("28.00", "55.00", "90.00").run();
+        assertThat(none.flags()).contains(Recommendation.FLAG_COMPETITOR_IMPLAUSIBLE)
+                .doesNotContain(Recommendation.FLAG_COMPETITORS_TRIMMED);
+
+        // A far group that agrees with itself and clearly outnumbers the near one is the market, not a mismatch.
+        Recommendation market = withCompetitors("10.40", "68.00", "70.00", "71.00", "72.00").run();
+        assertThat(market.flags()).contains(Recommendation.FLAG_MARKET_GAP, Recommendation.FLAG_COMPETITORS_TRIMMED);
+        assertThat(step(market, PricingModel.COMPETITORS).note()).contains("1 of 5 competitor price near your price today");
+
+        // With the safety switch off, nothing is left out.
+        Map<String, PricingModel.Setting> raw = new java.util.LinkedHashMap<>();
+        raw.put(PricingModel.COMPETITORS_PLAUSIBILITY, PricingModel.Setting.on(false));
+        assertThat(c.run(PricingModel.Config.of(raw)).flags())
+                .doesNotContain(Recommendation.FLAG_COMPETITORS_TRIMMED, Recommendation.FLAG_COMPETITOR_IMPLAUSIBLE);
+
+        // Prices that all sit near the item's own are untouched.
+        assertThat(withCompetitors("9.50", "10.20", "11.00", "16.00").run().flags())
+                .doesNotContain(Recommendation.FLAG_COMPETITORS_TRIMMED, Recommendation.FLAG_COMPETITOR_IMPLAUSIBLE);
+    }
+
+    @Test
+    @DisplayName("the trained model's four-week forecast drives the demand step under the same cap, named and flagged")
+    void demandForecastStep() {
+        SalesHistory.Velocity measured = new SalesHistory.Velocity(bd("40"), bd("40"), bd("0"), 30, 30, 180, bd("0.5"));
+        // 52 a week forecast against 40 a week recently: demand rising by 30%.
+        Case c = new Case();
+        c.demand = PricingMath.demandForecast(measured, bd("52"), bd("40"));
+        c.lastSale = TODAY.minusDays(3);
+        assertThat(c.demand.basis()).isEqualTo(PricingMath.Demand.FORECAST);
+        assertThat(c.demand.level()).isEqualTo(PricingMath.Demand.HIGH);
+        Recommendation rec = c.run();
+        assertThat(rec.flags()).contains(Recommendation.FLAG_DEMAND_FORECAST);
+        Step step = step(rec, PricingModel.DEMAND);
+        assertThat(step.note()).contains("trained demand model forecasts 52/wk over the next four weeks against 40/wk recently");
+
+        // The tenant's cap on the demand step still binds: at 1% the forecast can move the price no further.
+        Map<String, PricingModel.Setting> raw = new java.util.LinkedHashMap<>();
+        raw.put(PricingModel.DEMAND_MAX_MOVE, PricingModel.Setting.value(bd("1")));
+        Step capped = step(c.run(PricingModel.Config.of(raw)), PricingModel.DEMAND);
+        assertThat(step.note()).as("the default 3% cap, scaled by confidence").contains("+2.85%");
+        assertThat(capped.note()).as("a 1% cap scales the same signal down").contains("+0.95%");
+
+        // The 90-day pace is worded and flagged as before.
+        Case pace = new Case();
+        pace.demand = PricingMath.demand(new SalesHistory.Velocity(bd("52"), bd("40"), bd("30"), 30, 30, 180, bd("0.5")));
+        pace.lastSale = TODAY.minusDays(3);
+        Recommendation paced = pace.run();
+        assertThat(pace.demand.basis()).isEqualTo(PricingMath.Demand.PACE);
+        assertThat(paced.flags()).doesNotContain(Recommendation.FLAG_DEMAND_FORECAST);
+        assertThat(step(paced, PricingModel.DEMAND).note()).contains("recent pace 52/wk against 40/wk expected");
+
+        // No recent rate to compare with: the forecast cannot be read, the pace stands.
+        assertThat(PricingMath.demandForecast(measured, bd("52"), bd("0")).basis()).isEqualTo(PricingMath.Demand.PACE);
     }
 
     @Test

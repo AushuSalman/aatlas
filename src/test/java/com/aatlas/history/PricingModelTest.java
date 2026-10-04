@@ -173,6 +173,11 @@ class PricingModelTest {
         assertThat(buy.toggle()).isTrue();
         assertThat(buy.parent()).isEqualTo(PricingModel.BUY_RELIABILITY);
         PricingModel.Config defaults = PricingModel.Config.defaults();
+        PricingModel.Parameter forecast = PricingModel.registry(PricingModel.Side.SELL).stream()
+                .filter(p -> p.key().equals(PricingModel.DEMAND_TRAINED_MODEL)).findFirst().orElseThrow();
+        assertThat(forecast.toggle()).isTrue();
+        assertThat(forecast.parent()).isEqualTo(PricingModel.DEMAND);
+        assertThat(defaults.on(PricingModel.DEMAND_TRAINED_MODEL)).isTrue();
         assertThat(defaults.on(PricingModel.ELASTICITY_TRAINED_MODEL)).isTrue();
         assertThat(defaults.on(PricingModel.BUY_RELIABILITY_TRAINED_MODEL)).isTrue();
     }

@@ -17,8 +17,21 @@ import java.util.Optional;
  */
 public interface DemandModels {
 
-    /** The model's answer for a pair at a price; empty when the tenant has no trained model or the pair was not in it. */
+    /**
+     * The model's answer for a pair at a price, under the forecasting model the tenant chose; empty when the
+     * tenant has no trained model or the pair was not in it.
+     */
     Optional<Forecast> forecast(String itemNumber, String storeCode, BigDecimal price);
+
+    /**
+     * Choose the forecasting model for the current tenant: a key from {@link Status#forecastModels}. Takes
+     * effect at once, with no retraining. Only seats that may change the pricing model.
+     */
+    Status chooseForecastModel(String key);
+
+    /** A forecasting model a tenant can choose. {@code auto} reads, item by item, the forecaster proven on it. */
+    record ModelOption(String key, String label, String hint) {
+    }
 
     /** The current tenant's model: whether and when it trained, on how much, and the per-pair report. */
     Status status();
@@ -50,7 +63,21 @@ public interface DemandModels {
             BigDecimal errorPct,
             BigDecimal baselineErrorPct,
             Instant trainedAt,
-            String note) {
+            String note,
+            /** Weekly units the model expects over the next four weeks at {@code price}. */
+            BigDecimal horizonUnitsPerWeek,
+            /** The pair's actual weekly units over its last eight weeks. */
+            BigDecimal trailingUnitsPerWeek,
+            /** A forecaster beat the recent average on this pair in two back-tests in a row: the demand step may read it. */
+            boolean forecastUsable,
+            BigDecimal horizonErrorPct,
+            BigDecimal horizonBaselineErrorPct,
+            /** The forecaster the four-week figures are from, as a person reads it: "Croston SBA", "Random forest". */
+            String forecastMethod,
+            /** Why the forecast is or is not in use for the pair, in a sentence. */
+            String forecastNote,
+            /** That forecaster beat the recent average on this pair in both back-tests; false when it is used only because it was chosen. */
+            boolean forecastProven) {
     }
 
     /** One item at one branch, as the training run scored it. */
@@ -71,7 +98,14 @@ public interface DemandModels {
             BigDecimal lastPrice,
             BigDecimal forecastNextWeek,
             BigDecimal settledNextWeek,
-            String note) {
+            String note,
+            BigDecimal horizonUnitsPerWeek,
+            BigDecimal trailingUnitsPerWeek,
+            boolean forecastUsable,
+            BigDecimal horizonErrorPct,
+            BigDecimal horizonBaselineErrorPct,
+            String forecastMethod,
+            String forecastNote) {
     }
 
     /**
@@ -86,6 +120,8 @@ public interface DemandModels {
             int rows,
             int pairs,
             int pairsUsable,
+            /** Pairs where the four-week demand forecast beat the recent average and may be read by the demand step. */
+            int pairsForecastUsable,
             int weeks,
             LocalDate from,
             LocalDate to,
@@ -100,6 +136,12 @@ public interface DemandModels {
             LocalDate openWeekCountedFrom,
             /** Sales in finished weeks after the last one the model trained through: the next run picks them up. */
             int salesAwaitingRetrain,
-            List<PairReport> report) {
+            List<PairReport> report,
+            /** The forecasting model chosen in Settings, as a person reads it: "Automatic", "Chronos", "Random forest". */
+            String forecastModel,
+            /** The same as its key, one of {@code forecastModels}. */
+            String forecastModelKey,
+            /** Every forecasting model that can be chosen, in the order it is offered. */
+            List<ModelOption> forecastModels) {
     }
 }
