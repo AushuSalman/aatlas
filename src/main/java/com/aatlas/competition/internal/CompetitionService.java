@@ -62,11 +62,12 @@ class CompetitionService {
     private final TrackedCompetitors tracked;
     private final DataForSeoClient dataForSeo;
     private final PriceSourceSettings sourceSettings;
+    private final BuyChecks buyChecks;
     private final AatlasClock clock;
 
     CompetitionService(List<ShoppingProvider> providers, Catalogue catalogue, CompetitorPrices competitorPrices,
             CompetitorObservations observations, PricingMethod method, TrackedCompetitors tracked,
-            DataForSeoClient dataForSeo, PriceSourceSettings sourceSettings, AatlasClock clock) {
+            DataForSeoClient dataForSeo, PriceSourceSettings sourceSettings, BuyChecks buyChecks, AatlasClock clock) {
         // Priority order: when two providers find the same store, the first one's listing is kept.
         // A competitor's own page outranks an aggregator's listing of the same store.
         List<String> order = List.of(CompetitorSites.KEY, "serpapi", "oxylabs", "rainforest", "ebay");
@@ -80,6 +81,7 @@ class CompetitionService {
         this.tracked = tracked;
         this.dataForSeo = dataForSeo;
         this.sourceSettings = sourceSettings;
+        this.buyChecks = buyChecks;
         this.clock = clock;
     }
 
@@ -302,8 +304,16 @@ class CompetitionService {
                 "Per-unit prices of lots and cases (listing price ÷ quantity in the title). A rough trade price - "
                         + "real distributor prices are quoted privately; ask your panel with an RFQ.");
 
-        return new CompetitionDtos.BuyCheck(product.itemNumber(), product.description(), market.currency(), retailSide,
-                bulkSide);
+        CompetitionDtos.BuyCheck check = new CompetitionDtos.BuyCheck(product.itemNumber(), product.description(),
+                market.currency(), retailSide, bulkSide, clock.now());
+        // The whole check, so the next visit to the item opens on it with its fetch time.
+        buyChecks.save(TenantContext.requireTenantId(), product.id(), check);
+        return check;
+    }
+
+    /** The item's last Retail and bulk check, as it was shown; empty when none was run. */
+    java.util.Optional<CompetitionDtos.BuyCheck> latestBuyCheck(String itemNumber) {
+        return buyChecks.latest(TenantContext.requireTenantId(), product(itemNumber).id(), clock.now());
     }
 
     /**

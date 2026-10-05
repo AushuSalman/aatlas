@@ -135,8 +135,10 @@ final class CompetitionDtos {
      * The buy side's check: what the item sells for at retail (the ceiling a supplier's price
      * should sit well under) and what it goes for per unit in bulk lots (a rough trade price).
      * Retail is not saved; the bulk per-unit price is kept as the buying benchmark the buy recommendation reads.
+     * {@code checkedAt} is when the listings were fetched - they are live, so the page says how old they are.
      */
-    record BuyCheck(String item, String description, String currency, Side retail, Side bulk) {
+    record BuyCheck(String item, String description, String currency, Side retail, Side bulk,
+            java.time.Instant checkedAt) {
     }
 
     /** @param note why a side was not searched, or what it rests on */

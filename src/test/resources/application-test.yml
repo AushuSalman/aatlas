@@ -42,6 +42,8 @@ aatlas:
   competition:
     daily-refresh:
       enabled: false
+    ebay-retention:
+      enabled: false
   outcomes:
     enabled: false
   pricing-model:

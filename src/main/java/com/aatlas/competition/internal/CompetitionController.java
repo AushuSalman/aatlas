@@ -102,6 +102,14 @@ class CompetitionController {
         return service.buyCheck(item, providers, q);
     }
 
+    @Operation(summary = "The item's last Retail and bulk check, as it was shown",
+            description = "Every listing kept or dropped, with checkedAt - when the listings were fetched. 204 when none was run.")
+    @GetMapping("/items/{item}/buy-check/latest")
+    org.springframework.http.ResponseEntity<CompetitionDtos.BuyCheck> latestBuyCheck(@PathVariable String item) {
+        return service.latestBuyCheck(item).map(org.springframework.http.ResponseEntity::ok)
+                .orElseGet(() -> org.springframework.http.ResponseEntity.noContent().build());
+    }
+
     @Operation(summary = "The competitors this tenant tracks; active ones are priced from their own sites")
     @GetMapping("/competitors")
     List<CompetitionDtos.CompetitorView> competitors() {

@@ -266,6 +266,11 @@ aatlas:
       # tenant switched on (each tenant can turn this off in Settings). Runs on one pod (ShedLock).
       enabled: ${COMPETITION_DAILY_REFRESH:true}
       cron: "0 0 5 * * *"
+    ebay-retention:
+      # eBay's API licence: its listings may be kept 24h at most. Hourly, eBay listings older than
+      # that are removed from stored Retail and bulk checks (they are never served past 24h either).
+      enabled: ${EBAY_RETENTION:true}
+      cron: "0 15 * * * *"
     dataforseo:
       # Finds online competitors (DataForSEO Labs). Pay as you go, about $0.01 a search;
       # login and the generated API password at https://app.dataforseo.com/api-access
