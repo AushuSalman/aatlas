@@ -226,4 +226,22 @@ class CatalogController {
     CustomerView customer(@PathVariable String id) {
         return catalog.customer(id);
     }
+
+    /** @param segment contractor, institutional, industrial, walk-in, or unassigned to take it away */
+    record CustomerSegmentRequest(@jakarta.validation.constraints.NotBlank String segment) {
+    }
+
+    @Operation(summary = "Set an account's segment",
+            description = "Which kind of buyer the account is. A sales upload creates the accounts it finds as "
+                    + "unassigned; Insights groups revenue by this, so an account counts under its segment from "
+                    + "the next read.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "400", description = "unknown_segment: not one of the segments."),
+        @ApiResponse(responseCode = "403", description = "not_allowed: this seat may not change an account."),
+        @ApiResponse(responseCode = "404", description = "not_found: no such account.")
+    })
+    @PatchMapping(path = "/customers/{id}", consumes = MediaType.APPLICATION_JSON_VALUE)
+    CustomerView assignCustomerSegment(@PathVariable String id, @Valid @RequestBody CustomerSegmentRequest request) {
+        return catalog.assignSegment(id, request.segment());
+    }
 }

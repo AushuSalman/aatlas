@@ -43,6 +43,11 @@ public class CatalogService {
     private final ReferenceDataRepository reference;
     private final PriceList priceList;
     private final AatlasClock clock;
+    private final StoreAccess access;
+
+    /** What an account's segment can be set to, in the order it is offered; {@code unassigned} takes one away. */
+    static final List<String> CUSTOMER_SEGMENTS = List.of("contractor", "institutional", "industrial", "walk-in",
+            "unassigned");
 
     CatalogService(
             StoreRepository stores,
@@ -50,13 +55,15 @@ public class CatalogService {
             CustomerRepository customers,
             ReferenceDataRepository reference,
             PriceList priceList,
-            AatlasClock clock) {
+            AatlasClock clock,
+            StoreAccess access) {
         this.stores = stores;
         this.products = products;
         this.customers = customers;
         this.reference = reference;
         this.priceList = priceList;
         this.clock = clock;
+        this.access = access;
     }
 
     // ---- products ----------------------------------------------------------------------
@@ -184,6 +191,28 @@ public class CatalogService {
                 id -> customers.findByTenantIdAndId(tenantId, id))
                 .map(CustomerView::of)
                 .orElseThrow(() -> ApiException.notFound("Customer", idOrCode));
+    }
+
+    /**
+     * Says which segment an account belongs to. A sales upload creates the accounts it finds as
+     * {@code unassigned}, because a line of sales does not say what kind of buyer it was; until someone
+     * does, "who is buying" has one group and nothing to compare.
+     */
+    @Transactional
+    CustomerView assignSegment(String idOrCode, String segment) {
+        access.requireCustomerEditor();
+        UUID tenantId = Catalogues.requireCatalogue(stores);
+        String wanted = segment == null ? "" : segment.strip().toLowerCase(Locale.ROOT);
+        if (!CUSTOMER_SEGMENTS.contains(wanted)) {
+            throw ApiException.badRequest("unknown_segment",
+                    "A customer's segment is one of: " + String.join(", ", CUSTOMER_SEGMENTS) + ".");
+        }
+        CustomerEntity customer = Catalogues.findByCodeOrId(idOrCode,
+                code -> customers.findByTenantIdAndCode(tenantId, code),
+                id -> customers.findByTenantIdAndId(tenantId, id))
+                .orElseThrow(() -> ApiException.notFound("Customer", idOrCode));
+        customer.assignSegment(wanted);
+        return CustomerView.of(customers.save(customer));
     }
 
     // ---- reference ---------------------------------------------------------------------

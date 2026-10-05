@@ -11,7 +11,9 @@ import java.math.BigDecimal;
 record CustomerView(
         @Schema(example = "c-1") String id,
         @Schema(example = "Halloran Mechanical") String name,
-        @Schema(allowableValues = {"contractor", "institutional", "industrial", "walk-in"}) String segment,
+        @Schema(allowableValues = {"contractor", "institutional", "industrial", "walk-in", "unassigned"},
+                description = "unassigned until someone says which: an account created by a sales upload starts there.")
+        String segment,
         @Schema(allowableValues = {"A", "B", "C"}) String tier,
         @Schema(description = "Standing contractual discount off the recommended price.") BigDecimal agreedDiscountPct,
         @Schema(description = "Seeds the quantity box so a quote opens on a realistic deal.") int typicalQty,

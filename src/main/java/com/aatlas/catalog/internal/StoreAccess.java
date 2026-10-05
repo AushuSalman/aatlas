@@ -44,6 +44,16 @@ class StoreAccess {
                 "Only heads of sales and purchasing and the commercial director can add products."));
     }
 
+    /**
+     * The same seats for an account's segment: it decides which group the account's sales are counted in.
+     *
+     * @throws ApiException 403 not_allowed if this seat may not change an account
+     */
+    void requireCustomerEditor() {
+        requireHeadOrDirector(new ApiException(HttpStatus.FORBIDDEN, "not_allowed",
+                "Only heads of sales and purchasing and the commercial director can change a customer's segment."));
+    }
+
     private void requireHeadOrDirector(ApiException refusal) {
         String role = TenantContext.current().map(TenantContext.Actor::role).orElseThrow(() -> refusal);
         if (!policy.personaFor(TenantContext.requireTenantId(), role).isHeadOrDirector()) {

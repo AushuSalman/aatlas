@@ -66,6 +66,11 @@ public class CustomerEntity extends TenantScopedEntity {
         this.note = note;
     }
 
+    /** The group the account's sales are counted in; {@code unassigned} until someone says which. */
+    void assignSegment(String segment) {
+        this.segment = segment;
+    }
+
     public String getCode() {
         return code;
     }

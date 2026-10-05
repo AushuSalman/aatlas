@@ -95,9 +95,19 @@ class DemographicsEngine {
         };
     }
 
+    /** The segment of an account nobody has classified yet. */
+    private static final String UNASSIGNED = "unassigned";
+
     Demographics compute(Filter f, InsightsData data) {
         LocalDate today = data.today();
         Window window = windowFor(f.period(), today);
+        // Growth is this period against the one before. When the sales on file do not reach back over that
+        // earlier period, it holds a few days of sales at most and everything "grew" by thousands of percent:
+        // no growth figure is given then, rather than that one.
+        SalesHistory.Coverage coverage = salesHistory.coverage();
+        LocalDate earliest = coverage == null ? null : coverage.earliest();
+        boolean comparable = earliest == null
+                || !earliest.isAfter(window.prior().from().plusDays(Math.max(7, window.days() / 10)));
 
         List<Catalogue.StoreRef> scopedStores = scopedStores(f, data);
         boolean includeNoBranch = "all".equals(f.region()) && "all".equals(f.state()) && f.storeId() == null
@@ -119,8 +129,11 @@ class DemographicsEngine {
         for (GroupStats g : segGroups) {
             SalesStats cur = g.current();
             customers += cur.customers();
-            BigDecimal growth = growthPct(g);
-            segments.add(new SegmentRow(g.key(), SEGMENT_LABEL.getOrDefault(g.key().toLowerCase(java.util.Locale.ROOT), g.label()),
+            BigDecimal growth = growthPct(g, comparable);
+            // With no customer in the group, what is left is sales recorded without one: nobody to give a segment to.
+            String label = UNASSIGNED.equalsIgnoreCase(g.key()) && cur.customers() == 0 ? "Sales with no customer"
+                    : SEGMENT_LABEL.getOrDefault(g.key().toLowerCase(java.util.Locale.ROOT), g.label());
+            segments.add(new SegmentRow(g.key(), label,
                     round2(cur.revenue()), pctOf(cur.revenue(), totalRevenueSafe),
                     Fmt.dv(cur.grossMarginPct()), Fmt.dv(growth),
                     cur.customers() > 0 ? Fmt.dv(PricingMath.div(orZero(cur.revenue()), BigDecimal.valueOf(cur.customers()))) : null,
@@ -130,7 +143,7 @@ class DemographicsEngine {
         List<CategoryRow> categories = new ArrayList<>();
         for (GroupStats g : catGroups) {
             SalesStats cur = g.current();
-            BigDecimal growth = growthPct(g);
+            BigDecimal growth = growthPct(g, comparable);
             categories.add(new CategoryRow(g.key(), round2(cur.revenue()), pctOf(cur.revenue(), totalRevenueSafe),
                     Fmt.dv(cur.grossMarginPct()), Fmt.dv(growth), cur.units() == null ? 0 : cur.units().doubleValue(),
                     g.key().equalsIgnoreCase(f.category())));
@@ -139,10 +152,10 @@ class DemographicsEngine {
         Map<String, BigDecimal> categoryRevenueByStore = new LinkedHashMap<>();
         List<PlaceRow> places = new ArrayList<>();
         for (Catalogue.StoreRef store : scopedStores) {
-            places.add(placeRow(store.storeCode(), storeGroups, data));
+            places.add(placeRow(store.storeCode(), storeGroups, data, comparable));
         }
         if (includeNoBranch) {
-            places.add(placeRow(GeoEngine.NO_BRANCH, storeGroups, data));
+            places.add(placeRow(GeoEngine.NO_BRANCH, storeGroups, data, comparable));
         }
         BigDecimal placesRevenue = places.stream().map(p -> BigDecimal.valueOf(p.revenue()))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -179,15 +192,21 @@ class DemographicsEngine {
 
         String scopeLabel = scopeLabel(f, data, scopedStores);
         String where = "All regions".equals(scopeLabel) ? "across the network" : "in " + scopeLabel;
-        String headline = topSegment == null ? "" : topSegment.label() + " drive "
-                + Fmt.toFixed(topSegment.sharePct(), 0) + "% of revenue " + where + ".";
+        // "Unassigned" is not a kind of customer: it is every account nobody has given a segment yet.
+        boolean topUnassigned = topSegment != null && UNASSIGNED.equalsIgnoreCase(topSegment.segment());
+        String headline = topSegment == null ? ""
+                : topUnassigned && byRevenue.size() == 1
+                        ? "Your customers have no segment yet. Give each one a segment to see who is buying."
+                : (topUnassigned ? "Customers with no segment" : topSegment.label()) + " drive "
+                        + Fmt.toFixed(topSegment.sharePct(), 0) + "% of revenue " + where + ".";
 
         List<Action> actions = new ArrayList<>();
         if (topCategory != null) {
             actions.add(new Action("Review pricing for " + topCategory.category() + ", the top category " + where,
                     "/app/products?category=" + topCategory.category()));
         }
-        if (fastestSegment != null && fastestSegment != topSegment) {
+        if (fastestSegment != null && fastestSegment != topSegment && fastestSegment.growthPct() != null
+                && !UNASSIGNED.equalsIgnoreCase(fastestSegment.segment())) {
             actions.add(new Action("Stock the lines " + fastestSegment.label().toLowerCase(java.util.Locale.ROOT)
                     + " buy: fastest-growing segment " + where, "/app/stores"));
         }
@@ -197,7 +216,7 @@ class DemographicsEngine {
                 headline, actions);
     }
 
-    private PlaceRow placeRow(String storeCode, List<GroupStats> storeGroups, InsightsData data) {
+    private PlaceRow placeRow(String storeCode, List<GroupStats> storeGroups, InsightsData data, boolean comparable) {
         GroupStats g = InsightsData.group(storeGroups, storeCode).orElse(null);
         boolean noBranch = GeoEngine.NO_BRANCH.equals(storeCode);
         var store = noBranch ? null : data.store(storeCode).orElse(null);
@@ -212,7 +231,7 @@ class DemographicsEngine {
                 .max(Map.Entry.comparingByValue()).map(Map.Entry::getKey).orElse(null);
 
         BigDecimal revenue = g == null ? BigDecimal.ZERO : orZero(g.current().revenue());
-        BigDecimal growth = g == null ? null : growthPct(g);
+        BigDecimal growth = g == null ? null : growthPct(g, comparable);
 
         return new PlaceRow(storeCode, intel.label(), intel.city(), intel.state(), intel.regionKey(),
                 intel.regionLabel(), round2(revenue), 0, Fmt.dv(growth), intel.marginPct(), null, topCategory,
@@ -246,7 +265,11 @@ class DemographicsEngine {
         return region.map(Catalogue.RegionRef::shortLabel).orElse(f.region());
     }
 
-    private static BigDecimal growthPct(GroupStats g) {
+    /** Revenue against the period before, as a percentage; null when that period is not covered by the sales on file. */
+    private static BigDecimal growthPct(GroupStats g, boolean comparable) {
+        if (!comparable) {
+            return null;
+        }
         BigDecimal cur = orZero(g.current().revenue());
         BigDecimal prior = orZero(g.prior().revenue());
         return PricingMath.pct(cur.subtract(prior), prior);
