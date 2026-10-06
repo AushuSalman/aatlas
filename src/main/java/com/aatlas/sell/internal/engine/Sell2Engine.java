@@ -88,7 +88,9 @@ public class Sell2Engine {
         boolean cappedByPolicy = rawPremium > g.maxSpeedPremiumPct();
         double cost = d(intel.cost());
         double recommended = d(intel.recommended());
-        double floor = intel.cost() != null ? cost / (1 - g.minMarginPct() / 100) : 0;
+        // The chain's own floor (the learned one, or the fixed minimum margin when that is switched off).
+        double floor = intel.marginFloor() != null ? d(intel.marginFloor())
+                : intel.cost() != null ? cost / (1 - g.minMarginPct() / 100) : 0;
         double urgentPrice = round2(recommended * (1 + premiumPct / 100));
         double flexiblePrice = round2(Math.max(floor, recommended * (1 - 3.5 / 100)));
 
@@ -228,8 +230,17 @@ public class Sell2Engine {
                 : intel.recommended().doubleValue();
         double recommended = intel.recommended().doubleValue();
         double cost = d(intel.cost());
-        double cap = round2(marketPrice * (1 + g.maxMarketDeviationPct() / 100));
-        double floor = intel.cost() != null ? round2(cost / (1 - g.minMarginPct() / 100)) : Double.NEGATIVE_INFINITY;
+        // "Above market" needs a market: competitor or branch prices. A start worked out from cost (the target
+        // margin) or the item's own last price is not one, and capping 10% over a formula would undo the margin.
+        String anchor = intel.sources() == null ? null : intel.sources().get("anchor");
+        boolean hasMarket = "competitor".equals(anchor) || "peer".equals(anchor) || "internal-peer".equals(anchor);
+        double cap = hasMarket ? round2(marketPrice * (1 + g.maxMarketDeviationPct() / 100)) : Double.POSITIVE_INFINITY;
+        // The floor the chain priced against: the learned one (the low end of the margins really sold at), or
+        // the fixed minimum margin when the tenant has switched learning it off. Never a second, stricter floor.
+        double floor = intel.cost() == null ? Double.NEGATIVE_INFINITY
+                : intel.marginFloor() != null ? round2(d(intel.marginFloor()))
+                : round2(cost / (1 - g.minMarginPct() / 100));
+        double floorMarginPct = intel.cost() == null || floor <= 0 ? g.minMarginPct() : (floor - cost) / floor * 100;
         double finalPrice = recommended;
         String rule = "";
         boolean hasLimit = false;
@@ -242,7 +253,7 @@ public class Sell2Engine {
         }
         if (intel.cost() != null && finalPrice < floor) {
             finalPrice = floor;
-            rule = "Minimum " + Fmt.jsNum(g.minMarginPct()) + "% margin";
+            rule = "Minimum " + Fmt.jsNum(round1(floorMarginPct)) + "% margin";
             limit = floor;
             hasLimit = true;
         }

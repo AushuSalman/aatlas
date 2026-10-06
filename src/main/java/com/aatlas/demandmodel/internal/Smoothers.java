@@ -37,22 +37,25 @@ final class Smoothers {
     }
 
     static final List<Method> METHODS = List.of(
-            new Method(SES, "Exponential smoothing", new double[][] {{0.05}, {0.1}, {0.2}, {0.3}}),
-            new Method(SBA, "Croston SBA", new double[][] {{0.05}, {0.1}, {0.2}}),
-            new Method(TSB, "Croston TSB",
+            new Method(SES, "Aatlas Pulse 1.0", new double[][] {{0.05}, {0.1}, {0.2}, {0.3}}),
+            new Method(SBA, "Aatlas Burst 1.2", new double[][] {{0.05}, {0.1}, {0.2}}),
+            new Method(TSB, "Aatlas Burst 1.3",
                     new double[][] {{0.1, 0.05}, {0.1, 0.1}, {0.1, 0.2}, {0.2, 0.05}, {0.2, 0.1}, {0.2, 0.2}}));
 
     private Smoothers() {
     }
 
-    /** The name a person reads; the forest included. An unknown or missing key reads as the forest. */
+    /**
+     * The name a person reads, in Aatlas's own model names: Pulse (exponential smoothing), Burst 1.2 and 1.3
+     * (Croston SBA and TSB), Market (the random forest), Deep (the pretrained Chronos forecaster). The forest
+     * included. An unknown or missing key reads as the forest. */
     static String label(String key) {
         for (Method m : METHODS) {
             if (m.key().equals(key)) {
                 return m.label();
             }
         }
-        return CHRONOS.equals(key) ? "Chronos" : "Random forest";
+        return CHRONOS.equals(key) ? "Aatlas Deep 2.0" : "Aatlas Market 1.5";
     }
 
     /**

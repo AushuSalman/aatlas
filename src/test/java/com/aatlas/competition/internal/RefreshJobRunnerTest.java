@@ -21,15 +21,19 @@ class RefreshJobRunnerTest {
     private final RefreshJobs jobs = mock(RefreshJobs.class);
     private final CompetitionService competition = mock(CompetitionService.class);
     private final Notifications notifications = mock(Notifications.class);
+    private final PriceSchedules schedules = mock(PriceSchedules.class);
     @SuppressWarnings("unchecked")
     private final RefreshJobRunner runner = new RefreshJobRunner(mock(ObjectProvider.class), jobs, competition,
-            notifications);
+            notifications, schedules);
 
     private final UUID tenant = UUID.randomUUID();
     private final UUID id = UUID.randomUUID();
 
+    private final UUID schedule = UUID.randomUUID();
+
     private void job(String trigger, List<String> items) {
-        when(jobs.get(tenant, id)).thenReturn(new RefreshJobs.Job(id, trigger, "queued", List.of("ebay"), items,
+        when(jobs.get(tenant, id)).thenReturn(new RefreshJobs.Job(id, trigger,
+                "schedule".equals(trigger) ? schedule : null, "queued", List.of("ebay"), items,
                 items.size(), 0, 0, 0, 0, null, null, null, null, null));
     }
 
@@ -62,8 +66,8 @@ class RefreshJobRunnerTest {
     }
 
     @Test
-    void theDailyRunAlsoRefreshesTheBuyingBulkPriceOnEbay() {
-        job("daily", List.of("A-1", "B-2"));
+    void aScheduledRunAlsoRefreshesTheBuyingBulkPriceOnEbayAndIsNamed() {
+        job("schedule", List.of("A-1", "B-2"));
         ShoppingProvider ebay = mock(ShoppingProvider.class);
         when(ebay.key()).thenReturn("ebay");
         when(ebay.label()).thenReturn("eBay (Browse API)");
@@ -71,6 +75,7 @@ class RefreshJobRunnerTest {
         when(competition.refreshItem(any(), anyList(), anyList())).thenReturn(row("A-1", "saved", 1));
         when(competition.refreshBulkBenchmark("A-1")).thenReturn(true);
         when(competition.refreshBulkBenchmark("B-2")).thenReturn(false);
+        when(schedules.name(tenant, schedule)).thenReturn("Weekly wire");
 
         runner.execute(tenant, id);
 
@@ -79,8 +84,9 @@ class RefreshJobRunnerTest {
         ArgumentCaptor<String> title = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
         verify(notifications).publish(eq(tenant), eq("competitor-prices"), title.capture(), body.capture(), any());
-        assertThat(title.getValue()).isEqualTo("Today's competitor prices are in");
-        assertThat(body.getValue()).startsWith("Daily check: ").contains("Bulk-lot buying prices refreshed for 1.");
+        assertThat(title.getValue()).isEqualTo("Competitor prices updated - Weekly wire");
+        assertThat(body.getValue()).startsWith("Price check “Weekly wire”: ")
+                .contains("Bulk-lot buying prices refreshed for 1.");
     }
 
     @Test

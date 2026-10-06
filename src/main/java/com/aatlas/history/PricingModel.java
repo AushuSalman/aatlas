@@ -200,11 +200,20 @@ public final class PricingModel {
     public static final String TIER_GAP = "tierGap";
     public static final String TIER_GAP_BASE = "tierGap.base";
     public static final String TIER_GAP_CONTESTED = "tierGap.contested";
+    public static final String MARGIN_LEARNED = "margin.learned";
+    public static final String MARGIN_PRICE_LEVEL = "margin.priceLevel";
+    public static final String MARGIN_ENTRY = "margin.entry";
+    public static final String MARGIN_RAMP_DECISIONS = "margin.rampDecisions";
+    public static final String MARGIN_FLOOR_LEARNED = "margin.floorLearned";
 
     public static final String DEMAND = "demand";
     public static final String DEMAND_MAX_MOVE = "demand.maxMove";
     public static final String DEMAND_MAX_AGE_DAYS = "demand.maxAgeDays";
     public static final String DEMAND_TRAINED_MODEL = "demand.trainedModel";
+    public static final String STOCK = "stock";
+    public static final String STOCK_MAX_MOVE = "stock.maxMove";
+    public static final String STOCK_OVERSTOCK_WEEKS = "stock.overstockWeeks";
+    public static final String STOCK_LOW_WEEKS = "stock.lowWeeks";
     public static final String COMMODITY = "commodity";
     public static final String COMMODITY_PASS_THROUGH = "commodity.passThrough";
     public static final String LOCAL_MARKET = "localMarket";
@@ -357,6 +366,22 @@ public final class PricingModel {
         number(r, AGGRESSIVE_RISK_AVERSION, Group.COMPOSE, "How cautious to be when unsure",
                 "0 goes straight for the peak; 1 pulls back by one measure of uncertainty; higher pulls back more.",
                 "1", "0", "3", "", AGGRESSIVE_PROFIT_MAX, "§3 step 8a");
+        toggle(r, MARGIN_LEARNED, Group.COMPOSE, "Learn the target margin from your sales",
+                "The margin to aim for is worked out from what you actually earn: this item's own margin, its "
+                        + "category's, and how margin changes with price across your catalogue - not one fixed "
+                        + "percentage. Used as the start when there are no competitor or branch prices. A category "
+                        + "with no sales yet starts from an industry benchmark. Off: a fixed benchmark margin per "
+                        + "category.", true, null, "dynamic margin");
+        toggle(r, MARGIN_PRICE_LEVEL, Group.COMPOSE, "Lower margin % on pricier items, higher on cheaper ones",
+                "A $100 item rarely carries the same percentage as a $1 one. How much the percentage changes with "
+                        + "price is learned from your own items. Off: one percentage per category whatever the price.",
+                true, MARGIN_LEARNED, "dynamic margin");
+        number(r, MARGIN_ENTRY, Group.COMPOSE, "A new item starts at this share of its usual margin",
+                "An item with little history of its own starts a little below its category's margin - 80 starts "
+                        + "a 5% category at 4% - and works up as you apply prices for it.", "80", "50", "100", "%",
+                MARGIN_LEARNED, "dynamic margin");
+        number(r, MARGIN_RAMP_DECISIONS, Group.COMPOSE, "Decisions to reach the full margin", "", "6", "1", "30",
+                "decisions", MARGIN_LEARNED, "dynamic margin");
         toggle(r, TIER_GAP, Group.COMPOSE, "Keep the two prices clearly apart",
                 "The higher price always sits a set distance above the competitive one, more so for hotly "
                         + "contested items. Off: the two may come out the same.", true, null, "§3 step 8e and 10");
@@ -377,6 +402,16 @@ public final class PricingModel {
                 "A trained model's forecast of an item's next four weeks replaces the 90-day pace as the demand "
                         + "signal. Which model forecasts is chosen under Forecasting model, in Settings. The "
                         + "limits above still apply. Off: the 90-day pace.", true, DEMAND, "§3 step 9");
+        toggle(r, STOCK, Group.ADJUST, "Adjust for stock on hand",
+                "Weeks of stock at the current selling pace: well over-stocked lowers the price a little to move "
+                        + "it, nearly out raises it a little. Needs a recent stock count.", true, null,
+                "dynamic margin");
+        number(r, STOCK_MAX_MOVE, Group.ADJUST, "Most this can change a price", "", "4", "0", "15", "%", STOCK,
+                "dynamic margin");
+        number(r, STOCK_OVERSTOCK_WEEKS, Group.ADJUST, "Over-stocked beyond", "The full cut applies at twice this.",
+                "26", "4", "104", "weeks", STOCK, "dynamic margin");
+        number(r, STOCK_LOW_WEEKS, Group.ADJUST, "Running low under", "", "4", "1", "26", "weeks", STOCK,
+                "dynamic margin");
         toggle(r, COMMODITY, Group.ADJUST, "Follow commodity costs",
                 "Part of a rise or fall in the item's raw material, such as copper or steel, is passed into the price.",
                 true, null, "single-item step 4");
@@ -430,6 +465,10 @@ public final class PricingModel {
                         + "counts toward the ceiling. Trusted less with only a few sales.", true, null, "§3 step 6");
         number(r, CORRIDOR_MIN_OBSERVATIONS, Group.GUARD, "Sales needed to trust this", "", "8", "1", "50", "sales",
                 CORRIDOR_HISTORY, "§3 step 6");
+        toggle(r, MARGIN_FLOOR_LEARNED, Group.GUARD, "Learn the lowest margin from your sales",
+                "The floor no price goes under is the low end of the margins you really sell this item and its "
+                        + "category at - never below cost - instead of one fixed minimum for everything. Off: the "
+                        + "fixed minimum margin under Pricing guardrails applies.", true, null, "dynamic margin");
         toggle(r, CEILING_PLAUSIBILITY, Group.GUARD, "Never price above a multiple of cost",
                 "Whatever competitors or branches charge, the ceiling stops here.", true, null, "§3 step 6b");
         number(r, CEILING_COST_MULTIPLE, Group.GUARD, "Ceiling at most", "", "4", "1.5", "10", "× cost",

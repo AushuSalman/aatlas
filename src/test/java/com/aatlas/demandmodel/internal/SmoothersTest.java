@@ -101,10 +101,10 @@ class SmoothersTest {
     @Test
     @DisplayName("a missing or unknown method reads as the forest, which is what rows stored before the contest were")
     void labels() {
-        assertThat(Smoothers.label(null)).isEqualTo("Random forest");
-        assertThat(Smoothers.label(Smoothers.FOREST)).isEqualTo("Random forest");
-        assertThat(Smoothers.label(Smoothers.SBA)).isEqualTo("Croston SBA");
-        assertThat(Smoothers.label(Smoothers.TSB)).isEqualTo("Croston TSB");
-        assertThat(Smoothers.label(Smoothers.SES)).isEqualTo("Exponential smoothing");
+        assertThat(Smoothers.label(null)).isEqualTo("Aatlas Market 1.5");
+        assertThat(Smoothers.label(Smoothers.FOREST)).isEqualTo("Aatlas Market 1.5");
+        assertThat(Smoothers.label(Smoothers.SBA)).isEqualTo("Aatlas Burst 1.2");
+        assertThat(Smoothers.label(Smoothers.TSB)).isEqualTo("Aatlas Burst 1.3");
+        assertThat(Smoothers.label(Smoothers.SES)).isEqualTo("Aatlas Pulse 1.0");
     }
 }

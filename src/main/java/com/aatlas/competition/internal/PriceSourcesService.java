@@ -8,22 +8,17 @@ import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 /**
  * Settings → Competitor price sources, and the background jobs they start.
  *
- * <p>The keys are the platform's; a tenant only switches configured sources on or off. The first
- * save (or any save asking for it) fetches prices for the whole catalogue in the background; after
- * that, every product import fetches prices for the products it brought in, silently, with the
- * result in the bell.
+ * <p>The keys are the platform's; a tenant only switches configured sources on or off. Saving fetches
+ * nothing: competitor prices are checked only when one of the tenant's price-check schedules says so
+ * ({@link PriceSchedulesService}) - never on their own after a save or an import.
  */
 @Service
 class PriceSourcesService {
-
-    private static final Logger log = LoggerFactory.getLogger(PriceSourcesService.class);
 
     /** Sources shown in Settings but not yet selectable. */
     static final List<String> COMING_SOON = List.of(CompetitorSites.KEY);
@@ -34,15 +29,13 @@ class PriceSourcesService {
     private final CompetitionService competition;
     private final PriceSourceSettings settings;
     private final RefreshJobs jobs;
-    private final RefreshJobRunner runner;
     private final Catalogue catalogue;
 
     PriceSourcesService(CompetitionService competition, PriceSourceSettings settings, RefreshJobs jobs,
-            RefreshJobRunner runner, Catalogue catalogue) {
+            Catalogue catalogue) {
         this.competition = competition;
         this.settings = settings;
         this.jobs = jobs;
-        this.runner = runner;
         this.catalogue = catalogue;
     }
 
@@ -55,31 +48,10 @@ class PriceSourcesService {
                         COMING_SOON.contains(p.key())))
                 .toList();
         return new CompetitionDtos.SourcesSettings(s.configured(), views, catalogue.products().size(),
-                view(jobs.latest(tenant)), s.dailyRefresh(), DailyPriceRefresh.RUNS_AT);
+                view(jobs.latest(tenant)));
     }
 
-    /**
-     * The daily check for one tenant (the scheduler binds it): every product, with the enabled
-     * sources, unless the tenant has not chosen sources, switched the daily check off, has no
-     * enabled source set up on the server, or a check is already going or already ran today.
-     *
-     * @return whether a check was started
-     */
-    boolean startDaily(UUID tenantId) {
-        PriceSourceSettings.Settings s = settings.get(tenantId);
-        if (!s.configured() || !s.dailyRefresh() || competition.providersFor(s.enabled()).isEmpty()
-                || jobs.busyOrDoneToday(tenantId)) {
-            return false;
-        }
-        List<String> items = catalogue.products().stream().map(Catalogue.ProductRef::itemNumber).toList();
-        if (items.isEmpty()) {
-            return false;
-        }
-        start(tenantId, "daily", s.enabled(), items);
-        return true;
-    }
-
-    CompetitionDtos.SaveSourcesResult save(CompetitionDtos.SaveSourcesRequest req) {
+    CompetitionDtos.SourcesSettings save(CompetitionDtos.SaveSourcesRequest req) {
         UUID tenant = TenantContext.requireTenantId();
         List<String> wanted = req.enabledSources() == null ? List.of()
                 : req.enabledSources().stream().map(k -> k.strip().toLowerCase(Locale.ROOT)).distinct().toList();
@@ -93,18 +65,8 @@ class PriceSourcesService {
                 throw ApiException.badRequest("source_unavailable", p.label() + " is not set up on the server yet.");
             }
         }
-        boolean firstTime = !settings.get(tenant).configured();
-        settings.save(tenant, wanted, req.dailyRefresh(), TenantContext.currentUserId().orElse(null));
-
-        CompetitionDtos.JobView job = null;
-        boolean fetch = req.fetchNow() != null ? req.fetchNow() : firstTime;
-        if (fetch && !wanted.isEmpty()) {
-            List<String> items = catalogue.products().stream().map(Catalogue.ProductRef::itemNumber).toList();
-            if (!items.isEmpty()) {
-                job = view(start(tenant, "setup", wanted, items));
-            }
-        }
-        return new CompetitionDtos.SaveSourcesResult(get(), job);
+        settings.save(tenant, wanted, TenantContext.currentUserId().orElse(null));
+        return get();
     }
 
     CompetitionDtos.JobView job(UUID id) {
@@ -119,30 +81,8 @@ class PriceSourcesService {
         return view(jobs.latest(TenantContext.requireTenantId()));
     }
 
-    /**
-     * A product import finished: price what it brought in, silently, when the tenant has chosen its
-     * sources. Before that choice nothing runs - the post-import prompt asks for it.
-     */
-    void onProductsImported(UUID tenantId, UUID batchId) {
-        PriceSourceSettings.Settings s = settings.get(tenantId);
-        if (!s.configured() || competition.providersFor(s.enabled()).isEmpty()) {
-            return;
-        }
-        List<String> items = jobs.itemsOfBatch(tenantId, batchId);
-        if (items.isEmpty()) {
-            return;
-        }
-        start(tenantId, "import", s.enabled(), items);
-        log.info("Import {}: fetching competitor prices for {} products in the background", batchId, items.size());
-    }
-
-    private RefreshJobs.Job start(UUID tenant, String trigger, List<String> sources, List<String> items) {
-        UUID id = jobs.create(tenant, trigger, sources, items, TenantContext.currentUserId().orElse(null));
-        runner.startAfterCommit(tenant, id);
-        return jobs.get(tenant, id);
-    }
-
-    private CompetitionDtos.JobView view(RefreshJobs.Job j) {
+    /** A run as the screens show it; one that stopped moving (a restart) reads as failed. */
+    CompetitionDtos.JobView view(RefreshJobs.Job j) {
         if (j == null) {
             return null;
         }
@@ -152,11 +92,11 @@ class PriceSourcesService {
         if (active && j.updatedAt() != null
                 && j.updatedAt().isBefore(OffsetDateTime.now().minus(STALLED_AFTER))) {
             status = "failed";
-            error = "The price check was interrupted. Start it again from Settings.";
+            error = "The price check was interrupted. Run it again from Settings.";
         }
         List<String> labels = competition.allProviders().stream().filter(p -> j.sources().contains(p.key()))
                 .map(ShoppingProvider::label).toList();
-        return new CompetitionDtos.JobView(j.id(), j.trigger(), status, labels, j.total(), j.done(), j.priced(),
-                j.observations(), j.failed(), error, j.startedAt(), j.finishedAt());
+        return new CompetitionDtos.JobView(j.id(), j.trigger(), j.scheduleId(), status, labels, j.total(), j.done(),
+                j.priced(), j.observations(), j.failed(), error, j.startedAt(), j.finishedAt());
     }
 }

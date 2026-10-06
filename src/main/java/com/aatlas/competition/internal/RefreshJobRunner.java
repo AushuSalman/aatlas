@@ -27,9 +27,11 @@ class RefreshJobRunner {
     private final RefreshJobs jobs;
     private final CompetitionService competition;
     private final Notifications notifications;
+    private final PriceSchedules schedules;
 
     RefreshJobRunner(ObjectProvider<RefreshJobRunner> self, RefreshJobs jobs, CompetitionService competition,
-            Notifications notifications) {
+            Notifications notifications, PriceSchedules schedules) {
+        this.schedules = schedules;
         this.self = self;
         this.jobs = jobs;
         this.competition = competition;
@@ -58,10 +60,10 @@ class RefreshJobRunner {
             } catch (RuntimeException ex) {
                 log.error("Competitor-price job {} failed", jobId, ex);
                 try {
-                    jobs.finished(tenantId, jobId, "failed", "The price check stopped unexpectedly. Try again from Settings.");
+                    jobs.finished(tenantId, jobId, "failed", "The price check stopped unexpectedly. Run it again from Settings.");
                     notifications.publish(tenantId, "competitor-prices", "Competitor prices could not be fetched",
-                            "The price check stopped unexpectedly. You can start it again from Settings.",
-                            "/app/settings#price-sources");
+                            "The price check stopped unexpectedly. You can run it again from Settings.",
+                            "/app/settings#price-schedules");
                 } catch (RuntimeException nested) {
                     log.error("Competitor-price job {} failed and could not be marked", jobId, nested);
                 }
@@ -89,8 +91,9 @@ class RefreshJobRunner {
         int failed = 0;
         int bulkPriced = 0;
         String firstPriced = null;
-        // The daily run also keeps the buy side's bulk-lot price fresh - eBay only, when it is switched on.
-        boolean withBulk = "daily".equals(job.trigger()) && chosen.stream().anyMatch(p -> "ebay".equals(p.key()));
+        // A scheduled run also keeps the buy side's bulk-lot price fresh - eBay only, when it is one of its sources.
+        boolean scheduled = job.scheduleId() != null;
+        boolean withBulk = scheduled && chosen.stream().anyMatch(p -> "ebay".equals(p.key()));
         for (String item : job.items()) {
             if (withBulk) {
                 try {
@@ -131,11 +134,11 @@ class RefreshJobRunner {
         String link = firstPriced == null ? "/app/sell?panel=competition"
                 : "/app/sell?panel=competition&item=" + java.net.URLEncoder.encode(firstPriced,
                         java.nio.charset.StandardCharsets.UTF_8);
-        boolean daily = "daily".equals(job.trigger());
+        String schedule = scheduled ? schedules.name(tenantId, job.scheduleId()) : null;
+        String title = priced > 0 ? "Competitor prices updated" : "No competitor prices found";
         notifications.publish(tenantId, "competitor-prices",
-                priced > 0 ? (daily ? "Today's competitor prices are in" : "Competitor prices updated")
-                        : "No competitor prices found",
-                daily ? "Daily check: " + body : body, link);
+                schedule == null ? title : title + " - " + schedule,
+                schedule == null ? body : "Price check “" + schedule + "”: " + body, link);
         log.info("Competitor-price job {} ({}): {} of {} items priced, {} observations, {} failed", jobId,
                 job.trigger(), priced, job.total(), observations, failed);
     }

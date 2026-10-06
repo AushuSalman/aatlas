@@ -101,6 +101,10 @@ public final class SellDtos {
             /** Section keys the UI must hide: {@code margin}, {@code inventory}, {@code demand},
              *  {@code forecast}, {@code competitors}. */
             List<String> locked,
-            LocalDate inventoryAsOf) {
+            LocalDate inventoryAsOf,
+            /** The learned target margin, % of price; null when the learned margin is off or not worked out. */
+            BigDecimal targetMarginPct,
+            /** Where it came from, one line: "learned from 240 sales in Wire & Cable". */
+            String targetMarginBasis) {
     }
 }

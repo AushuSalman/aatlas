@@ -94,13 +94,15 @@ public class PricingEngine {
     private final DealSummaries deals;
     private final com.aatlas.decisions.DecisionOutcomes outcomes;
     private final com.aatlas.demandmodel.DemandModels demandModels;
+    private final com.aatlas.history.MarginProfiles margins;
     private final AatlasClock clock;
 
     public PricingEngine(CatalogGateway catalog, SalesHistory sales, PriceLadder ladder, Inventory inventory,
             CompetitorPrices competitorPrices, Reference reference, PriceList priceList, DealSummaries deals,
             com.aatlas.decisions.DecisionOutcomes outcomes, com.aatlas.demandmodel.DemandModels demandModels,
-            AatlasClock clock) {
+            com.aatlas.history.MarginProfiles margins, AatlasClock clock) {
         this.catalog = catalog;
+        this.margins = margins;
         this.outcomes = outcomes;
         this.demandModels = demandModels;
         this.sales = sales;
@@ -173,7 +175,7 @@ public class PricingEngine {
                     : forecastUsable ? DemandModelUse.USED : DemandModelUse.NOT_USABLE;
             String forecastNote = !forecastOn ? "Its forecast is switched off in Settings."
                     : forecastUsable
-                            ? "Its forecast (" + (f.forecastMethod() == null ? "Random forest" : f.forecastMethod())
+                            ? "Its forecast (" + (f.forecastMethod() == null ? "Aatlas Market 1.5" : f.forecastMethod())
                                     + ") sets the demand step: " + f.horizonUnitsPerWeek().toPlainString()
                                     + " a week expected over the next four weeks, against "
                                     + f.trailingUnitsPerWeek().toPlainString() + " a week recently."
@@ -348,6 +350,11 @@ public class PricingEngine {
                 .min(BigDecimal::compareTo).orElse(null);
         BigDecimal competitorHigh = observations.stream().map(Observation::price).filter(p -> p != null && p.signum() > 0)
                 .max(BigDecimal::compareTo).orElse(null);
+        // The margin to aim for and the floor, learned from what the tenant really earns (item, category,
+        // price level), and the stock cover at the recent pace - what the margin moves with.
+        com.aatlas.history.DynamicMargin.Target marginTarget = learnedMargin(product, productId,
+                currentPriceValue != null ? currentPriceValue : ownRef, benchmark, track.priorApplied(), cfg, today);
+        BigDecimal weeksOfCover = weeksOfCover(onHandUnits, stale, w90Stats, itemStoreStats);
         PricingMath.Inputs inputs = new PricingMath.Inputs(costR.map(Resolved::value).orElse(null),
                 currentPriceValue, ownRef, anchorR.orElse(null), competitorMedian, observations.size(),
                 competitorLow, competitorHigh,
@@ -355,7 +362,8 @@ public class PricingEngine {
                 band.map(PriceBand::n).orElse(0L), demand, lastSale, today, commodityPct90, rpp, elasticity,
                 itemStoreStats.txns(), benchmarkTargetMarginPct, guardrails, track, rampSalt,
                 // Each price, so a set that disagrees with itself can be judged one by one.
-                observations.stream().map(Observation::price).filter(p -> p != null && p.signum() > 0).toList());
+                observations.stream().map(Observation::price).filter(p -> p != null && p.signum() > 0).toList(),
+                marginTarget, weeksOfCover);
         PricingMath.Recommendation rec = PricingMath.recommend(inputs, cfg).orElse(null);
 
         // The regional multiplier the chain would apply; "competition" only when the step ran
@@ -412,6 +420,45 @@ public class PricingEngine {
      * tenant whose decision tables are not there yet - degrades to no track record with a
      * warning, never a failed recommendation.
      */
+    /**
+     * The learned target margin and floor for the item. A failing read degrades to none with a warning -
+     * the chain then falls back to the fixed benchmark and minimum margin - never a failed recommendation.
+     */
+    private com.aatlas.history.DynamicMargin.Target learnedMargin(ProductRef product, UUID productId,
+            BigDecimal priceRef, Reference.Benchmark benchmark, long priorApplied,
+            com.aatlas.history.PricingModel.Config cfg, LocalDate today) {
+        try {
+            return com.aatlas.history.DynamicMargin.learn(margins.profile(today), productId, product.category(),
+                    priceRef, benchmark, priorApplied, cfg.on(com.aatlas.history.PricingModel.MARGIN_PRICE_LEVEL),
+                    cfg.number(com.aatlas.history.PricingModel.MARGIN_ENTRY) / 100,
+                    cfg.number(com.aatlas.history.PricingModel.MARGIN_RAMP_DECISIONS));
+        } catch (RuntimeException ex) {
+            log.warn("Learned margin unavailable for {} ({}); the fixed benchmark applies", product.itemNumber(),
+                    ex.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Stock on hand in weeks at the trailing-90-day pace. Null without a recent count, or for an item
+     * that has never sold here (no pace to measure against); an item with stock and no sale in ninety
+     * days counts as two years of cover.
+     */
+    static BigDecimal weeksOfCover(BigDecimal onHand, boolean stale, SalesStats w90, SalesStats w12) {
+        if (onHand == null || stale || w12 == null || !w12.any()) {
+            return null;
+        }
+        if (onHand.signum() <= 0) {
+            return BigDecimal.ZERO;
+        }
+        BigDecimal perWeek = w90 == null || w90.units() == null ? BigDecimal.ZERO
+                : w90.units().divide(BigDecimal.valueOf(13), 4, java.math.RoundingMode.HALF_UP);
+        if (perWeek.signum() <= 0) {
+            return BigDecimal.valueOf(104);
+        }
+        return onHand.divide(perWeek, 1, java.math.RoundingMode.HALF_UP).min(BigDecimal.valueOf(520));
+    }
+
     private Track track(String item, String storeCode, UUID productId, UUID storeUuid, LocalDate today,
             com.aatlas.history.PricingModel.Config cfg) {
         try {

@@ -51,9 +51,12 @@ class DemandModelService implements DemandModels {
 
     private static final Logger log = LoggerFactory.getLogger(DemandModelService.class);
 
+    /** How the automatic choice reads on screen. */
+    static final String AUTO_LABEL = "Aatlas Auto";
+
     /** The forecasting models a tenant can choose, in the order they are offered; the first is the default. */
     static final List<ModelOption> MODEL_OPTIONS = List.of(
-            new ModelOption(DemandTrainer.AUTO, "Automatic",
+            new ModelOption(DemandTrainer.AUTO, AUTO_LABEL,
                     "Each item uses the model that beat its recent average in two back-tests in a row, and the "
                             + "90-day pace where none did. Recommended."),
             new ModelOption(Smoothers.CHRONOS, Smoothers.label(Smoothers.CHRONOS),
@@ -165,6 +168,7 @@ class DemandModelService implements DemandModels {
             String note = note(pairs.values(), DemandTrainer.AUTO);
             row.trained(result.forecast().serialize().toByteArray(), result.response().serialize().toByteArray(),
                     pairs, now, result.rows(), weeks, from, lastWeek, holdoutWeeks, result.millis(), note);
+            row.methodMillis(result.methodMillis());
             log.info("Demand model for tenant {}: {} rows, {} pairs, {} usable, {} ms", tenantId, result.rows(),
                     pairs.size(), usable, result.millis());
         } catch (IllegalStateException ex) {
@@ -278,11 +282,60 @@ class DemandModelService implements DemandModels {
                 row.getHoldoutWeeks() > 0 ? row.getHoldoutWeeks() : holdoutWeeks, row.getTrainMillis(),
                 scored ? note(row.getPairs().values(), model) : row.getNote() != null ? row.getNote() : NOT_TRAINED,
                 pending.sinceTrained(), pending.inOpenWeek(), pending.countedFrom(), pending.awaitingRetrain(), report,
-                modelLabel(model), model, MODEL_OPTIONS);
+                modelLabel(model), model, options(row));
+    }
+
+    /**
+     * The options with what the last run measured: how long each forecaster took, and how close its four-week
+     * forecasts came on the later held-back weeks, summed over every item and branch. "Automatic" is scored
+     * honestly: on each pair it takes the forecaster that did best on the earlier back-test, and is judged on the
+     * later one it had not seen.
+     */
+    static List<ModelOption> options(DemandModelEntity row) {
+        Map<String, double[]> scores = new LinkedHashMap<>();
+        double[] auto = new double[3];
+        for (PairRecord p : row.getPairs().values()) {
+            if (p.methods() == null) {
+                continue;
+            }
+            String pick = null;
+            double best = Double.MAX_VALUE;
+            for (Map.Entry<String, DemandTrainer.MethodEval> e : p.methods().entrySet()) {
+                DemandTrainer.Score later = e.getValue().later();
+                if (later != null && later.units() > 0) {
+                    add(scores.computeIfAbsent(e.getKey(), k -> new double[3]), later);
+                }
+                DemandTrainer.Score earlier = e.getValue().earlier();
+                if (earlier != null && earlier.units() > 0 && earlier.error() / earlier.units() < best) {
+                    best = earlier.error() / earlier.units();
+                    pick = e.getKey();
+                }
+            }
+            DemandTrainer.Score chosen = pick == null ? null : p.methods().get(pick).later();
+            if (chosen != null && chosen.units() > 0) {
+                add(auto, chosen);
+            }
+        }
+        Map<String, Long> millis = row.getMethodMillis();
+        return MODEL_OPTIONS.stream().map(o -> {
+            boolean isAuto = DemandTrainer.AUTO.equals(o.key());
+            double[] s = isAuto ? auto : scores.get(o.key());
+            Long ms = isAuto ? (row.getTrainMillis() > 0 ? Long.valueOf(row.getTrainMillis()) : null) : millis.get(o.key());
+            boolean scored = s != null && s[0] > 0;
+            return new ModelOption(o.key(), o.label(), o.hint(), ms,
+                    scored ? dec(Math.max(0, Math.min(100, 100 * (1 - s[1] / s[0]))), 1) : null,
+                    scored && s[2] > 0 ? dec(100 * (1 - s[1] / s[2]), 1) : null);
+        }).toList();
+    }
+
+    private static void add(double[] sum, DemandTrainer.Score s) {
+        sum[0] += s.units();
+        sum[1] += s.error();
+        sum[2] += s.naive();
     }
 
     private static String modelLabel(String model) {
-        return DemandTrainer.AUTO.equals(model) ? "Automatic" : Smoothers.label(model);
+        return DemandTrainer.AUTO.equals(model) ? AUTO_LABEL : Smoothers.label(model);
     }
 
     static PairReport report(PairRecord p, String model) {

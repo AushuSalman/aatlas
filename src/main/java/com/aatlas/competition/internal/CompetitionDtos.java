@@ -29,8 +29,7 @@ final class CompetitionDtos {
      * @param productCount products in the catalogue - what a full price check covers
      * @param latestJob    the most recent background price check, or null
      */
-    record SourcesSettings(boolean configured, List<SourceView> sources, int productCount, JobView latestJob,
-            boolean dailyRefresh, String dailyAt) {
+    record SourcesSettings(boolean configured, List<SourceView> sources, int productCount, JobView latestJob) {
     }
 
     /**
@@ -42,27 +41,22 @@ final class CompetitionDtos {
             boolean comingSoon) {
     }
 
-    /**
-     * @param fetchNow     start a price check over the whole catalogue; null = only the first time
-     * @param dailyRefresh re-check every product once a day; null keeps the current setting
-     */
-    record SaveSourcesRequest(List<String> enabledSources, Boolean fetchNow, Boolean dailyRefresh) {
-    }
-
-    /** @param job the price check the save started, or null */
-    record SaveSourcesResult(SourcesSettings settings, JobView job) {
+    /** Which sources are switched on. Saving fetches nothing - schedules decide when prices are checked. */
+    record SaveSourcesRequest(List<String> enabledSources) {
     }
 
     /**
      * A background price check.
      *
-     * @param trigger {@code setup} (from Settings), {@code import} (new products) or {@code manual}
+     * @param trigger    {@code schedule} (a price-check schedule); older runs say {@code setup}, {@code import},
+     *                   {@code manual} or {@code daily}
+     * @param scheduleId the schedule the run belongs to, or null
      * @param status  {@code queued}, {@code running}, {@code done} or {@code failed}
      * @param sources the sources' labels
      * @param priced  items with at least one competitor price kept
      */
-    record JobView(java.util.UUID id, String trigger, String status, List<String> sources, int total, int done,
-            int priced, int observations, int failed, String error, java.time.OffsetDateTime startedAt,
+    record JobView(java.util.UUID id, String trigger, java.util.UUID scheduleId, String status, List<String> sources,
+            int total, int done, int priced, int observations, int failed, String error, java.time.OffsetDateTime startedAt,
             java.time.OffsetDateTime finishedAt) {
     }
 
@@ -170,5 +164,42 @@ final class CompetitionDtos {
     /** @param status {@code saved}, {@code nothing-kept}, {@code failed} or {@code not-found} */
     record RefreshRow(String item, String description, String status, int found, int kept, BigDecimal median,
             BigDecimal anchor, String message) {
+    }
+
+    // ---- Settings → Price-check schedules ---------------------------------------------------
+
+    /**
+     * A price-check schedule as written. {@code scope}: {@code all}, {@code categories} or {@code items}.
+     * {@code startsAt} null starts now; {@code repeatEvery}/{@code repeatUnit} null run once, else every N
+     * {@code hours} (at least six), {@code days}, {@code weeks} or {@code months}, counted in {@code timeZone}.
+     */
+    record ScheduleRequest(String name, String scope, List<String> categories, List<String> items,
+            List<String> sources, java.time.Instant startsAt, Integer repeatEvery, String repeatUnit, String timeZone,
+            Boolean active) {
+    }
+
+    /**
+     * A schedule with where it stands.
+     *
+     * @param stage            {@code running}, {@code scheduled}, {@code paused} or {@code completed} (a one-time run done)
+     * @param productCount     products it covers today (categories and "all" take in new products)
+     * @param sourcesOff       labels of its sources since switched off in Settings or not set up - skipped
+     * @param searchesPerRun   provider searches one run makes (one per product per source, plus eBay bulk lots)
+     * @param searchesPerMonth the same over a 30-day month at its repeat
+     */
+    record ScheduleView(java.util.UUID id, String name, String scope, List<String> categories, List<String> items,
+            int productCount, List<String> sources, List<String> sourceLabels, List<String> sourcesOff,
+            java.time.Instant startsAt, Integer repeatEvery, String repeatUnit, String timeZone, boolean active,
+            String stage, java.time.Instant nextRunAt, java.time.Instant lastRunAt, int searchesPerRun,
+            int searchesPerMonth, List<JobView> recentRuns) {
+    }
+
+    /** Every schedule, and what the form needs: the catalogue's categories and the limits. */
+    record SchedulesView(List<ScheduleView> schedules, List<String> categories, int productCount, int maxSchedules,
+            int minHours) {
+    }
+
+    /** A run started by hand. */
+    record RunNowResult(ScheduleView schedule, JobView job) {
     }
 }

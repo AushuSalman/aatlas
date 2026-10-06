@@ -111,7 +111,7 @@ public class SellEngine {
                     new ForecastSummaryDto(null, null, null, null, ""),
                     new NowVsWaitDto("now", "", new NowSummaryDto(null, null, null),
                             new WaitSummaryDto(14, null, null, null, "High")),
-                    m.beta(), 0, 0, null, null, null, null, sources, List.copyOf(locked), null);
+                    m.beta(), 0, 0, null, null, null, null, sources, List.copyOf(locked), null, null, null);
         }
 
         PricingMath.Recommendation rec = m.recommendation();
@@ -124,6 +124,7 @@ public class SellEngine {
         if (rec != null) {
             boolean hasAnchor = rec.anchor() != null;
             boolean internal = "internal-peer".equals(rec.anchorSource());
+            boolean learnedStart = rec.margin() != null && com.aatlas.history.Anchor.BENCHMARK.equals(rec.anchorSource());
             String anchorNote;
             if (!hasAnchor) {
                 anchorNote = "No competitor, peer or benchmark anchor for this pair.";
@@ -133,10 +134,14 @@ public class SellEngine {
                         + ("directional_adjust".equals(rec.externalRole()) ? " Competitor prices nudged it within bounds."
                         : "ignored_divergent".equals(rec.externalRole()) ? " A competitor price was too far away to count."
                         : "");
+            } else if (learnedStart) {
+                anchorNote = "Cost + " + rec.margin().targetPct().stripTrailingZeros().toPlainString() + "% target margin, "
+                        + rec.margin().basis() + ". No competitor or branch prices to start from.";
             } else {
                 anchorNote = Fmt.groupInt(m.anchorObservations()) + " observation(s), source " + rec.anchorSource() + ".";
             }
-            chain.add(new ChainStepDto("market", internal ? "Your other branches" : "Market benchmark",
+            chain.add(new ChainStepDto("market", internal ? "Your other branches"
+                    : learnedStart ? "Target margin price" : "Market benchmark",
                     hasAnchor ? Fmt.fmtMoney(d(rec.anchor())) : "No market anchor", null, anchorNote, rec.anchor()));
             String baseNote;
             if (internal) {
@@ -146,7 +151,7 @@ public class SellEngine {
                                 + "where the phase-in starts.";
             } else if (ownRef != null && rec.anchorWeight() > 0 && rec.anchorWeight() < 1) {
                 baseNote = "Own last price " + Fmt.fmtMoney(d(ownRef)) + ", blended at weight "
-                        + Fmt.fixed(rec.anchorWeight(), 2) + " on the market anchor.";
+                        + Fmt.fixed(rec.anchorWeight(), 2) + (learnedStart ? " on the target margin price." : " on the market anchor.");
             } else if (ownRef != null) {
                 baseNote = "The anchor alone is the base; your last price " + Fmt.fmtMoney(d(ownRef)) + " is not blended in.";
             } else {
@@ -319,7 +324,9 @@ public class SellEngine {
                 finalStep, timeline,
                 new ForecastSummaryDto(d30, d60, d90, driftPct90, driver), nowVsWait,
                 m.beta(), monthlyUnits, annualUnits, inventoryUnits, inventoryValue, weeksOfCover,
-                monthlyOpportunity, sources, List.copyOf(locked), m.inventoryAsOf());
+                monthlyOpportunity, sources, List.copyOf(locked), m.inventoryAsOf(),
+                rec != null && rec.margin() != null ? rec.margin().targetPct() : null,
+                rec != null && rec.margin() != null ? rec.margin().basis() : null);
     }
 
     private static BigDecimal band(BigDecimal center, int k) {
@@ -425,6 +432,7 @@ public class SellEngine {
                 intel.competitorHigh(), intel.demandPct(), intel.demandLabel(), intel.regionalAdj(), intel.chain(),
                 intel.finalStep(), intel.timeline(), intel.forecast(), intel.nowVsWait(), intel.elasticity(),
                 intel.monthlyUnits(), intel.annualUnits(), intel.inventoryUnits(), intel.inventoryValue(),
-                intel.weeksOfCover(), monthlyOpp, intel.sources(), intel.locked(), intel.inventoryAsOf());
+                intel.weeksOfCover(), monthlyOpp, intel.sources(), intel.locked(), intel.inventoryAsOf(),
+                intel.targetMarginPct(), intel.targetMarginBasis());
     }
 }

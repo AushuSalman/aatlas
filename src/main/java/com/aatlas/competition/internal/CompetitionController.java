@@ -29,10 +29,12 @@ class CompetitionController {
 
     private final CompetitionService service;
     private final PriceSourcesService sources;
+    private final PriceSchedulesService schedules;
 
-    CompetitionController(CompetitionService service, PriceSourcesService sources) {
+    CompetitionController(CompetitionService service, PriceSourcesService sources, PriceSchedulesService schedules) {
         this.service = service;
         this.sources = sources;
+        this.schedules = schedules;
     }
 
     @Operation(summary = "Which price sources this tenant has switched on, and the latest background price check")
@@ -42,11 +44,44 @@ class CompetitionController {
     }
 
     @Operation(summary = "Switch price sources on or off",
-            description = "The first save (or fetchNow=true) starts a background price check over every product; "
-                    + "the bell says when it is done.")
+            description = "Fetches nothing: price-check schedules decide when competitor prices are checked.")
     @org.springframework.web.bind.annotation.PutMapping(path = "/settings", consumes = MediaType.APPLICATION_JSON_VALUE)
-    CompetitionDtos.SaveSourcesResult saveSettings(@RequestBody CompetitionDtos.SaveSourcesRequest request) {
+    CompetitionDtos.SourcesSettings saveSettings(@RequestBody CompetitionDtos.SaveSourcesRequest request) {
         return sources.save(request);
+    }
+
+    @Operation(summary = "Price-check schedules: which products, which sources, when, and where each stands")
+    @GetMapping("/schedules")
+    CompetitionDtos.SchedulesView schedules() {
+        return schedules.list();
+    }
+
+    @Operation(summary = "Create a price-check schedule",
+            description = "All products, some categories or picked items; once or every N hours (6+), days, weeks or "
+                    + "months from startsAt (null = now). One that is due at once starts straight away.")
+    @PostMapping(path = "/schedules", consumes = MediaType.APPLICATION_JSON_VALUE)
+    CompetitionDtos.ScheduleView createSchedule(@RequestBody CompetitionDtos.ScheduleRequest request) {
+        return schedules.create(request);
+    }
+
+    @Operation(summary = "Change a price-check schedule, or pause or resume it (active)")
+    @org.springframework.web.bind.annotation.PutMapping(path = "/schedules/{id}", consumes = MediaType.APPLICATION_JSON_VALUE)
+    CompetitionDtos.ScheduleView updateSchedule(@PathVariable java.util.UUID id,
+            @RequestBody CompetitionDtos.ScheduleRequest request) {
+        return schedules.update(id, request);
+    }
+
+    @Operation(summary = "Delete a price-check schedule; its past runs and the prices they found stay")
+    @org.springframework.web.bind.annotation.DeleteMapping("/schedules/{id}")
+    org.springframework.http.ResponseEntity<Void> deleteSchedule(@PathVariable java.util.UUID id) {
+        schedules.delete(id);
+        return org.springframework.http.ResponseEntity.noContent().build();
+    }
+
+    @Operation(summary = "Run a price-check schedule now; its next scheduled run is unchanged")
+    @PostMapping("/schedules/{id}/run")
+    CompetitionDtos.RunNowResult runSchedule(@PathVariable java.util.UUID id) {
+        return schedules.runNow(id);
     }
 
     @Operation(summary = "The most recent background price check, or nothing")

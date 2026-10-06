@@ -30,9 +30,26 @@ import org.springframework.web.bind.annotation.RestController;
 class DemandModelController {
 
     private final DemandModels models;
+    private final DemandTrainingSchedule schedule;
 
-    DemandModelController(DemandModels models) {
+    DemandModelController(DemandModels models, DemandTrainingSchedule schedule) {
         this.models = models;
+        this.schedule = schedule;
+    }
+
+    @Operation(summary = "When the model retrains",
+            description = "Daily, weekly, monthly or only on request, at a local time; optionally also as soon as "
+                    + "enough new sales from finished weeks are waiting. Includes the next and last run.")
+    @GetMapping("/schedule")
+    com.aatlas.common.schedule.TrainingScheduleDtos.View schedule() {
+        return schedule.get();
+    }
+
+    @Operation(summary = "Change when the model retrains", description = "Only seats that may change the pricing model.")
+    @PutMapping(path = "/schedule", consumes = MediaType.APPLICATION_JSON_VALUE)
+    com.aatlas.common.schedule.TrainingScheduleDtos.View saveSchedule(
+            @org.springframework.web.bind.annotation.RequestBody com.aatlas.common.schedule.TrainingScheduleDtos.Request request) {
+        return schedule.save(request);
     }
 
     @Operation(summary = "The model's status and per-pair report",

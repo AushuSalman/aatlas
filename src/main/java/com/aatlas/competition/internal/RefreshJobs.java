@@ -19,29 +19,37 @@ class RefreshJobs {
         this.jdbc = jdbc;
     }
 
-    record Job(UUID id, String trigger, String status, List<String> sources, List<String> items, int total, int done,
+    record Job(UUID id, String trigger, UUID scheduleId, String status, List<String> sources, List<String> items, int total, int done,
             int priced, int observations, int failed, String error, OffsetDateTime startedAt,
             OffsetDateTime finishedAt, OffsetDateTime createdAt, OffsetDateTime updatedAt) {
     }
 
     private static final RowMapper<Job> JOB = (rs, i) -> new Job(rs.getObject("id", UUID.class),
-            rs.getString("trigger"), rs.getString("status"),
+            rs.getString("trigger"), rs.getObject("schedule_id", UUID.class), rs.getString("status"),
             Arrays.asList((String[]) rs.getArray("sources").getArray()),
             Arrays.asList((String[]) rs.getArray("items").getArray()), rs.getInt("total"), rs.getInt("done"),
             rs.getInt("priced"), rs.getInt("observations"), rs.getInt("failed"), rs.getString("error"),
             rs.getObject("started_at", OffsetDateTime.class), rs.getObject("finished_at", OffsetDateTime.class),
             rs.getObject("created_at", OffsetDateTime.class), rs.getObject("updated_at", OffsetDateTime.class));
 
-    private static final String COLUMNS = "id, trigger, status, sources, items, total, done, priced, observations, "
-            + "failed, error, started_at, finished_at, created_at, updated_at";
+    private static final String COLUMNS = "id, trigger, schedule_id, status, sources, items, total, done, priced, "
+            + "observations, failed, error, started_at, finished_at, created_at, updated_at";
 
+    /** @param scheduleId the schedule the run belongs to, or null for a one-off */
     @Transactional
-    UUID create(UUID tenantId, String trigger, List<String> sources, List<String> items, UUID userId) {
+    UUID create(UUID tenantId, String trigger, UUID scheduleId, List<String> sources, List<String> items, UUID userId) {
         return jdbc.queryForObject("""
-                insert into competitor_refresh_jobs (tenant_id, trigger, sources, items, total, created_by)
-                values (?, ?, ?, ?, ?, ?) returning id
-                """, UUID.class, tenantId, trigger, sources.toArray(String[]::new), items.toArray(String[]::new),
-                items.size(), userId);
+                insert into competitor_refresh_jobs (tenant_id, trigger, schedule_id, sources, items, total, created_by)
+                values (?, ?, ?, ?, ?, ?, ?) returning id
+                """, UUID.class, tenantId, trigger, scheduleId, sources.toArray(String[]::new),
+                items.toArray(String[]::new), items.size(), userId);
+    }
+
+    /** A schedule's most recent runs, newest first. */
+    @Transactional(readOnly = true)
+    List<Job> forSchedule(UUID tenantId, UUID scheduleId, int limit) {
+        return jdbc.query("select " + COLUMNS + " from competitor_refresh_jobs where tenant_id = ? and schedule_id = ? "
+                + "order by created_at desc limit ?", JOB, tenantId, scheduleId, limit);
     }
 
     @Transactional(readOnly = true)
@@ -74,29 +82,5 @@ class RefreshJobs {
     void finished(UUID tenantId, UUID id, String status, String error) {
         jdbc.update("update competitor_refresh_jobs set status = ?, error = ?, finished_at = now() "
                 + "where tenant_id = ? and id = ?", status, error, tenantId, id);
-    }
-
-    /**
-     * Whether a daily check should be skipped: one is already going (moving in the last ten
-     * minutes), or a daily check already ran today.
-     */
-    @Transactional(readOnly = true)
-    boolean busyOrDoneToday(UUID tenantId) {
-        Boolean busy = jdbc.queryForObject("""
-                select exists (
-                    select 1 from competitor_refresh_jobs
-                     where tenant_id = ?
-                       and ((status in ('queued', 'running') and updated_at > now() - interval '10 minutes')
-                            or (trigger = 'daily' and created_at >= date_trunc('day', now())))
-                )
-                """, Boolean.class, tenantId);
-        return Boolean.TRUE.equals(busy);
-    }
-
-    /** The item numbers an import batch created or updated. */
-    @Transactional(readOnly = true)
-    List<String> itemsOfBatch(UUID tenantId, UUID batchId) {
-        return jdbc.queryForList("select item_number from products where tenant_id = ? and import_batch_id = ? "
-                + "order by item_number", String.class, tenantId, batchId);
     }
 }

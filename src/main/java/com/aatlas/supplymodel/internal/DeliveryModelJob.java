@@ -12,29 +12,31 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 /**
- * Nightly retraining: every ACTIVE tenant's delivery models, one after another, under a
- * ShedLock so one pod does it. Tenants come from {@code tenants} (no row-level security); the
- * run itself is as the tenant.
+ * Retraining on each tenant's own schedule ({@link DeliveryTrainingSchedule}): daily, weekly, monthly or
+ * only on request, and optionally when new received orders come in. A one-minute tick under a ShedLock, so one
+ * pod trains; tenants one after another. Tenants come from {@code tenants} (no row-level security);
+ * the run itself is as the tenant. One tenant's failure never stops the rest.
  */
 @Component
 class DeliveryModelJob {
 
     private static final Logger log = LoggerFactory.getLogger(DeliveryModelJob.class);
 
-    private final DeliveryModelService service;
+    private final DeliveryTrainingSchedule schedule;
     private final JdbcTemplate jdbc;
     private final boolean enabled;
 
-    DeliveryModelJob(DeliveryModelService service, JdbcTemplate jdbc,
-            @Value("${aatlas.delivery-model.enabled:true}") boolean enabled) {
-        this.service = service;
+    DeliveryModelJob(DeliveryTrainingSchedule schedule, JdbcTemplate jdbc,
+            @Value("${aatlas.delivery-model.enabled:true}") boolean enabled,
+            @Value("${aatlas.delivery-model.schedule-enabled:true}") boolean scheduleEnabled) {
+        this.schedule = schedule;
         this.jdbc = jdbc;
-        this.enabled = enabled;
+        this.enabled = enabled && scheduleEnabled;
     }
 
-    @Scheduled(cron = "${aatlas.delivery-model.cron:0 30 5 * * *}", zone = "UTC")
-    @SchedulerLock(name = "delivery-model-train", lockAtMostFor = "PT2H", lockAtLeastFor = "PT5M")
-    public void nightly() {
+    @Scheduled(fixedDelayString = "${aatlas.delivery-model.tick:PT1M}", initialDelayString = "${aatlas.delivery-model.tick:PT1M}")
+    @SchedulerLock(name = "delivery-model-train", lockAtMostFor = "PT2H", lockAtLeastFor = "PT20S")
+    public void tick() {
         if (!enabled) {
             return;
         }
@@ -42,14 +44,15 @@ class DeliveryModelJob {
         int trained = 0;
         for (UUID tenant : tenants) {
             try {
-                var status = TenantContext.runAs(TenantContext.Actor.system(tenant), () -> service.train(tenant));
-                if (status.trained()) {
+                if (TenantContext.runAs(TenantContext.Actor.system(tenant), () -> schedule.tick(tenant))) {
                     trained++;
                 }
             } catch (RuntimeException ex) {
-                log.warn("Delivery model for tenant {} could not be trained: {}", tenant, ex.getMessage());
+                log.warn("Delivery model schedule for tenant {} could not run: {}", tenant, ex.getMessage());
             }
         }
-        log.info("Delivery model job: {} of {} tenants trained", trained, tenants.size());
+        if (trained > 0) {
+            log.info("Delivery model: trained for {} tenant(s) on their schedules", trained);
+        }
     }
 }

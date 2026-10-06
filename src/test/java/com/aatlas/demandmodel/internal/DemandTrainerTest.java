@@ -142,6 +142,10 @@ class DemandTrainerTest {
                     .toArray();
         };
         DemandTrainer.Result r = DemandTrainer.train(grid, settings, DemandTrainer.FOREST, lastFour);
+        // Every forecaster in the contest is timed, for the Settings screen.
+        assertThat(r.methodMillis()).containsKeys(Smoothers.FOREST, Smoothers.SES, Smoothers.SBA, Smoothers.TSB,
+                Smoothers.CHRONOS);
+        assertThat(r.methodMillis().values()).allMatch(ms -> ms >= 1);
 
         // Ten pairs, each asked from the start of four back-test blocks and from the end of its series. The
         // first week of the upload is dropped, so a pair has 79 weeks.
@@ -155,7 +159,7 @@ class DemandTrainerTest {
             assertThat(ev.later().naive()).isEqualTo(e.methods().get(Smoothers.SES).later().naive());
             assertThat(ev.nextUnits()).isGreaterThan(0);
         });
-        assertThat(Smoothers.label(Smoothers.CHRONOS)).isEqualTo("Chronos");
+        assertThat(Smoothers.label(Smoothers.CHRONOS)).isEqualTo("Aatlas Deep 2.0");
 
         // No answer, or the wrong number of answers: the contest runs with the four it has.
         for (DemandTrainer.Outside broken : List.<DemandTrainer.Outside>of((series, horizon) -> null,
@@ -217,17 +221,17 @@ class DemandTrainerTest {
         assertThat(forest.usable()).as("chosen, so used although it did not win twice").isTrue();
         assertThat(forest.proven()).isFalse();
         assertThat(forest.nextUnits()).isEqualTo(12);
-        assertThat(forest.note()).contains("Random forest").contains("chosen in Settings").contains("has not beaten");
+        assertThat(forest.note()).contains("Aatlas Market 1.5").contains("chosen in Settings").contains("has not beaten");
 
         DemandTrainer.Verdict sba = DemandTrainer.verdict(methods, Smoothers.SBA);
         assertThat(sba.usable()).isTrue();
         assertThat(sba.proven()).isTrue();
-        assertThat(sba.note()).contains("Croston SBA").contains("It beat the recent average");
+        assertThat(sba.note()).contains("Aatlas Burst 1.2").contains("It beat the recent average");
 
         // Chronos was not running at the last training run: nothing to use, and it says why.
         DemandTrainer.Verdict chronos = DemandTrainer.verdict(methods, Smoothers.CHRONOS);
         assertThat(chronos.usable()).isFalse();
-        assertThat(chronos.note()).contains("Chronos").contains("no forecast for this item");
+        assertThat(chronos.note()).contains("Aatlas Deep 2.0").contains("no forecast for this item");
 
         // The models offered in Settings: automatic first, then every forecaster by its own key and name.
         assertThat(DemandModelService.MODEL_OPTIONS).extracting(com.aatlas.demandmodel.DemandModels.ModelOption::key)

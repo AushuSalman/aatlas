@@ -26,9 +26,26 @@ import org.springframework.web.bind.annotation.RestController;
 class DeliveryModelController {
 
     private final DeliveryModels models;
+    private final DeliveryTrainingSchedule schedule;
 
-    DeliveryModelController(DeliveryModels models) {
+    DeliveryModelController(DeliveryModels models, DeliveryTrainingSchedule schedule) {
         this.models = models;
+        this.schedule = schedule;
+    }
+
+    @Operation(summary = "When the models retrain",
+            description = "Daily, weekly, monthly or only on request, at a local time; optionally also as soon as "
+                    + "enough new received purchase orders are waiting. Includes the next and last run.")
+    @GetMapping("/schedule")
+    com.aatlas.common.schedule.TrainingScheduleDtos.View schedule() {
+        return schedule.get();
+    }
+
+    @Operation(summary = "Change when the models retrain", description = "Only seats that may change the pricing model.")
+    @org.springframework.web.bind.annotation.PutMapping(path = "/schedule", consumes = MediaType.APPLICATION_JSON_VALUE)
+    com.aatlas.common.schedule.TrainingScheduleDtos.View saveSchedule(
+            @org.springframework.web.bind.annotation.RequestBody com.aatlas.common.schedule.TrainingScheduleDtos.Request request) {
+        return schedule.save(request);
     }
 
     @Operation(summary = "The model's status and per-supplier report",

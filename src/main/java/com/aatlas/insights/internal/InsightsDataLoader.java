@@ -44,11 +44,13 @@ class InsightsDataLoader {
     private final SalesHistory salesHistory;
     private final PurchaseHistory purchaseHistory;
     private final DealSummaries dealSummaries;
+    private final com.aatlas.history.MarginProfiles margins;
     private final AatlasClock clock;
 
     InsightsDataLoader(BulkModelReader bulkModelReader, Catalogue catalogue, Reference reference,
             SalesHistory salesHistory, PurchaseHistory purchaseHistory, DealSummaries dealSummaries,
-            AatlasClock clock) {
+            com.aatlas.history.MarginProfiles margins, AatlasClock clock) {
+        this.margins = margins;
         this.bulkModelReader = bulkModelReader;
         this.catalogue = catalogue;
         this.reference = reference;
@@ -116,6 +118,17 @@ class InsightsDataLoader {
                 byOrigin, savedTotalW12, savedTotalW12Prior, overpaidTotalW12);
     }
 
+    /** The learned-margin profile; an empty one (the industry benchmark) if it cannot be read - never a failed page. */
+    private com.aatlas.history.MarginProfiles.Profile marginProfile(LocalDate today) {
+        try {
+            return margins.profile(today);
+        } catch (RuntimeException ex) {
+            org.slf4j.LoggerFactory.getLogger(InsightsDataLoader.class)
+                    .warn("Margin profile unavailable ({}); insights price from the benchmark", ex.getMessage());
+            return com.aatlas.history.MarginProfiles.Profile.empty(today);
+        }
+    }
+
     /**
      * One pair through the same chain the Sell screen runs, from the bulk model's own fields:
      * no per-pair elasticity fit (the default stands, so only the aggressive tier - which
@@ -152,7 +165,13 @@ class InsightsDataLoader {
                 band == null ? null : band.q1(), band == null ? null : band.q3(), band == null ? 0 : band.n(),
                 demand, null, today, commodityPct90, p.rpp(), SalesHistory.Elasticity.defaultValue(), ordersAtStore,
                 benchmark == null ? null : benchmark.targetMarginPct(), guardrails, PricingMath.Track.none(),
-                rampSalt);
+                rampSalt, null,
+                // The same learned margin the Sell screen reads; no track record, so a thin item sits at its start.
+                com.aatlas.history.DynamicMargin.learn(marginProfile(today), p.productId(), p.category(),
+                        currentPrice != null ? currentPrice : ownRef, benchmark, 0,
+                        model.on(PricingModel.MARGIN_PRICE_LEVEL), model.number(PricingModel.MARGIN_ENTRY) / 100,
+                        model.number(PricingModel.MARGIN_RAMP_DECISIONS)),
+                null);
         var recommendation = PricingMath.recommend(inputs, model);
 
         return new PairFacts(p, demand, anchor, commodityPct90, recommendation);

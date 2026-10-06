@@ -159,9 +159,11 @@ final class DemandTrainer {
      * @param response the model that does not: settled units at a price, and the elasticity
      * @param pooled each forecaster's two back-tests summed across every pair (earlier, then later): the report's
      *        view of which forecaster misses least overall; no pair is chosen from it
+     * @param methodMillis how long each forecaster took in this run, by key: the forest's fits and roll-forwards,
+     *        each smoother's tuning and back-tests, the outside forecaster's calls
      */
     record Result(Model<Regressor> forecast, Model<Regressor> response, Map<String, PairEval> evals, int rows,
-            int trainRows, long millis, boolean season, Map<String, Score[]> pooled) {
+            int trainRows, long millis, boolean season, Map<String, Score[]> pooled, Map<String, Long> methodMillis) {
     }
 
     /**
@@ -234,6 +236,8 @@ final class DemandTrainer {
             throw new IllegalStateException("only " + train.size() + " rows before the held-out weeks; " + MIN_ROWS
                     + " needed");
         }
+        Map<String, Long> nanos = new LinkedHashMap<>();
+        long fitStart = System.nanoTime();
         Model<Regressor> scorer = fit(train, s, season, true, learner);
         Model<Regressor> forecast = fit(rows, s, season, true, learner);
         Model<Regressor> response = fit(rows, s, season, false, learner);
@@ -248,8 +252,13 @@ final class DemandTrainer {
         Map<String, Double> scale = calibration(forecast, rows, s.itemOneHot(), season);
         Map<String, Double> earlierScale = earlierScorer == null ? Map.of()
                 : calibration(earlierScorer, earlierTrain, s.itemOneHot(), season);
+        nanos.merge(Smoothers.FOREST, System.nanoTime() - fitStart, Long::sum);
 
+        long outsideStart = System.nanoTime();
         Map<String, Map<Integer, Double>> outsideLevels = outsideLevels(byPair, s, outside);
+        if (outside != null) {
+            nanos.merge(Smoothers.CHRONOS, System.nanoTime() - outsideStart, Long::sum);
+        }
 
         Map<String, PairEval> evals = new LinkedHashMap<>();
         Map<String, Score[]> pooled = new LinkedHashMap<>();
@@ -293,6 +302,7 @@ final class DemandTrainer {
             double earlierK = earlierScale.getOrDefault(e.getKey(), 1.0);
             double[] flat = new double[HORIZON_WEEKS];
             java.util.Arrays.fill(flat, c.lastPrice());
+            long forestStart = System.nanoTime();
             methods.put(Smoothers.FOREST, new MethodEval(
                     earlierScorer == null ? Score.NONE : scoreBlocks(pr, earlierFrom, laterFrom,
                             o -> rollForward(earlierScorer, c, pr.get(o).lags(), pr.get(o).compMedian(), prices(pr, o),
@@ -302,13 +312,16 @@ final class DemandTrainer {
                                     pr.get(o).week(), scorerK, s.itemOneHot(), season)),
                     rollForward(forecast, c, c.lags(), c.compMedian(), flat, c.lastWeek().plusWeeks(1), k,
                             s.itemOneHot(), season)));
+            nanos.merge(Smoothers.FOREST, System.nanoTime() - forestStart, Long::sum);
             for (Smoothers.Method m : Smoothers.METHODS) {
+                long smootherStart = System.nanoTime();
                 // A smoother's settings are chosen from the weeks before the back-test it is scored on.
                 double[] before = Smoothers.levels(m.key(), y, Smoothers.best(m, y, earlierFrom, HORIZON_WEEKS));
                 double[] between = Smoothers.levels(m.key(), y, Smoothers.best(m, y, laterFrom, HORIZON_WEEKS));
                 double[] now = Smoothers.levels(m.key(), y, Smoothers.best(m, y, n, HORIZON_WEEKS));
                 methods.put(m.key(), new MethodEval(scoreBlocks(pr, earlierFrom, laterFrom, o -> before[o]),
                         scoreBlocks(pr, laterFrom, n, o -> between[o]), now[n]));
+                nanos.merge(m.key(), System.nanoTime() - smootherStart, Long::sum);
             }
             Map<Integer, Double> asked = outsideLevels.get(e.getKey());
             if (asked != null && asked.containsKey(n)) {
@@ -326,8 +339,10 @@ final class DemandTrainer {
                     note, v.errorShare(), v.naiveShare(), v.usable(), v.nextUnits(), mean(c.lags()), k, v.method(),
                     v.note(), methods));
         }
+        Map<String, Long> methodMillis = new LinkedHashMap<>();
+        nanos.forEach((k2, v) -> methodMillis.put(k2, Math.max(1, v / 1_000_000)));
         return new Result(forecast, response, evals, rows.size(), train.size(), (System.nanoTime() - t0) / 1_000_000,
-                season, pooled);
+                season, pooled, methodMillis);
     }
 
     /**

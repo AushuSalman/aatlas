@@ -62,12 +62,15 @@ class PricingMathTest {
         PricingMath.Track track = PricingMath.Track.none();
         String rampSalt = "CU-ELBOW-34|100959|2026-09";
         java.util.List<BigDecimal> competitorPrices = null;
+        DynamicMargin.Target margin = null;
+        BigDecimal weeksOfCover = null;
 
         PricingMath.Inputs build() {
             return new PricingMath.Inputs(cost, current, ownRef, ladderAnchor, competitorMedian, competitorCount,
                     competitorLow, competitorHigh,
                     peerQ2, peerQ3, peerStores, bandQ1, bandQ3, bandN, demand, lastSale, TODAY, commodityPct90, rpp,
-                    elasticity, ordersAtStore, benchmarkTargetMarginPct, GUARDRAILS, track, rampSalt, competitorPrices);
+                    elasticity, ordersAtStore, benchmarkTargetMarginPct, GUARDRAILS, track, rampSalt, competitorPrices,
+                    margin, weeksOfCover);
         }
 
         Recommendation run(PricingModel.Config config) {
@@ -627,5 +630,66 @@ class PricingMathTest {
         // 3% under $3 is $2.91, above the 25%-margin floor of $2.67; the ±25% move cap is lifted.
         assertThat(rec.optimal()).isBetween(bd("2.67"), bd("4"));
         assertThat(step(rec, PricingModel.MOVE_CAP).status()).isEqualTo(Step.SKIPPED);
+    }
+
+    // ---- the learned margin and stock ---------------------------------------------------------
+
+    /** No competitor or branch prices: the learned margin is all there is to start from. */
+    private static Case marketless() {
+        Case c = new Case();
+        c.competitorMedian = null;
+        c.competitorCount = 0;
+        c.peerQ2 = null;
+        c.peerQ3 = null;
+        c.peerStores = 0;
+        c.margin = new DynamicMargin.Target(bd("8"), bd("4"), "learned from 600 sales in Electronics",
+                "Electronics earns 8% over 600 sales → target 8%.", "Floor 4% margin: the low end.");
+        return c;
+    }
+
+    @Test
+    void theLearnedFloorReplacesTheFixedMinimumMargin() {
+        Recommendation learned = marketless().run();
+        Recommendation fixed = marketless().run(off(PricingModel.MARGIN_FLOOR_LEARNED));
+
+        // 4% learned on a $6 cost is $6.25; the fixed 25% minimum would be $8.00.
+        assertThat(learned.floor()).isEqualByComparingTo("6.25");
+        assertThat(fixed.floor()).isEqualByComparingTo("8.00");
+    }
+
+    @Test
+    void theLearnedTargetMarginIsTheStartWithoutMarketPrices() {
+        Recommendation learned = marketless().run();
+        Recommendation fixed = marketless().run(off(PricingModel.MARGIN_LEARNED));
+
+        assertThat(learned.anchorSource()).isEqualTo(Anchor.BENCHMARK);
+        // 8% on $6 = $6.52, against the fixed 40% benchmark's $10.
+        assertThat(learned.anchor()).isEqualByComparingTo(PricingMath.priceAtMargin(bd("6"), bd("8")));
+        assertThat(fixed.anchor()).isEqualByComparingTo("10.0000");
+        assertThat(learned.margin()).isNotNull();
+        assertThat(fixed.margin()).isNull();
+        assertThat(step(learned, PricingModel.MARGIN_LEARNED).status()).isEqualTo(Step.APPLIED);
+        assertThat(step(learned, PricingModel.MARGIN_LEARNED).note()).contains("It sets the start");
+    }
+
+    @Test
+    void overStockedLowersThePriceAndNearlyOutRaisesIt() {
+        Case over = new Case();
+        over.weeksOfCover = bd("52");
+        Case low = new Case();
+        low.weeksOfCover = bd("2");
+        Case normal = new Case();
+        normal.weeksOfCover = bd("10");
+
+        Step overStep = step(over.run(off(PricingModel.TRUST_RAMP)), PricingModel.STOCK);
+        Step lowStep = step(low.run(off(PricingModel.TRUST_RAMP)), PricingModel.STOCK);
+        assertThat(overStep.status()).isEqualTo(Step.APPLIED);
+        assertThat(overStep.note()).contains("-4.00%");
+        assertThat(lowStep.status()).isEqualTo(Step.APPLIED);
+        assertThat(lowStep.note()).contains("+1.00%");
+        assertThat(step(normal.run(), PricingModel.STOCK).status()).isEqualTo(Step.SKIPPED);
+        assertThat(step(new Case().run(), PricingModel.STOCK).status()).isEqualTo(Step.SKIPPED);
+        assertThat(over.run(off(PricingModel.TRUST_RAMP)).optimal())
+                .isLessThan(normal.run(off(PricingModel.TRUST_RAMP)).optimal());
     }
 }

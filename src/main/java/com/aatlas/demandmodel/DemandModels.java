@@ -29,8 +29,20 @@ public interface DemandModels {
      */
     Status chooseForecastModel(String key);
 
-    /** A forecasting model a tenant can choose. {@code auto} reads, item by item, the forecaster proven on it. */
-    record ModelOption(String key, String label, String hint) {
+    /**
+     * A forecasting model a tenant can choose. {@code auto} reads, item by item, the forecaster proven on it.
+     *
+     * @param millis how long it took in the last training run; null before a run recorded it
+     * @param accuracyPct how close its four-week forecasts came on the weeks held back from it, across every
+     *        item and branch: 100 − the miss as a share of units sold; null without a scored run
+     * @param beatsPct how much smaller its miss was than the recent average's (negative: larger); null likewise
+     */
+    record ModelOption(String key, String label, String hint, Long millis, java.math.BigDecimal accuracyPct,
+            java.math.BigDecimal beatsPct) {
+
+        public ModelOption(String key, String label, String hint) {
+            this(key, label, hint, null, null, null);
+        }
     }
 
     /** The current tenant's model: whether and when it trained, on how much, and the per-pair report. */

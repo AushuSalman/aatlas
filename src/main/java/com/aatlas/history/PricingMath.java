@@ -253,6 +253,8 @@ public final class PricingMath {
      * @param benchmarkTargetMarginPct the category's target margin, for the benchmark rung
      * @param track the decision-history signals; {@link Track#none()} when the caller has none
      * @param rampSalt what the ramp's wobble hashes: item, branch and month
+     * @param margin the learned target margin and floor ({@link DynamicMargin}), null when not worked out
+     * @param weeksOfCover stock on hand in weeks at the recent selling pace, null without a recent count or sales
      */
     public record Inputs(BigDecimal cost, BigDecimal currentPrice, BigDecimal ownRef, Anchor ladderAnchor,
             BigDecimal competitorMedian, int competitorCount, BigDecimal competitorLow, BigDecimal competitorHigh,
@@ -260,7 +262,21 @@ public final class PricingMath {
             BigDecimal bandQ1, BigDecimal bandQ3, long bandN, Demand demand, LocalDate lastSale, LocalDate today,
             BigDecimal commodityPct90, BigDecimal rpp, SalesHistory.Elasticity elasticity, long ordersAtStore,
             BigDecimal benchmarkTargetMarginPct, Reference.Guardrails guardrails, Track track, String rampSalt,
-            List<BigDecimal> competitorPrices) {
+            List<BigDecimal> competitorPrices, DynamicMargin.Target margin, BigDecimal weeksOfCover) {
+
+        /** The shape before the learned margin and stock cover: both absent, so the fixed rules apply. */
+        public Inputs(BigDecimal cost, BigDecimal currentPrice, BigDecimal ownRef, Anchor ladderAnchor,
+                BigDecimal competitorMedian, int competitorCount, BigDecimal competitorLow, BigDecimal competitorHigh,
+                BigDecimal peerQ2, BigDecimal peerQ3, int peerStores,
+                BigDecimal bandQ1, BigDecimal bandQ3, long bandN, Demand demand, LocalDate lastSale, LocalDate today,
+                BigDecimal commodityPct90, BigDecimal rpp, SalesHistory.Elasticity elasticity, long ordersAtStore,
+                BigDecimal benchmarkTargetMarginPct, Reference.Guardrails guardrails, Track track, String rampSalt,
+                List<BigDecimal> competitorPrices) {
+            this(cost, currentPrice, ownRef, ladderAnchor, competitorMedian, competitorCount, competitorLow,
+                    competitorHigh, peerQ2, peerQ3, peerStores, bandQ1, bandQ3, bandN, demand, lastSale, today,
+                    commodityPct90, rpp, elasticity, ordersAtStore, benchmarkTargetMarginPct, guardrails, track,
+                    rampSalt, competitorPrices, null, null);
+        }
 
         /**
          * The shape before each competitor price was passed in: with only the median, count, low and high, the
@@ -311,6 +327,7 @@ public final class PricingMath {
      * @param maturity how far along the ramp the quoted prices are, 1 with the ramp off
      * @param steps the chain as it ran
      * @param flags {@code constraint_conflict}, {@code tier_gap_infeasible}, {@code competitor_implausible}...
+     * @param margin the learned target margin and floor the chain read, null when the learned margin is off or absent
      */
     public record Recommendation(BigDecimal anchor, String anchorSource, double anchorWeight, BigDecimal ownRef,
             BigDecimal base, BigDecimal afterDemand, BigDecimal afterCommodity, BigDecimal afterRegion,
@@ -318,7 +335,7 @@ public final class PricingMath {
             BigDecimal targetFloor, String ceilingSource, BigDecimal elasticity, double elasticityConfidence,
             String segment, String headlineTier, BigDecimal winTarget, BigDecimal profitTarget,
             BigDecimal profitPeak, double maturity, double contestedness, String externalRole,
-            List<Step> steps, List<String> flags) {
+            List<Step> steps, List<String> flags, DynamicMargin.Target margin) {
 
         public static final String FLAG_CONSTRAINT_CONFLICT = "constraint_conflict";
         public static final String FLAG_TIER_GAP_INFEASIBLE = "tier_gap_infeasible";
@@ -427,7 +444,14 @@ public final class PricingMath {
         String headline = "regular".equals(segment) ? "optimal" : "aggressive";
 
         // ---- 3. hard floor ---------------------------------------------------------------
-        BigDecimal hardFloor = cost != null ? priceAtMargin(cost, g.minMarginPct()) : min(own, in.bandQ1());
+        // The learned floor - the low end of the margins really sold at, never below cost - replaces the one
+        // fixed minimum margin for every item, cheap or dear. Switched off, the fixed minimum applies.
+        DynamicMargin.Target margin = in.margin();
+        boolean learnedOn = margin != null && cfg.on(PricingModel.MARGIN_LEARNED);
+        boolean learnedFloor = margin != null && cfg.on(PricingModel.MARGIN_FLOOR_LEARNED);
+        BigDecimal hardFloor = cost == null ? min(own, in.bandQ1())
+                : learnedFloor ? max(priceAtMargin(cost, margin.floorPct()), cost)
+                : priceAtMargin(cost, g.minMarginPct());
 
         // ---- 4. competitors --------------------------------------------------------------
         boolean competitorsOn = cfg.on(PricingModel.COMPETITORS);
@@ -629,8 +653,9 @@ public final class PricingMath {
                 ladderCompetitorAnchor = true;
             } else if (peerQ2 != null && in.peerStores() > 0) {
                 a = new Anchor(peerQ2, Anchor.PEER, in.peerStores());
-            } else if (cost != null && in.benchmarkTargetMarginPct() != null) {
-                BigDecimal b = priceAtMargin(cost, in.benchmarkTargetMarginPct());
+            } else if (cost != null && (learnedOn || in.benchmarkTargetMarginPct() != null)) {
+                // The learned target margin when on; the fixed category benchmark otherwise.
+                BigDecimal b = priceAtMargin(cost, learnedOn ? margin.targetPct() : in.benchmarkTargetMarginPct());
                 if (b != null) {
                     a = new Anchor(b, Anchor.BENCHMARK, 0);
                 }
@@ -685,6 +710,17 @@ public final class PricingMath {
                 : competitorsOn ? Step.SKIPPED : Step.OFF, competitorNote);
         r.step(PricingModel.COMPETITORS_MARKET_GAP, "Market gap", marketGapStatus, marketGapNote);
         r.step(PricingModel.ANCHOR_INTERNAL, "Anchor", Step.APPLIED, anchorNote);
+        if (margin == null) {
+            r.step(PricingModel.MARGIN_LEARNED, "Target margin", cfg.on(PricingModel.MARGIN_LEARNED) ? Step.SKIPPED
+                    : Step.OFF, cfg.on(PricingModel.MARGIN_LEARNED) ? "Not worked out for this item."
+                            : "Off; the fixed benchmark margin for the category is used.");
+        } else {
+            String used = !learnedOn ? "Off; the fixed benchmark margin for the category is used. "
+                    : Anchor.BENCHMARK.equals(anchorSource) ? "It sets the start: no competitor or branch prices. "
+                    : "Market and branch prices lead; the target is shown for reference. ";
+            r.step(PricingModel.MARGIN_LEARNED, "Target margin", learnedOn ? Step.APPLIED : Step.OFF,
+                    used + margin.note() + (learnedFloor && cost != null ? " " + margin.floorNote() : ""));
+        }
 
         // ---- 6. corridor -----------------------------------------------------------------
         BigDecimal targetFloor = hardFloor;
@@ -831,6 +867,35 @@ public final class PricingMath {
                 if (forecast) {
                     r.flags.add(Recommendation.FLAG_DEMAND_FORECAST);
                 }
+            }
+        }
+
+        // ---- 9b. stock on hand ------------------------------------------------------------
+        // Weeks of stock at the recent pace: well over-stocked moves the price down to sell it through,
+        // nearly out moves it up a little. Bounded; a market-led price is left alone.
+        if (!cfg.on(PricingModel.STOCK)) {
+            r.step(PricingModel.STOCK, "Stock on hand", Step.OFF, "Off.");
+        } else if (in.weeksOfCover() == null) {
+            r.step(PricingModel.STOCK, "Stock on hand", Step.SKIPPED,
+                    "No recent stock count with a selling pace to measure cover against.");
+        } else if (marketGap) {
+            r.step(PricingModel.STOCK, "Stock on hand", Step.SKIPPED, "Market gap: the market-led price holds.");
+        } else {
+            double cover = in.weeksOfCover().doubleValue();
+            double over = cfg.number(PricingModel.STOCK_OVERSTOCK_WEEKS);
+            double low = cfg.number(PricingModel.STOCK_LOW_WEEKS);
+            double maxMove = cfg.number(PricingModel.STOCK_MAX_MOVE);
+            double move = cover > over ? -maxMove * Math.min(1, (cover - over) / over)
+                    : cover < low ? maxMove / 2 * (1 - cover / low) : 0;
+            String weeks = fmt(cover, cover < 10 ? 1 : 0) + " weeks of stock";
+            if (Math.abs(move) < 0.05) {
+                r.step(PricingModel.STOCK, "Stock on hand", Step.SKIPPED, weeks + ", between "
+                        + fmt(low, 0) + " and " + fmt(over, 0) + " weeks: no change.");
+            } else {
+                r.scaleBoth(1 + move / 100);
+                r.step(PricingModel.STOCK, "Stock on hand", Step.APPLIED, weeks + (move < 0
+                        ? ", over " + fmt(over, 0) + " weeks: " + signed(move, 2) + "% to sell it through."
+                        : ", under " + fmt(low, 0) + " weeks: " + signed(move, 2) + "% while it is scarce."));
             }
         }
 
@@ -1025,7 +1090,7 @@ public final class PricingMath {
                 afterCommodity, afterRegion, hardFloor, round2(ceiling), r.win, r.profit,
                 round2(targetFloor), ceilingSource, BigDecimal.valueOf(e).setScale(4, ROUNDING), eConfidence,
                 segment, headline, round2(winTarget), round2(profitTarget), round2(profitPeak), maturity,
-                contested, externalRole, List.copyOf(r.steps), List.copyOf(r.flags)));
+                contested, externalRole, List.copyOf(r.steps), List.copyOf(r.flags), learnedOn ? margin : null));
     }
 
     /**

@@ -39,6 +39,11 @@ public class DemandModelEntity {
     @Column(name = "pairs", nullable = false, columnDefinition = "jsonb")
     private Map<String, PairRecord> pairs = new LinkedHashMap<>();
 
+    /** How long each forecaster took in the last run, by key (ms); empty before it was recorded. */
+    @Type(JsonType.class)
+    @Column(name = "method_millis", columnDefinition = "jsonb")
+    private Map<String, Long> methodMillis = new LinkedHashMap<>();
+
     @Column(name = "trained_at")
     private Instant trainedAt;
 
@@ -102,6 +107,7 @@ public class DemandModelEntity {
 
     void trained(byte[] bytes, byte[] responseBytes, Map<String, PairRecord> pairs, Instant at, int rows, int weeks,
             LocalDate from, LocalDate to, int holdoutWeeks, long millis, String note) {
+        this.methodMillis = new LinkedHashMap<>();
         this.model = bytes;
         this.responseModel = responseBytes;
         this.pairs = new LinkedHashMap<>(pairs);
@@ -179,5 +185,13 @@ public class DemandModelEntity {
 
     public Long getVersion() {
         return version;
+    }
+
+    Map<String, Long> getMethodMillis() {
+        return methodMillis == null ? Map.of() : methodMillis;
+    }
+
+    void methodMillis(Map<String, Long> millis) {
+        this.methodMillis = new LinkedHashMap<>(millis);
     }
 }

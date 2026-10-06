@@ -88,10 +88,15 @@ class PricingMethod {
                                 + "a different size)."));
 
         List<Step> single = List.of(
-                new Step("Market anchor", "competitor median → peer median → benchmark → last price",
+                new Step("Market anchor", "competitor median → peer median → target margin on cost → last price",
                         "The first one available: the competitor median; else what your other branches charge "
-                                + "(median); else cost ÷ (1 − the category's benchmark margin); else this branch's last "
-                                + "price."),
+                                + "(median); else cost ÷ (1 − the target margin); else this branch's last price."),
+                new Step("Target margin", "learned: category margin → price level → item margin → new-item start",
+                        "Not one fixed percentage. The margin you really earn in the item's category (an industry "
+                                + "benchmark only until it has sales), moved for the item's price level - pricier items "
+                                + "carry a lower percentage, learned across your catalogue - then toward the item's own "
+                                + "margin as its sales grow. A new item starts a little below and works up as you apply "
+                                + "prices for it."),
                 new Step("Blend with your own last price",
                         "base = anchor × w + your last price × (1 − w)",
                         "w depends on how much the anchor is worth: competitor " + weight(PricingMath.WEIGHT_COMPETITOR)
@@ -100,6 +105,9 @@ class PricingMethod {
                 new Step("Demand", "× (1 + move%), move = clamp(trend% × 0.15, −3%, +3%) × confidence",
                         "Trend is recent vs prior sales at this branch; confidence grows from 0.35 to 0.95 with up to "
                                 + "60 transactions."),
+                new Step("Stock on hand", "× (1 + move%), up to ±4%",
+                        "Weeks of stock at the recent selling pace: well over-stocked lowers the price to sell it "
+                                + "through; nearly out raises it a little."),
                 new Step("Commodity", "× (1 + 90-day index move × " + weight(PricingMath.COMMODITY_PASS_THROUGH) + ")",
                         "A quarter of the item's commodity index move (copper, plastics pipe, steel…) over three months "
                                 + "reaches the price. The move is the US producer price index from FRED when connected, "
@@ -107,9 +115,11 @@ class PricingMethod {
                 new Step("Region", "× (1 − (RPP − 100)/100 × 0.55)",
                         "Regional price parity of the branch's metro. Skipped when the anchor is a competitor price - "
                                 + "that is already a local market price."),
-                new Step("Floor", "cost ÷ (1 − " + g.minMarginPct().stripTrailingZeros().toPlainString() + "%)",
-                        "Never under your minimum margin. With no cost on file: never under your last price or the "
-                                + "lower quartile of your own prices."),
+                new Step("Floor", "cost ÷ (1 − the lowest margin you really sell at)",
+                        "The low end of the margins actually sold at for the item, else its category - never below "
+                                + "cost. Switch learning it off and your fixed minimum margin ("
+                                + g.minMarginPct().stripTrailingZeros().toPlainString() + "%) applies instead. With no "
+                                + "cost on file: never under your last price or the lower quartile of your own prices."),
                 new Step("Ceiling", "max(peers' upper quartile, anchor × (1 + "
                                 + g.maxMarketDeviationPct().stripTrailingZeros().toPlainString() + "%))",
                         "Never more than your max market deviation above the market."),
